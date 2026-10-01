@@ -1,0 +1,23 @@
+.git
+.github
+.next
+.e2e
+node_modules
+dist
+coverage
+playwright-report
+test-results
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Specs, designs and agent notes are not part of the runtime image.
+specs
+designs
+agent_docs
+docs
+e2e
+tests
+.next-*

@@ -1,0 +1,15 @@
+.next
+node_modules
+pnpm-lock.yaml
+drizzle
+designs
+specs
+coverage
+playwright-report
+test-results
+CLAUDE.md
+DESIGN.md
+.claude
+dist
+public/emojibase
+.next-*

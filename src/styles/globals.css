@@ -1,0 +1,451 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/newsreader/opsz.css";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tokens come from DESIGN.md (Paper Daybook). Light is the paper ladder, dark is a
+ * separate warm-charcoal design. Names follow shadcn/ui; the mapping table in
+ * DESIGN.md is the source. Note: shadcn's --secondary/--muted are the "neutral"
+ * ground, and --muted-foreground is DESIGN's "secondary" (graphite) text color.
+ */
+/* `.light` lets a light preview sit inside a dark page (Settings → Appearance). */
+:root,
+.light {
+  --background: #faf8f2;
+  --foreground: #221d18;
+  --card: #fdfcf8;
+  --card-foreground: #221d18;
+  --popover: #fdfcf8;
+  --popover-foreground: #221d18;
+  --overlay: #fdfcf8;
+  --muted: #f3f0e9;
+  --secondary: #f3f0e9;
+  --secondary-foreground: #221d18;
+  --muted-foreground: #605a53;
+  --accent: #ede9e1;
+  --accent-foreground: #221d18;
+  --primary: #1b5687;
+  --primary-strong: #083f6c;
+  --primary-subtle: #d6e9f7;
+  --primary-foreground: #faf8f2;
+  --border: #e1dcd4;
+  --input: #867f76;
+  --ring: #1b5687;
+  --destructive: #9a322a;
+  --destructive-subtle: #ffe4df;
+  --destructive-foreground: #faf8f2;
+  --warning: #805307;
+  --warning-subtle: #f9eaca;
+  --success: #2e663c;
+  --info: #1b5687;
+  --scrim: #221d1852;
+  --sidebar: #f3f0e9;
+  --sidebar-foreground: #221d18;
+  --sidebar-accent: #ede9e1;
+  --sidebar-primary: #d6e9f7;
+  --sidebar-primary-foreground: #1b5687;
+  --sidebar-border: #e1dcd4;
+  --sidebar-ring: #1b5687;
+  --float-shadow: 0 1px 2px rgb(34 29 24 / 0.1), 0 8px 24px -4px rgb(34 29 24 / 0.14);
+
+  --tag-slate: #707f8f;
+  --tag-red: #bb584f;
+  --tag-amber: #af7a31;
+  --tag-green: #4b8b5a;
+  --tag-teal: #368986;
+  --tag-blue: #4489ae;
+  --tag-violet: #886aaa;
+  --tag-pink: #b16389;
+}
+
+.dark {
+  --background: #15120e;
+  --foreground: #e9e6df;
+  --card: #1f1b17;
+  --card-foreground: #e9e6df;
+  --popover: #1f1b17;
+  --popover-foreground: #e9e6df;
+  --overlay: #292420;
+  --muted: #0e0c09;
+  --secondary: #0e0c09;
+  --secondary-foreground: #e9e6df;
+  --muted-foreground: #a9a49c;
+  --accent: #1f1b17;
+  --accent-foreground: #e9e6df;
+  --primary: #77b9e8;
+  --primary-strong: #96cff6;
+  --primary-subtle: #193043;
+  --primary-foreground: #15120e;
+  --border: #322d27;
+  --input: #807971;
+  --ring: #77b9e8;
+  --destructive: #ed8c80;
+  --destructive-subtle: #451e1a;
+  --destructive-foreground: #15120e;
+  --warning: #dbb06b;
+  --warning-subtle: #3b2b0d;
+  --success: #82c38f;
+  --info: #77b9e8;
+  --scrim: #0a08078f;
+  --sidebar: #0e0c09;
+  --sidebar-foreground: #e9e6df;
+  --sidebar-accent: #1f1b17;
+  --sidebar-primary: #193043;
+  --sidebar-primary-foreground: #77b9e8;
+  --sidebar-border: #322d27;
+  --sidebar-ring: #77b9e8;
+  --float-shadow: none;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-overlay: var(--overlay);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-scrim: var(--scrim);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-tag-slate: var(--tag-slate);
+  --color-tag-red: var(--tag-red);
+  --color-tag-amber: var(--tag-amber);
+  --color-tag-green: var(--tag-green);
+  --color-tag-teal: var(--tag-teal);
+  --color-tag-blue: var(--tag-blue);
+  --color-tag-violet: var(--tag-violet);
+  --color-tag-pink: var(--tag-pink);
+
+  --font-serif: "Newsreader Variable", Newsreader, "Source Serif 4", Georgia, serif;
+  --font-sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* cut paper: a different radius for each class of object */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 10px;
+
+  --container-auth: 400px;
+  --container-content: 880px;
+  --container-editor: 760px;
+  --container-command: 640px;
+  --container-dialog: 440px;
+  --container-sheet: 480px;
+  --spacing-sidebar: 240px;
+  --spacing-row: 36px;
+  --spacing-row-touch: 44px;
+  --spacing-control: 32px;
+  --spacing-topbar: 48px;
+
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--primary-subtle);
+    color: var(--foreground);
+  }
+
+  /* 16px inputs on touch widths so iOS does not zoom on focus */
+  @media (max-width: 767px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Type scale from DESIGN.md. Only weights 400 and 600 exist. */
+@utility type-display {
+  font-family: var(--font-serif);
+  font-size: 40px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 72;
+}
+@utility type-headline-lg {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  font-variation-settings: "opsz" 48;
+}
+@utility type-headline-md {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  font-variation-settings: "opsz" 24;
+}
+@utility type-headline-sm {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variation-settings: "opsz" 16;
+}
+@utility type-body-lg {
+  font-size: 16px;
+  line-height: 1.55;
+}
+@utility type-body-md {
+  font-size: 14px;
+  line-height: 1.5;
+}
+@utility type-body-sm {
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: 0.005em;
+}
+@utility type-label-md {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+@utility type-label-caps {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+@utility type-data-md {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.45;
+  font-feature-settings: "tnum" 1;
+}
+@utility type-data-sm {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  font-feature-settings: "tnum" 1;
+}
+@utility type-kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+/* Floating layers are the only things that cast a shadow (none in dark). */
+@utility shadow-float {
+  box-shadow: var(--float-shadow);
+}
+
+/* Rich text (Tiptap). Compact in task descriptions; the document variant is for notes. */
+.rich-text .ProseMirror {
+  outline: none;
+  min-height: 3.5rem;
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.rich-text .ProseMirror > * + * {
+  margin-top: 0.5em;
+}
+.rich-text .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.rich-text .ProseMirror h1,
+.rich-text .ProseMirror h2,
+.rich-text .ProseMirror h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.rich-text .ProseMirror h1 {
+  font-size: 22px;
+  font-variation-settings: "opsz" 24;
+}
+.rich-text .ProseMirror h2 {
+  font-size: 19px;
+  font-variation-settings: "opsz" 20;
+}
+.rich-text .ProseMirror h3 {
+  font-size: 16px;
+  font-variation-settings: "opsz" 16;
+}
+.rich-text .ProseMirror ul:not([data-type="taskList"]),
+.rich-text .ProseMirror ol {
+  padding-left: 1.25rem;
+}
+.rich-text .ProseMirror ul:not([data-type="taskList"]) {
+  list-style: disc;
+}
+.rich-text .ProseMirror ol {
+  list-style: decimal;
+}
+.rich-text .ProseMirror li > p {
+  margin: 0;
+}
+.rich-text .ProseMirror li + li {
+  margin-top: 0.25em;
+}
+.rich-text .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+.rich-text .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.rich-text .ProseMirror ul[data-type="taskList"] li > label {
+  flex: none;
+  padding-top: 0.2em;
+  user-select: none;
+}
+.rich-text .ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.rich-text .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+/* Checklist boxes are square, like Task checkboxes (DESIGN.md). */
+.rich-text .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  appearance: none;
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--input);
+  border-radius: 3px;
+  background: var(--background);
+  cursor: pointer;
+}
+.rich-text .ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23faf8f2' stroke-width='1.8'%3E%3Cpath d='m2.5 6.2 2.3 2.3 4.7-5'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 12px;
+}
+.dark .rich-text .ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%2315120e' stroke-width='1.8'%3E%3Cpath d='m2.5 6.2 2.3 2.3 4.7-5'/%3E%3C/svg%3E");
+}
+.rich-text .ProseMirror blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 1rem;
+  color: var(--muted-foreground);
+}
+.rich-text .ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--secondary);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+}
+.rich-text .ProseMirror pre {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--secondary);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+}
+.rich-text .ProseMirror pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+.rich-text .ProseMirror hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1em 0;
+}
+.rich-text .ProseMirror a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* Notes use the same editor with a serif reading face (DESIGN.md: note-body). */
+.rich-text-document .ProseMirror {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.65;
+  min-height: 40vh;
+  font-variation-settings: "opsz" 16;
+}

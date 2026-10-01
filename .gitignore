@@ -1,0 +1,31 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# next
+.next
+out
+next-env.d.ts
+
+# env (never commit real secrets)
+.env
+.env.*
+!.env.example
+
+# testing
+coverage
+playwright-report
+test-results
+.e2e
+
+# misc
+.DS_Store
+*.tsbuildinfo
+*.log
+backups
+.vercel
+dist
+public/emojibase
+# Claude Code local settings and skills
+.claude/
+.next-*

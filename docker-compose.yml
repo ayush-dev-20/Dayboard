@@ -1,0 +1,69 @@
+# Local development. The everyday workflow is:
+#
+#   docker compose up -d db     # PostgreSQL only
+#   pnpm dev                    # the app, natively (faster than running Next in Docker on a Mac)
+#
+# `--profile full` also builds and runs the production image, to check container behavior:
+#
+#   BETTER_AUTH_SECRET=$(openssl rand -base64 32) docker compose --profile full up --build
+#
+# Production uses docker-compose.prod.yml (added with feature 06).
+
+name: dayboard
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: dayboard
+      POSTGRES_PASSWORD: dayboard
+      POSTGRES_DB: dayboard
+    # Bound to localhost only. Set DB_PORT if 5432 is already taken on your machine.
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - dayboard-db-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dayboard -d dayboard"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    profiles: ["full"]
+    build:
+      context: .
+      args:
+        APP_VERSION: local
+    command: ["node", "migrate.mjs"]
+    environment:
+      DATABASE_URL: postgres://dayboard:dayboard@db:5432/dayboard
+      MIGRATIONS_FOLDER: ./drizzle/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      args:
+        APP_VERSION: local
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://dayboard:dayboard@db:5432/dayboard
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET (openssl rand -base64 32)}
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # A production build refuses to start without a mail provider. E2E=true swaps in the console
+      # sender, which writes each email to /tmp/emails.jsonl: docker compose exec web cat /tmp/emails.jsonl
+      E2E: "true"
+      E2E_EMAIL_FILE: /tmp/emails.jsonl
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  dayboard-db-dev:
