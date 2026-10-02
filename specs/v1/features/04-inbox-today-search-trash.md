@@ -178,3 +178,18 @@ Query: `listTrash(userId, { type?, cursor })`, a `UNION ALL` over the five table
 - Automatic trash purge
 - Saved searches
 - Email-to-inbox, browser-extension capture
+
+---
+
+## 10. As built (2026-10-02)
+
+Where the build differs from the text above (details in `agent_docs/inbox-today-search-trash_v1.md`):
+
+- **Convert (§3):** the Convert button is a menu of the five targets; each opens the same dialog on that tab, and the tabs can be switched inside it. A task can be kept at Inbox status with "Decide later".
+- **Capture (§3):** a failed save, including a dropped connection, keeps the text and shows Retry. Capture from the menu's typed-text row closes the menu first and reports through a toast (with Retry).
+- **Today (§4):** Focus has a checkbox so it can be completed from the card. "Show all" appears when more than 10 tasks are overdue. The sidebar shows how many tasks are due or overdue and how many inbox items are open.
+- **Search (§5):** projects are matched on name and description. A status filter narrows results to tasks; a tag filter to tasks and notes; "No project" includes items whose project is in Trash. The date range also has presets (Today, Past/Next 7 days, Past 30 days). `GET /api/search?recent=1` returns the menu's recent items.
+- **Trash (§6):** a subtask deleted on its own is listed (only subtasks deleted together with their parent are folded into it). Paging is by cursor ("Show older items"). Restore shows "Restored." with an Open action.
+- **Not built:** inline editing of an inbox item (the action exists), AI slots (feature 05), `pg_trgm` indexes.
+- **Tests (§7):** the integration layer is added (conversion transactions, Today sections, search isolation and escaping, Trash restore and empty). Unit tests cover escaping, ranking, multibyte snippets, conversion fields and Today bucketing across time zones.
+

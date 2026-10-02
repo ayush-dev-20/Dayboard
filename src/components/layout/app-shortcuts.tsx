@@ -2,14 +2,16 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useCommandMenu } from "@/components/command/command-context";
 import { FOCUS_ADD_EVENT, isTypingTarget } from "@/lib/shortcuts";
 
 /**
- * Single-key shortcuts: N starts a new task, T a new todo, Shift+N a new note. They do nothing while
+ * Single-key shortcuts: N starts a new task, T a new todo, Shift+N a new note, C a quick capture. They do nothing while
  * the person is typing, while a dialog or menu is open, or when Ctrl, Cmd or Alt is held.
  */
 export function AppShortcuts() {
   const router = useRouter();
+  const command = useCommandMenu();
 
   useEffect(() => {
     function startNew(view: "tasks" | "todos") {
@@ -44,12 +46,16 @@ export function AppShortcuts() {
       } else if (key === "t") {
         event.preventDefault();
         startNew("todos");
+      } else if (key === "c") {
+        // Quick capture to the Inbox, from anywhere.
+        event.preventDefault();
+        command.open("capture");
       }
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [router]);
+  }, [router, command]);
 
   return null;
 }

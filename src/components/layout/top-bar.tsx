@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Plus, Search } from "lucide-react";
+import { useCommandMenu } from "@/components/command/command-context";
 import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 import {
@@ -21,10 +22,11 @@ type Props = { name: string; email: string };
 /**
  * 48px row with a hairline, no fill. Desktop: search trigger, Quick capture, account. Tablet adds a
  * menu button that opens the sidebar as a sheet. Mobile shows the page title and a search icon.
- * Search and Quick capture are wired up in feature 04, so they are disabled until then.
+
  */
 export function TopBar({ name, email }: Props) {
   const pathname = usePathname();
+  const command = useCommandMenu();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -54,9 +56,8 @@ export function TopBar({ name, email }: Props) {
 
       <button
         type="button"
-        disabled
-        title="Coming soon"
-        className="hidden h-8 max-w-md flex-1 items-center gap-2 rounded-md px-2 type-body-md text-muted-foreground disabled:opacity-60 md:flex"
+        onClick={() => command.open("search")}
+        className="hidden h-8 max-w-md flex-1 items-center gap-2 rounded-md px-2 type-body-md text-muted-foreground hover:bg-accent md:flex"
       >
         <Search className="size-4" strokeWidth={1.5} aria-hidden />
         <span className="flex-1 text-left">Search, ask or create</span>
@@ -67,19 +68,17 @@ export function TopBar({ name, email }: Props) {
 
       <button
         type="button"
-        disabled
+        onClick={() => command.open("search")}
         aria-label="Search"
-        title="Coming soon"
-        className="inline-flex size-11 items-center justify-center rounded-md text-muted-foreground disabled:opacity-60 md:hidden"
+        className="inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent md:hidden"
       >
         <Search className="size-5" strokeWidth={1.5} aria-hidden />
       </button>
 
       <button
         type="button"
-        disabled
-        title="Coming soon"
-        className="hidden h-8 items-center gap-2 rounded-md px-2 type-label-md text-muted-foreground disabled:opacity-60 md:inline-flex"
+        onClick={() => command.open("capture")}
+        className="hidden h-8 items-center gap-2 rounded-md px-2 type-label-md text-muted-foreground hover:bg-accent hover:text-foreground md:inline-flex"
       >
         <Plus className="size-4" strokeWidth={1.5} aria-hidden /> Quick capture
       </button>

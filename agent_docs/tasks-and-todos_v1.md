@@ -15,7 +15,7 @@ Tasks and todos are the daily-use core, so everything here has to be quick and s
 
 ## What was deferred
 - Project, tags and related notes on a task: done in feature 03 (`notes-projects-tags_v1.md`), which also added the `project_id` foreign key.
-- Trash screen, Inbox, Today content, search and the "Quick capture" / "Create" buttons (still disabled): feature 04. Trashed rows are only restorable through the Undo toast until then. AI actions on a task: feature 05.
+- Trash screen, Inbox, Today content, search and Quick capture / Create: built in feature 04 (`inbox-today-search-trash_v1.md`). AI actions on a task: feature 05.
 - Drag and drop (not wanted in V1), custom repeat rules, turning a todo into a task (V2).
 
 ## Related files
@@ -39,6 +39,7 @@ Tasks and todos are the daily-use core, so everything here has to be quick and s
 - The Cancelled badge is inside the row's title button, so its accessible name is "<title> Cancelled".
 - `pnpm db:seed` also gives the demo user sample tasks and todos (only if they have none).
 - **Checklists in task descriptions** now save their ticked state (feature 03 fixed a bug where it was lost; see its hand-off notes).
+- **Task panel states (added later):** the docked panel can be dragged wider or narrower (360–960px, remembered in `localStorage`), expanded to fill the content area, or minimized to a bar at the bottom right. State is a small external store (`components/tasks/sheet-state.ts`, `useSyncExternalStore`) so the panel and the list beside it (`TaskListShell`) agree without props; Esc goes expanded → docked → closed; `useOpenTask`/`useCloseTask` reset it to docked. Task rows use container queries, so project and tag chips hide when the list is narrow. `DESIGN.md` and the UI/UX spec describe it; the HTML in `designs/` was not regenerated.
 - **Design vs spec:** the design shows the detail as a docked panel, spec 02 said "side sheet"; the design was followed (spec updated).
 
 ## Not verified

@@ -1,7 +1,17 @@
 import { expect, type Page } from "@playwright/test";
 import { test } from "./fixtures";
-import { findUser, insertNote, insertProject, insertTask, noteByTitle } from "./db";
-import { signUp, taskRow } from "./helpers";
+import {
+  findUser,
+  inboxItemsOf,
+  insertInboxItem,
+  insertNote,
+  insertProject,
+  insertTask,
+  insertTodo,
+  noteByTitle,
+  trashRow,
+} from "./db";
+import { signUp, taskRow, today } from "./helpers";
 
 async function hasHorizontalScroll(page: Page) {
   return page.evaluate(
@@ -273,5 +283,82 @@ test.describe("phone", () => {
         .boundingBox();
       expect(b!.height).toBeGreaterThanOrEqual(44);
     }
+  });
+
+  test("Today, Inbox, Search and Trash fit a 360px phone without sideways scrolling", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    const account = await signUp(page);
+    const user = (await findUser(account.email))!;
+    await insertTask(user.id, {
+      title: "A fairly long task title that must truncate nicely on a phone",
+      dueDate: today(-1),
+    });
+    await insertTodo(user.id, { title: "A todo" });
+    await insertNote(user.id, {
+      title: "A note with a long name that should not push the page wider",
+      text: "body",
+    });
+    await insertInboxItem(user.id, "A long captured thought ".repeat(12));
+    const trashed = await insertTask(user.id, {
+      title: "Trashed with a very very long title that keeps going",
+    });
+    await trashRow("tasks", trashed);
+    for (const path of ["/today", "/inbox", "/search?q=note", "/search", "/trash"]) {
+      await page.goto(path);
+      expect(await hasHorizontalScroll(page), path).toBe(false);
+    }
+  });
+
+  test("the command menu is a full-screen sheet on a phone, and capture works by touch", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    const account = await signUp(page);
+    const user = (await findUser(account.email))!;
+    await insertNote(user.id, { title: "Phone findable note", text: "x" });
+    await page.goto("/today");
+
+    await page.getByRole("button", { name: "Search", exact: true }).tap();
+    const dialog = page.getByRole("dialog");
+    const box = await dialog.boundingBox();
+    expect(box!.width).toBe(390);
+    expect(box!.height).toBeGreaterThanOrEqual(790);
+
+    await page.keyboard.type("findable");
+    await dialog.getByRole("option", { name: /Phone findable note/ }).tap();
+    await expect(page).toHaveURL(/\/notes\//);
+
+    await page.goto("/today");
+    await page.getByLabel("Capture to Inbox").fill("Captured on a phone");
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("Saved to Inbox.")).toBeVisible();
+    await expect
+      .poll(async () => (await inboxItemsOf(user.id)).map((i) => i.text))
+      .toEqual(["Captured on a phone"]);
+  });
+
+  test("converting an inbox item works on a phone: the dialog fits and its controls are tappable", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 700 });
+    const account = await signUp(page);
+    const user = (await findUser(account.email))!;
+    await insertInboxItem(user.id, "Phone thought\nwith more detail");
+    await page.goto("/inbox");
+
+    await page.getByRole("button", { name: "Convert" }).tap();
+    await page.getByRole("menuitem", { name: "Todo", exact: true }).tap();
+    const dialog = page.getByRole("dialog");
+    const box = await dialog.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+    for (const name of ["Cancel", "Create todo"]) {
+      const b = await dialog.getByRole("button", { name }).boundingBox();
+      expect(b!.height).toBeGreaterThanOrEqual(44);
+    }
+    await dialog.getByRole("button", { name: "Create todo" }).tap();
+    await expect(page.getByText("Converted to a todo.")).toBeVisible();
   });
 });

@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
+import type { Executor } from "@/db/executor";
 import { assertOwnedProject } from "@/db/mutations/guards";
 import { projects, notes, tasks, todos, type NewProject, type Project } from "@/db/schema";
 import { DEFAULT_PROJECT_COLOR } from "@/lib/colors";
@@ -38,9 +39,10 @@ export function toProjectDTO(row: Project): ProjectDTO {
 export async function createProject(
   userId: string,
   input: CreateProjectInput,
+  executor: Executor = db,
 ): Promise<ProjectDTO> {
   const status = input.status ?? "ACTIVE";
-  const [created] = await db
+  const [created] = await executor
     .insert(projects)
     .values({
       userId,

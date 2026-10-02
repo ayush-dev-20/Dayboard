@@ -1,3 +1,4 @@
+import { CommandProvider } from "@/components/command/command-provider";
 import { AppShortcuts } from "./app-shortcuts";
 import { MobileNav } from "./mobile-nav";
 import { SidebarNav } from "./sidebar-nav";
@@ -11,23 +12,25 @@ type Props = { name: string; email: string; children: React.ReactNode };
  */
 export function AppShell({ name, email, children }: Props) {
   return (
-    <div className="min-h-dvh">
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-sidebar border-r border-sidebar-border bg-sidebar lg:block">
-        <SidebarNav />
-      </aside>
+    <CommandProvider>
+      <div className="min-h-dvh">
+        <aside className="fixed inset-y-0 left-0 z-10 hidden w-sidebar border-r border-sidebar-border bg-sidebar lg:block">
+          <SidebarNav />
+        </aside>
 
-      <div className="lg:pl-sidebar">
-        <TopBar name={name} email={email} />
-        <main
-          id="main"
-          className="px-4 pt-6 pb-[calc(56px+env(safe-area-inset-bottom)+24px)] md:px-8 md:pt-8 md:pb-12"
-        >
-          {children}
-        </main>
+        <div className="lg:pl-sidebar">
+          <TopBar name={name} email={email} />
+          <main
+            id="main"
+            className="px-4 pt-6 pb-[calc(56px+env(safe-area-inset-bottom)+24px)] md:px-8 md:pt-8 md:pb-12"
+          >
+            {children}
+          </main>
+        </div>
+
+        <AppShortcuts />
+        <MobileNav />
       </div>
-
-      <AppShortcuts />
-      <MobileNav />
-    </div>
+    </CommandProvider>
   );
 }

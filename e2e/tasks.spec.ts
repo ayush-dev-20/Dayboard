@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { test } from "./fixtures";
 import { findUser, insertTask, taskByTitle } from "./db";
 import { addTask, chipFor, detailPanel, openTask, signUp, taskRow, today } from "./helpers";
@@ -308,25 +308,31 @@ test.describe("repeating tasks", () => {
     const days = page.getByRole("group", { name: "Days of the week" });
     await expect(days.getByRole("button", { pressed: true })).toHaveCount(1);
 
-    await days.getByRole("button", { name: "Monday" }).click();
-    await days.getByRole("button", { name: "Wednesday" }).click();
-    await expect(days.getByRole("button", { name: "Monday" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await expect(days.getByRole("button", { name: "Wednesday" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    // Whichever weekday "today" is, it starts chosen; pick two others so the test doesn't depend on the date.
+    const names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const anchor = (
+      await Promise.all(
+        names.map(async (n) =>
+          (await days.getByRole("button", { name: n }).getAttribute("aria-pressed")) === "true"
+            ? n
+            : null,
+        ),
+      )
+    ).find(Boolean)!;
+    const [one = "Monday", two = "Tuesday"] = names.filter((n) => n !== anchor);
+    await days.getByRole("button", { name: one }).click();
+    await days.getByRole("button", { name: two }).click();
+    await expect(days.getByRole("button", { name: one })).toHaveAttribute("aria-pressed", "true");
+    await expect(days.getByRole("button", { name: two })).toHaveAttribute("aria-pressed", "true");
 
     // Quick successive taps all land: nothing is overwritten by a slower, older save.
+    const code = (n: string) => n.slice(0, 2).toUpperCase();
     await expect
       .poll(async () => (await taskByTitle(user.id, "Review"))[0]?.recurrence_rule)
-      .toMatch(/^FREQ=WEEKLY;BYDAY=(?=.*MO)(?=.*WE)/);
+      .toMatch(new RegExp(`^FREQ=WEEKLY;BYDAY=(?=.*${code(one)})(?=.*${code(two)})`));
 
     // Turning every day off is refused: one stays on.
-    for (const day of ["Monday", "Wednesday", "Thursday"])
-      await days.getByRole("button", { name: day }).click();
+    for (const day of [one, two, anchor]) await days.getByRole("button", { name: day }).click();
     await expect(days.getByRole("button", { pressed: true })).toHaveCount(1);
 
     await page.getByRole("radio", { name: "Never" }).click();
@@ -813,5 +819,176 @@ test.describe("accessibility", () => {
     ]) {
       await expect(detailPanel(page).getByRole("button", { name, exact: true })).toBeVisible();
     }
+  });
+});
+
+test.describe("the task panel: resize, expand and minimize", () => {
+  const widthOf = async (page: Page) => Math.round((await detailPanel(page).boundingBox())!.width);
+  const handle = (page: Page) => page.getByRole("separator", { name: "Resize task panel" });
+
+  test("drag the edge to resize, with the keyboard too; the width is remembered and the list follows", async ({
+    page,
+  }) => {
+    const { user } = await newUser(page);
+    const id = await insertTask(user.id, { title: "Resizable" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/tasks?task=${id}`);
+    await expect(detailPanel(page)).toBeVisible();
+    expect(await widthOf(page)).toBe(480);
+
+    // Drag the left edge 120px to the left: the panel is 120px wider.
+    const box = (await handle(page).boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 - 120, y, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(async () => Math.abs((await widthOf(page)) - 600) <= 2).toBe(true);
+
+    // It never goes narrower than 360px, wider than 960px, or leaves the list under 420px.
+    const again = (await handle(page).boundingBox())!;
+    await page.mouse.move(again.x + again.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(1430, y, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(async () => Math.abs((await widthOf(page)) - 360) <= 2).toBe(true);
+    await handle(page).focus();
+    for (let i = 0; i < 200; i++) await page.keyboard.press("Shift+ArrowLeft");
+    await expect.poll(() => widthOf(page)).toBe(716);
+
+    // Keyboard: Right narrows, Home restores the default.
+    await page.keyboard.press("Home");
+    await expect.poll(() => widthOf(page)).toBe(480);
+    await page.keyboard.press("ArrowLeft");
+    await expect.poll(() => widthOf(page)).toBe(496);
+
+    // Remembered across a reload; the list keeps clear of the panel by the same amount.
+    await page.reload();
+    await expect(detailPanel(page)).toBeVisible();
+    expect(await widthOf(page)).toBe(496);
+    const list = page
+      .getByRole("heading", { level: 1, name: "Tasks" })
+      .locator("xpath=ancestor::div[contains(@class,'max-w-content')]/parent::div");
+    const padding = await list.evaluate((el) => parseFloat(getComputedStyle(el).paddingRight));
+    expect(padding).toBe(496);
+
+    await handle(page).dblclick();
+    await expect.poll(() => widthOf(page)).toBe(480);
+  });
+
+  test("expand fills the content area, Restore or Esc brings it back, and close still works", async ({
+    page,
+  }) => {
+    const { user } = await newUser(page);
+    const id = await insertTask(user.id, { title: "Expandable" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/tasks?task=${id}`);
+    const panel = detailPanel(page);
+
+    await panel.getByRole("button", { name: "Expand task" }).click();
+    await expect.poll(() => widthOf(page)).toBe(1440 - 240); // everything right of the sidebar
+    await expect(handle(page)).toHaveCount(0);
+    await expect(panel.getByRole("button", { name: "Restore task size" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // The content is still fully usable.
+    await panel.getByLabel("Task title").fill("Expanded and edited");
+    await panel.getByLabel("Task title").blur();
+    await expect
+      .poll(async () => (await taskByTitle(user.id, "Expanded and edited")).length)
+      .toBe(1);
+
+    await panel.getByRole("button", { name: "Restore task size" }).click();
+    await expect.poll(() => widthOf(page)).toBe(480);
+
+    // Esc steps back one level: expanded → docked → closed.
+    await panel.getByRole("button", { name: "Expand task" }).click();
+    await expect.poll(() => widthOf(page)).toBe(1440 - 240);
+    await panel.getByLabel("Task title").focus();
+    await page.keyboard.press("Escape"); // first Escape: expanded -> docked
+    await expect.poll(() => widthOf(page)).toBe(480);
+    await panel.focus();
+    await page.keyboard.press("Escape"); // second Escape: closes
+    await expect(detailPanel(page)).toHaveCount(0);
+    await expect(page).not.toHaveURL(/task=/);
+
+    // Expanded, then Close: the next time it opens it is back to its normal size.
+    await taskRow(page, "Expanded and edited")
+      .getByRole("button", { name: "Expanded and edited", exact: true })
+      .click();
+    await detailPanel(page).getByRole("button", { name: "Expand task" }).click();
+    await detailPanel(page).getByRole("button", { name: "Close task" }).click();
+    await taskRow(page, "Expanded and edited")
+      .getByRole("button", { name: "Expanded and edited", exact: true })
+      .click();
+    await expect.poll(() => widthOf(page)).toBe(480);
+  });
+
+  test("minimize tucks the panel into a bar, the list gets its width back, and Restore or picking a task brings it back", async ({
+    page,
+  }) => {
+    const { user } = await newUser(page);
+    const first = await insertTask(user.id, { title: "First task" });
+    await insertTask(user.id, { title: "Second task" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/tasks?task=${first}`);
+
+    const list = page
+      .getByRole("heading", { level: 1, name: "Tasks" })
+      .locator("xpath=ancestor::div[contains(@class,'max-w-content')]/parent::div");
+    expect(
+      await list.evaluate((el) => parseFloat(getComputedStyle(el).paddingRight)),
+    ).toBeGreaterThan(300);
+
+    await detailPanel(page).getByRole("button", { name: "Minimize task" }).click();
+    await expect(detailPanel(page)).toHaveCount(0);
+    const dock = page.getByRole("region", { name: "Minimized task" });
+    await expect(dock).toContainText("First task");
+    await expect(page).toHaveURL(new RegExp(`task=${first}`)); // still the open task
+    expect(await list.evaluate((el) => parseFloat(getComputedStyle(el).paddingRight))).toBe(0);
+
+    await dock.getByRole("button", { name: "Restore task panel" }).click();
+    await expect(detailPanel(page)).toBeVisible();
+    await expect(page.getByRole("region", { name: "Minimized task" })).toHaveCount(0);
+
+    // Minimize, then pick a different task: the panel comes back docked on that task.
+    await detailPanel(page).getByRole("button", { name: "Minimize task" }).click();
+    await taskRow(page, "Second task")
+      .getByRole("button", { name: "Second task", exact: true })
+      .click();
+    await expect(detailPanel(page).getByLabel("Task title")).toHaveValue("Second task");
+    await expect.poll(() => widthOf(page)).toBe(480);
+
+    // Minimize, then close from the bar.
+    await detailPanel(page).getByRole("button", { name: "Minimize task" }).click();
+    await page
+      .getByRole("region", { name: "Minimized task" })
+      .getByRole("button", { name: "Close task" })
+      .click();
+    await expect(page.getByRole("region", { name: "Minimized task" })).toHaveCount(0);
+    await expect(page).not.toHaveURL(/task=/);
+  });
+
+  test("the controls are keyboard reachable and labelled, and a narrow window still uses the full page", async ({
+    page,
+  }) => {
+    const { user } = await newUser(page);
+    const id = await insertTask(user.id, { title: "Accessible" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/tasks?task=${id}`);
+    const panel = detailPanel(page);
+    for (const name of ["Minimize task", "Expand task", "Close task"]) {
+      await panel.getByRole("button", { name }).focus();
+      await expect(panel.getByRole("button", { name })).toBeFocused();
+    }
+    await handle(page).focus();
+    await expect(handle(page)).toBeFocused();
+    await expect(handle(page)).toHaveAttribute("aria-orientation", "vertical");
+
+    await page.setViewportSize({ width: 800, height: 900 });
+    await page.goto(`/tasks?task=${id}`);
+    await expect(page).toHaveURL(new RegExp(`/tasks/${id}$`));
+    await expect(page.getByRole("separator", { name: "Resize task panel" })).toHaveCount(0);
   });
 });

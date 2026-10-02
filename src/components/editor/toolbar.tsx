@@ -383,7 +383,7 @@ export function SelectionMenu({ editor }: { editor: Editor }) {
     <BubbleMenu
       editor={editor}
       options={{ placement: "top", offset: 8 }}
-      className="hidden items-center gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-float md:flex"
+      className="hidden items-center gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-float float-surface md:flex"
     >
       <ToolButton
         label="Bold"

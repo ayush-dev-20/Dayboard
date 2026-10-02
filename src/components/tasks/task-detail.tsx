@@ -38,6 +38,8 @@ type Props = {
   variant: "sheet" | "page";
   /** Called after the task is trashed or archived, and by the close button. */
   onClose: () => void;
+  /** Extra buttons beside Close in the panel header (minimize and expand). */
+  controls?: React.ReactNode;
 };
 
 function firstError(error: { message: string; fieldErrors?: Record<string, string> }) {
@@ -48,7 +50,7 @@ function firstError(error: { message: string; fieldErrors?: Record<string, strin
  * Everything about one task, edited in place. Each change saves on its own and shows the result
  * the server sent back; a failed save leaves the old value and says why.
  */
-export function TaskDetail({ detail, variant, onClose }: Props) {
+export function TaskDetail({ detail, variant, onClose, controls }: Props) {
   const router = useRouter();
   const { nowMs } = useTaskContext();
   const [task, setTask] = useState<TaskDTO>(detail);
@@ -160,14 +162,17 @@ export function TaskDetail({ detail, variant, onClose }: Props) {
           )}
         />
         {variant === "sheet" ? (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close task"
-            className="mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent md:size-8"
-          >
-            <X className="size-4" strokeWidth={1.5} aria-hidden />
-          </button>
+          <div className="mt-1 flex shrink-0 items-center">
+            {controls}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close task"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent md:size-8"
+            >
+              <X className="size-4" strokeWidth={1.5} aria-hidden />
+            </button>
+          </div>
         ) : null}
       </div>
 

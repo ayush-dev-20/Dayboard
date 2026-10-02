@@ -8,6 +8,7 @@ import { TaskContextProvider } from "@/components/tasks/task-context";
 import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
 import { TaskFilters } from "@/components/tasks/task-filters";
 import { TaskList, type TaskGroupData } from "@/components/tasks/task-list";
+import { TaskListShell } from "@/components/tasks/task-list-shell";
 import { ViewTabs } from "@/components/tasks/view-tabs";
 import { countTasksByGroup, getTaskDetail, listClosedTasks, listTasks } from "@/db/queries/tasks";
 import type { SearchParams } from "@/lib/oauth-providers";
@@ -16,7 +17,6 @@ import { loadTaskContext } from "@/lib/tasks/context";
 import { applyDueFilter, GROUP_LABELS, groupTasks } from "@/lib/tasks/grouping";
 import { hasActiveFilters, parseTasksParams } from "@/lib/tasks/params";
 import { isOpenStatus } from "@/lib/tasks/status";
-import { cn } from "@/lib/utils";
 import { TodosView } from "./todos-view";
 
 export const metadata: Metadata = { title: "Tasks" };
@@ -65,9 +65,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
 
   return (
     <TaskContextProvider value={context}>
-      <div
-        className={cn("max-w-content", sheetOpen && "lg:pr-[calc(var(--container-sheet)-2rem)]")}
-      >
+      <TaskListShell sheetOpen={sheetOpen}>
         <header className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="sr-only type-headline-lg text-foreground md:not-sr-only">Tasks</h1>
@@ -108,7 +106,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
             />
           )}
         </div>
-      </div>
+      </TaskListShell>
       {detail ? <TaskDetailSheet detail={detail} /> : null}
     </TaskContextProvider>
   );

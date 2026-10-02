@@ -5,6 +5,7 @@ import { NewProjectButton } from "@/components/projects/new-project-button";
 import { ProjectCard } from "@/components/projects/project-card";
 import { listProjects } from "@/db/queries/projects";
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from "@/lib/projects/status";
+import type { SearchParams } from "@/lib/oauth-providers";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Projects" };
@@ -18,9 +19,10 @@ function Heading({ label, count }: { label: string; count: number }) {
   );
 }
 
-export default async function ProjectsPage() {
+export default async function ProjectsPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser({ redirect: true });
   const projects = await listProjects(user.id);
+  const autoOpen = (await searchParams).new === "1";
   const by = (status: ProjectStatus) => projects.filter((p) => p.status === status);
   const active = by("ACTIVE");
   const archived = by("ARCHIVED");
@@ -34,7 +36,7 @@ export default async function ProjectsPage() {
             <p className="mt-1 type-body-md text-muted-foreground">{active.length} active</p>
           ) : null}
         </div>
-        <NewProjectButton />
+        <NewProjectButton autoOpen={autoOpen} />
       </header>
 
       {projects.length === 0 ? (

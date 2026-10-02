@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DESKTOP_QUERY } from "@/hooks/use-media-query";
+import { setSheetMode } from "./sheet-state";
 
 /**
  * Opening a task: a side sheet on wide screens (`/tasks?task=id`, so the Back button closes it and
@@ -14,6 +15,8 @@ export function useOpenTask() {
 
   return useCallback(
     (id: string) => {
+      // Choosing a task always brings the panel back to its normal docked size.
+      setSheetMode("docked");
       if (window.matchMedia(DESKTOP_QUERY).matches) {
         const next = new URLSearchParams(searchParams.toString());
         next.set("task", id);
@@ -31,6 +34,7 @@ export function useCloseTask() {
   const searchParams = useSearchParams();
 
   return useCallback(() => {
+    setSheetMode("docked");
     const next = new URLSearchParams(searchParams.toString());
     next.delete("task");
     const query = next.toString();

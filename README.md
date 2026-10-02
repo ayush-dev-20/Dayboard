@@ -95,7 +95,7 @@ pnpm test:e2e       # browser tests (Playwright), see below
 pnpm db:generate    # create a migration after changing src/db/schema
 pnpm db:migrate     # apply migrations
 pnpm db:studio      # browse the database (development only)
-pnpm db:seed        # demo user with sample tasks, todos, projects, tags and notes (development only; refuses to run in production)
+pnpm db:seed        # demo user with sample tasks, todos, projects, tags, notes and inbox items (development only; refuses to run in production)
 pnpm build:migrate  # bundle the migration runner used in the production image
 ```
 
@@ -104,15 +104,15 @@ Rules for migrations: every schema change gets a new migration; never edit one t
 ## Tests
 
 - **Unit** (`tests/unit`): pure logic such as env validation, redirect safety, dates, validation schemas, error and log handling, `requireUser()`.
-- **Integration** (`tests/integration`): the real Server Actions against the `dayboard_test` database (set `E2E_DATABASE_URL` to change it; it never touches `DATABASE_URL`). Only the session, `next/cache`, headers and navigation are replaced. Covers task, todo, note, project and tag rules (recurrence, ordering, note versions and conflicts, project Trash behaviour, tag uniqueness) and that one user can never reach another's rows.
-- **End to end** (`e2e`): real browser against a production build, a separate `dayboard_test` database and a mailbox file in place of email. Covers tasks and todos (create, edit, complete and Undo, subtasks, repeat, rich text, emoji, keyboard, offline autosave, phone layout), notes (autosave offline, conflicts, draft recovery), projects, tags and task–note links, as well as sign-up and verification, sign-in and out, password reset, magic link, route protection, settings, account deletion, session handling, one user not seeing another's data, and phone, tablet and desktop layouts.
+- **Integration** (`tests/integration`): the real Server Actions against the `dayboard_test` database (set `E2E_DATABASE_URL` to change it; it never touches `DATABASE_URL`). Only the session, `next/cache`, headers and navigation are replaced. Covers task, todo, note, project, tag, inbox, Today, search and Trash rules (recurrence, ordering, note versions and conflicts, project Trash behaviour, tag uniqueness, inbox conversion transactions, search escaping, Trash restore and empty) and that one user can never reach another's rows.
+- **End to end** (`e2e`): real browser against a production build, a separate `dayboard_test` database and a mailbox file in place of email. Covers tasks and todos (create, edit, complete and Undo, subtasks, repeat, rich text, emoji, keyboard, offline autosave, phone layout), notes (autosave offline, conflicts, draft recovery), projects, tags and task–note links, quick capture and the command menu, Today, search and Trash, as well as sign-up and verification, sign-in and out, password reset, magic link, route protection, settings, account deletion, session handling, one user not seeing another's data, and phone, tablet and desktop layouts.
 
 ```bash
 createdb dayboard_test        # once (or set E2E_DATABASE_URL)
 pnpm test:e2e                 # migrates, builds, serves on :3100, runs the suite
 ```
 
-Stop any server left on :3100 before running: Playwright reuses it, and an old build gives misleading results. The test build goes to `.next-e2e` (set by `NEXT_DIST_DIR`), so it never disturbs a running `pnpm dev`. Build folders must start with `.next-` so they stay git-ignored; Tailwind scans every folder that isn't.
+On a busy machine, `pnpm test:e2e --workers=4` avoids timeouts. Stop any server left on :3100 before running: Playwright reuses it, and an old build gives misleading results. The test build goes to `.next-e2e` (set by `NEXT_DIST_DIR`), so it never disturbs a running `pnpm dev`. Build folders must start with `.next-` so they stay git-ignored; Tailwind scans every folder that isn't.
 
 Locally the tests use your installed Google Chrome; set `CI=1` to use Playwright's own Chromium (`pnpm exec playwright install chromium`). Google and GitHub sign-in are not exercised against the real providers in automated tests; see the manual checklist below.
 

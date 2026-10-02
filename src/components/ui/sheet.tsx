@@ -21,7 +21,7 @@ export function SheetContent({ side = "left", className, children, ...props }: S
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed inset-y-0 z-50 flex flex-col bg-overlay text-foreground shadow-float duration-300 dark:border-border",
+          "fixed inset-y-0 z-50 flex flex-col bg-overlay text-foreground shadow-float duration-300 float-surface dark:border-border",
           "data-[state=closed]:animate-out data-[state=open]:animate-in",
           side === "left" &&
             "left-0 w-sidebar max-w-[85vw] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left dark:border-r",

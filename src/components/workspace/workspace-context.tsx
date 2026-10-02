@@ -6,9 +6,18 @@ import type { TagDTO } from "@/lib/tags";
 
 // The person's projects and tags, loaded once by the app layout so every picker and filter can
 // list them without its own request. Changes refresh the layout (the actions revalidate it).
-export type WorkspaceValue = { projects: ProjectRef[]; tags: TagDTO[] };
+export type WorkspaceValue = {
+  projects: ProjectRef[];
+  tags: TagDTO[];
+  /** The small numbers beside Today and Inbox in the sidebar. */
+  counts: { today: number; inbox: number };
+};
 
-const WorkspaceContext = createContext<WorkspaceValue>({ projects: [], tags: [] });
+const WorkspaceContext = createContext<WorkspaceValue>({
+  projects: [],
+  tags: [],
+  counts: { today: 0, inbox: 0 },
+});
 
 export function WorkspaceProvider({
   value,

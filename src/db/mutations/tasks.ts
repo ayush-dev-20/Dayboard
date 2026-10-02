@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { assertOwnedProject } from "@/db/mutations/guards";
 import { taskMetaFor } from "@/db/queries/meta";
 import { tasks, type NewTask, type Task } from "@/db/schema";
@@ -24,9 +25,6 @@ import type { CreateTaskInput, UpdateTaskInput } from "@/lib/validations/tasks";
 
 // Every function here takes the signed-in person's id first and puts it in every WHERE clause.
 // A task that exists but belongs to someone else behaves exactly like one that doesn't exist.
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type Executor = Tx | typeof db;
 
 function owned(userId: string, id: string, includeDeleted = false) {
   return and(
@@ -87,8 +85,9 @@ export async function createTask(
   userId: string,
   input: CreateTaskInput,
   defaults: { priority: TaskPriority },
+  outer?: Tx,
 ): Promise<TaskDTO> {
-  return db.transaction(async (tx) => {
+  return inTransaction(outer, async (tx) => {
     if (input.parentTaskId) {
       const [parent] = await tx
         .select({ id: tasks.id, userId: tasks.userId, parentTaskId: tasks.parentTaskId })
@@ -201,10 +200,11 @@ export async function updateTaskDescription(
   userId: string,
   id: string,
   doc: TiptapDoc | null,
+  executor: Executor = db,
 ): Promise<{ updatedAt: string }> {
   // An empty editor is stored as null. The plain-text projection is always built here.
   const empty = doc === null || isEmptyDoc(doc);
-  const [updated] = await db
+  const [updated] = await executor
     .update(tasks)
     .set({
       descriptionJson: empty ? null : doc,

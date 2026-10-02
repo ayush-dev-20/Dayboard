@@ -23,7 +23,7 @@ export function PopoverContent({
         sideOffset={sideOffset}
         collisionPadding={12}
         className={cn(
-          "z-50 max-w-[calc(100vw-24px)] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-float outline-none",
+          "z-50 max-w-[calc(100vw-24px)] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-float outline-none float-surface",
           "duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
           className,
         )}

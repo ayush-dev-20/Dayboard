@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { inTransaction, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject, assertOwnedTask } from "@/db/mutations/guards";
 import { notes, taskNotes } from "@/db/schema";
 import { AppError } from "@/lib/errors";
@@ -24,8 +25,9 @@ function owned(userId: string, id: string, includeDeleted = false) {
 export async function createNote(
   userId: string,
   input: CreateNoteInput,
+  outer?: Tx,
 ): Promise<{ id: string; version: number }> {
-  return db.transaction(async (tx) => {
+  return inTransaction(outer, async (tx) => {
     if (input.projectId) await assertOwnedProject(tx, userId, input.projectId);
     if (input.linkTaskId) await assertOwnedTask(tx, userId, input.linkTaskId);
 

@@ -14,8 +14,7 @@
 Notes and projects are what turn a task list into a workspace, and the spec wants no content lost, ever. The server owns every rule (ownership on both sides of a link, version check, project and tag limits); the client only keeps text safe and asks the person when two copies disagree.
 
 ## What was deferred
-- **Trash screen** (feature 04). `restoreNote`, `restoreProject` and the `permanentlyDelete*` actions exist and are tested, but only the Undo toast calls them until then.
-- Search, Inbox, Today content, Quick capture / Create buttons (feature 04). AI actions on notes (feature 05).
+- Trash screen, search, Inbox, Today and quick capture were built in feature 04 (`inbox-today-search-trash_v1.md`), which calls these restore and permanent-delete actions. AI actions on notes: feature 05.
 - Tags on todos and projects, nested projects, note history and backlinks (out of scope in V1).
 
 ## Related files

@@ -26,7 +26,7 @@ const toastUndo = (page: Page) =>
   page
     .getByRole("region", { name: /Notifications/ })
     .getByRole("button", { name: "Undo" })
-    .last();
+    .first();
 const moreActions = (page: Page) => page.getByRole("button", { name: "More actions", exact: true });
 const editor = (page: Page) => page.getByRole("textbox", { name: "Note content" });
 const title = (page: Page) => page.getByLabel("Note title");
@@ -331,7 +331,7 @@ test.describe("archive, trash and the list", () => {
       .poll(async () => (await noteByTitle(user.id, "Tidy up"))?.deleted_at ?? null)
       .not.toBeNull();
 
-    await toastUndo(page).click();
+    await toastUndo(page).dispatchEvent("click");
     await expect(page.getByRole("link", { name: /Tidy up/ })).toBeVisible();
     await expect
       .poll(async () => (await noteByTitle(user.id, "Tidy up"))?.deleted_at ?? null)

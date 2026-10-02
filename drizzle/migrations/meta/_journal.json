@@ -22,6 +22,13 @@
       "when": 1790860940580,
       "tag": "0002_notes-projects-tags",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790924794311,
+      "tag": "0003_inbox-and-focus",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { projectRefsFor } from "@/db/queries/meta";
 import { todos } from "@/db/schema";
@@ -20,7 +20,13 @@ async function withProjects(
 /** Open todos in the person's manual order. */
 export async function listOpenTodos(
   userId: string,
-  options: { archived?: boolean; projectId?: string } = {},
+  options: {
+    archived?: boolean;
+    projectId?: string;
+    /** Today: only todos due on or before this date, or with no date. Dated ones come first. */
+    dueByOrUndated?: string;
+    limit?: number;
+  } = {},
 ): Promise<TodoDTO[]> {
   const rows = await db
     .select()
@@ -32,10 +38,17 @@ export async function listOpenTodos(
         eq(todos.isComplete, false),
         options.archived ? isNotNull(todos.archivedAt) : isNull(todos.archivedAt),
         options.projectId ? eq(todos.projectId, options.projectId) : undefined,
+        options.dueByOrUndated
+          ? or(isNull(todos.dueDate), lte(todos.dueDate, options.dueByOrUndated))
+          : undefined,
       ),
     )
-    .orderBy(asc(todos.sortOrder), asc(todos.createdAt))
-    .limit(1000);
+    .orderBy(
+      ...(options.dueByOrUndated
+        ? [sql`${todos.dueDate} asc nulls last`, asc(todos.sortOrder)]
+        : [asc(todos.sortOrder), asc(todos.createdAt)]),
+    )
+    .limit(options.limit ?? 1000);
   return withProjects(userId, rows);
 }
 

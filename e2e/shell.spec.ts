@@ -2,12 +2,6 @@ import { expect } from "@playwright/test";
 import { test } from "./fixtures";
 import { signIn, signOut, signUp, newDevice } from "./helpers";
 
-const PLACEHOLDER_PAGES = [
-  { path: "/inbox", title: "Inbox" },
-  { path: "/search", title: "Search" },
-  { path: "/trash", title: "Trash" },
-];
-
 test("the health endpoint reports the app and database are up", async ({ request }) => {
   const response = await request.get("/api/health");
   expect(response.status()).toBe(200);
@@ -39,21 +33,8 @@ test.describe("signed in, desktop", () => {
       "page",
     );
 
-    for (const { path, title } of PLACEHOLDER_PAGES) {
-      await primary.getByRole("link", { name: title }).click();
-      await expect(page).toHaveURL(new RegExp(`${path}$`));
-      await expect(primary.getByRole("link", { name: title })).toHaveAttribute(
-        "aria-current",
-        "page",
-      );
-      await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-      await expect(
-        page.getByRole("heading", { level: 2, name: `${title} is on its way` }),
-      ).toBeVisible();
-    }
-
-    // Tasks, Notes and Projects are real pages now (features 02 and 03); each has its own spec.
-    for (const title of ["Tasks", "Notes", "Projects"]) {
+    // Every section is a real page now; each has its own spec.
+    for (const title of ["Inbox", "Tasks", "Notes", "Projects", "Search", "Trash"]) {
       await primary.getByRole("link", { name: title }).click();
       await expect(primary.getByRole("link", { name: title })).toHaveAttribute(
         "aria-current",
@@ -74,7 +55,12 @@ test.describe("signed in, desktop", () => {
     await signUp(page);
     const routes = [
       "/today",
-      ...PLACEHOLDER_PAGES.map((p) => p.path),
+      "/inbox",
+      "/tasks",
+      "/notes",
+      "/projects",
+      "/search",
+      "/trash",
       "/more",
       "/settings/account",
       "/settings/appearance",
@@ -103,10 +89,10 @@ test.describe("signed in, desktop", () => {
     await expect(page).toHaveURL(/\/today/);
   });
 
-  test("features that arrive later are visible but switched off", async ({ page }) => {
+  test("search and quick capture are live in the top bar", async ({ page }) => {
     await signUp(page);
-    await expect(page.getByRole("button", { name: /Search, ask or create/ })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Quick capture" }).first()).toBeDisabled();
+    await expect(page.getByRole("button", { name: /Search, ask or create/ })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Quick capture" }).first()).toBeEnabled();
   });
 
   test("the settings tabs switch between sections", async ({ page }) => {

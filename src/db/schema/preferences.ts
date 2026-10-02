@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { taskPriorityEnum, themeEnum } from "./enums";
+import { tasks } from "./tasks";
 
 export const userPreferences = pgTable(
   "user_preferences",
@@ -25,8 +26,8 @@ export const userPreferences = pgTable(
     startOfDay: time("start_of_day").notNull().default("06:00:00"),
     weekStart: smallint("week_start").notNull().default(1),
     aiEnabled: boolean("ai_enabled").notNull().default(true),
-    // Written by feature 04. No foreign key yet because `tasks` arrives in feature 02.
-    focusTaskId: uuid("focus_task_id"),
+    // Today's focus (feature 04). Cleared if the task is permanently deleted.
+    focusTaskId: uuid("focus_task_id").references(() => tasks.id, { onDelete: "set null" }),
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })

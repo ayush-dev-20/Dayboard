@@ -32,3 +32,5 @@ export const colorTokenEnum = pgEnum("color_token", [
   "violet",
   "pink",
 ]);
+
+export const inboxStatusEnum = pgEnum("inbox_status", ["OPEN", "CONVERTED", "ARCHIVED"]);

@@ -173,7 +173,8 @@ Component: `src/components/editor/RichTextEditor.tsx` (client), loaded with `nex
 
 ### Task detail
 
-- Desktop ≥ 1024px: `TaskDetailSheet`, a docked, non-modal 480px panel on the right (the list stays usable beside it; design `Tasks_and_Todos.html`), URL `/tasks?task=<id>` so it's linkable and the Back button closes it. A narrower window turns that URL into the full page.
+- Desktop ≥ 1024px: `TaskDetailSheet`, a docked, non-modal panel on the right, 480px by default (the list stays usable beside it; design `Tasks_and_Todos.html`), URL `/tasks?task=<id>` so it's linkable and the Back button closes it. A narrower window turns that URL into the full page.
+- The panel is **resizable** (drag the left edge or use ←/→ on the focused handle; 360–960px, the list never under 420px; width remembered in `localStorage`; double-click or Home resets), **expandable** (fills the content area; Restore returns it) and **minimizable** (a small bar at the bottom right with the title, Restore and Close; the task stays open). Esc steps back from expanded to docked, then closes. Choosing another task or closing returns it to docked. State lives in `src/components/tasks/sheet-state.ts`.
 - Mobile/tablet: full page at `/tasks/<id>`.
 - Layout per UI/UX §9: emoji picker + title (inline editable), status / priority / due / start / repeat / project row, subtasks (inline add, one level), description (`RichTextEditor` compact), related notes (feature 03), AI actions (feature 05).
 
@@ -232,3 +233,5 @@ Component: `src/components/editor/RichTextEditor.tsx` (client), loaded with `nex
 - Subtask nesting beyond one level
 - Converting a todo into a task and back (possible V2 convenience)
 - Reminders/notifications
+
+- **Task panel (2026-10-02):** resize, expand and minimize were added to the docked panel (§8 Task detail); covered by the "the task panel" E2E scenarios.

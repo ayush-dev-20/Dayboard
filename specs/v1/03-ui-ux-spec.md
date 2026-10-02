@@ -204,7 +204,12 @@ Avoid displaying every possible metadata field in the default list.
 
 Desktop:
 
-Open as a right-side sheet/drawer.
+Open as a right-side sheet/drawer, docked beside the list (the list stays usable). The sheet is:
+
+- **Resizable:** drag its left edge, or use the arrow keys on the focused edge handle; 360px to 960px, never leaving the list under 420px; the width is remembered in the browser
+- **Expandable:** an Expand button fills the whole content area; Restore brings it back
+- **Minimizable:** a Minimize button tucks it into a small bar at the bottom right (title, Restore, Close) while the task stays open
+- **Closable:** Close, or Esc (Esc steps back from expanded to docked first)
 
 Mobile:
 
@@ -515,7 +520,7 @@ V1 shortcuts:
 - Cmd/Ctrl + K: command/search
 - N: new task when not typing
 - Shift + N: new note when not typing
-- Esc: close overlay/sheet
+- Esc: close overlay/sheet (an expanded task sheet returns to docked first)
 - Cmd/Ctrl + Enter: submit focused form where appropriate
 
 All global shortcuts must be disabled while the user is typing in a text field/editor unless explicitly intended.

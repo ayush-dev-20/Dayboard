@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notes, taskNotes, tasks } from "@/db/schema";
 import { taskMetaFor } from "@/db/queries/meta";
@@ -55,6 +55,32 @@ async function withMeta(
     rows.map((r) => ({ id: r.task.id, projectId: r.task.projectId })),
   );
   return rows.map((r) => toTaskDTO(r.task, { total: r.total, done: r.done }, meta.get(r.task.id)));
+}
+
+/**
+ * Top-level, not archived, not deleted tasks matching `extra`, as DTOs with subtask counts, project
+ * and tags. The building block for views like Today that need their own filter and order.
+ */
+export async function selectTasks(
+  userId: string,
+  extra: (SQL | undefined)[],
+  options: { orderBy: SQL[]; limit: number },
+): Promise<TaskDTO[]> {
+  const rows = await db
+    .select({ task: tasks, total: subtaskTotal, done: subtaskDone })
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        isNull(tasks.deletedAt),
+        isNull(tasks.archivedAt),
+        isNull(tasks.parentTaskId),
+        ...extra,
+      ),
+    )
+    .orderBy(...options.orderBy)
+    .limit(options.limit);
+  return withMeta(userId, rows);
 }
 
 /** Top-level tasks in the person's manual order. Every row belongs to `userId`. */

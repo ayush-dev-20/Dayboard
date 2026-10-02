@@ -270,3 +270,66 @@ export async function todoProject(todoId: string) {
   >`select project_id from todos where id = ${todoId}`;
   return row?.project_id ?? null;
 }
+
+// ---- Inbox, Today, Search and Trash (feature 04) --------------------------------------------
+
+export async function insertInboxItem(
+  userId: string,
+  text: string,
+  status: "OPEN" | "ARCHIVED" = "OPEN",
+) {
+  const [row] = await sql<{ id: string }[]>`
+    insert into inbox_items (id, user_id, text, status) values (gen_random_uuid(), ${userId}, ${text}, ${status}::inbox_status)
+    returning id`;
+  return row!.id;
+}
+
+export async function inboxItemsOf(userId: string) {
+  return sql<
+    {
+      id: string;
+      text: string;
+      status: string;
+      deleted_at: Date | null;
+      converted_refs: { type: string; id: string }[] | null;
+    }[]
+  >`
+    select id, text, status::text, deleted_at, converted_refs from inbox_items where user_id = ${userId} order by created_at`;
+}
+
+export async function focusTaskOf(userId: string) {
+  const [row] = await sql<
+    { focus_task_id: string | null }[]
+  >`select focus_task_id from user_preferences where user_id = ${userId}`;
+  return row?.focus_task_id ?? null;
+}
+
+type Table = "tasks" | "todos" | "notes" | "projects" | "inbox_items";
+
+/** Moves a row to Trash directly, for tests that need many trashed items without clicking through the UI. */
+export async function trashRow(table: Table, id: string) {
+  await sql`update ${sql(table)} set deleted_at = now() where id = ${id}`;
+}
+
+export async function rowExists(table: Table, id: string) {
+  const [row] = await sql<
+    { n: number }[]
+  >`select count(*)::int n from ${sql(table)} where id = ${id}`;
+  return row!.n > 0;
+}
+
+export async function taskDeletedAt(id: string) {
+  const [row] = await sql<
+    { deleted_at: Date | null }[]
+  >`select deleted_at from tasks where id = ${id}`;
+  return row?.deleted_at ?? null;
+}
+
+export async function setTaskDescription(taskId: string, text: string) {
+  await sql`update tasks set description_text = ${text} where id = ${taskId}`;
+}
+
+export async function tasksCreatedFor(userId: string) {
+  return sql<{ id: string; title: string; status: string; due_date: string | null }[]>`
+    select id, title, status::text, to_char(due_date, 'YYYY-MM-DD') as due_date from tasks where user_id = ${userId} order by created_at`;
+}

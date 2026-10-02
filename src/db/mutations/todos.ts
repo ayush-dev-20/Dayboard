@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { inTransaction, type Tx } from "@/db/executor";
 import { assertOwnedProject } from "@/db/mutations/guards";
 import { projectRefsFor } from "@/db/queries/meta";
 import { todos, type NewTodo, type Todo } from "@/db/schema";
@@ -11,8 +12,6 @@ import type { CreateTodoInput, UpdateTodoInput } from "@/lib/validations/tasks";
 
 // Same rule as tasks: the owner's id is in every WHERE clause, and someone else's todo behaves
 // exactly like one that doesn't exist.
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function owned(userId: string, id: string, includeDeleted = false) {
   return and(
@@ -42,8 +41,12 @@ async function todoDto(executor: Tx | typeof db, todo: Todo): Promise<TodoDTO> {
   return toTodoDTO(todo, (todo.projectId && refs.get(todo.projectId)) || null);
 }
 
-export async function createTodo(userId: string, input: CreateTodoInput): Promise<TodoDTO> {
-  return db.transaction(async (tx) => {
+export async function createTodo(
+  userId: string,
+  input: CreateTodoInput,
+  outer?: Tx,
+): Promise<TodoDTO> {
+  return inTransaction(outer, async (tx) => {
     if (input.projectId) await assertOwnedProject(tx, userId, input.projectId);
     const [row] = await tx
       .select({ min: sql<number | null>`min(${todos.sortOrder})` })

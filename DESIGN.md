@@ -30,6 +30,8 @@ colors:
   dark-surface: "#15120E"
   dark-raised: "#1F1B17"
   dark-overlay: "#292420"
+  # Dark: hover inside floating layers. dark-raised is the layer's own surface, so a hover there would be invisible.
+  dark-hover-raised: "#38332C"
   dark-border: "#322D27"
   dark-outline: "#807971"
   dark-on-surface: "#E9E6DF"
@@ -164,6 +166,8 @@ spacing:
   control: 32px
   sidebar: 240px
   sheet: 480px
+  sheet-min: 360px
+  sheet-max: 960px
   content-max: 880px
   editor-measure: 760px
   command-menu: 640px
@@ -261,6 +265,12 @@ components:
     typography: "{typography.body-md}"
   task-row-dark-hover:
     backgroundColor: "{colors.dark-raised}"
+    textColor: "{colors.dark-on-surface}"
+  floating-item-hover:
+    backgroundColor: "{colors.hover}"
+    textColor: "{colors.on-surface}"
+  floating-item-dark-hover:
+    backgroundColor: "{colors.dark-hover-raised}"
     textColor: "{colors.dark-on-surface}"
   task-row-dark-selected:
     backgroundColor: "{colors.dark-primary-subtle}"
@@ -468,6 +478,15 @@ components:
     typography: "{typography.body-md}"
     rounded: "{rounded.none}"
     width: "{spacing.sheet}"
+  task-sheet-resize-handle:
+    backgroundColor: "{colors.primary}"
+    width: 2px
+  task-sheet-minimized:
+    backgroundColor: "{colors.raised}"
+    textColor: "{colors.on-surface}"
+    typography: "{typography.label-md}"
+    rounded: "{rounded.lg}"
+    height: 44px
   scrim:
     backgroundColor: "{colors.scrim}"
   scrim-dark:
@@ -578,7 +597,7 @@ Every color is sampled from a writing desk. That constraint, not preference, set
 
 **Project and tag markers (`tag-*`).** The product stores eight named color tokens: slate, red, amber, green, teal, blue, violet, pink. They are pigment-muted (chroma ≈ 0.08–0.13), sit at one lightness (≈ 0.60) so no color outshouts another, and clear 3:1 on every light and dark surface, so one set serves both themes. They are used **only as an 8px dot or 3px bar next to a visible name**, never as text, never as a fill, never as the sole identifier. `tag-blue` is cyan-shifted and lighter than Primary and is a dot, so it cannot be mistaken for a link.
 
-**Dark theme.** Warm charcoal (hue ≈ 70°), never navy, never `#000`. Depth flips: higher means lighter. The ladder is **dark-neutral #0E0C09** (sidebar ground) → **dark-surface #15120E** (page) → **dark-raised #1F1B17** (cards, popovers, command menu, row hover) → **dark-overlay #292420** (dialogs and sheets). Body text drops to **#E9E6DF**, off-white, to avoid halation. Primary lifts to a desaturated sky **#77B9E8** with **dark-on-primary** (#15120E) on it, so buttons keep contrast without going garish. Semantic colors are lightened and softened rather than reused. Every dark pair was recomputed; none carry over from light.
+**Dark theme.** Warm charcoal (hue ≈ 70°), never navy, never `#000`. Depth flips: higher means lighter. The ladder is **dark-neutral #0E0C09** (sidebar ground) → **dark-surface #15120E** (page) → **dark-raised #1F1B17** (cards, popovers, command menu, and hover on the page's own rows) → **dark-overlay #292420** (dialogs and sheets). Hover *inside* a floating layer (menu items, picker rows, ghost and secondary buttons in a popover, dialog or the task sheet) is **dark-hover-raised #38332C**, one step lighter than the layer itself: dark-raised is the popover's own surface, so using it there would make the hover disappear. Body text drops to **#E9E6DF**, off-white, to avoid halation. Primary lifts to a desaturated sky **#77B9E8** with **dark-on-primary** (#15120E) on it, so buttons keep contrast without going garish. Semantic colors are lightened and softened rather than reused. Every dark pair was recomputed; none carry over from light.
 
 All neutrals are tinted (OKLCH chroma 0.005–0.016, hue 65–90° in light, 70° in dark); no value has R = G = B. Ramps were built in OKLCH and shipped as hex.
 
@@ -592,7 +611,8 @@ All neutrals are tinted (OKLCH chroma 0.005–0.016, hue 65–90° in light, 70�
 | `--card-foreground`, `--popover-foreground` | on-surface | dark-on-surface |
 | `--muted`, `--secondary` | neutral | dark-neutral |
 | `--muted-foreground` | secondary | dark-secondary |
-| `--accent` (shadcn's hover highlight, *not* the product accent) | hover | dark-raised |
+| `--accent` (shadcn's hover highlight, *not* the product accent) | hover | dark-raised (page rows and nav) |
+| `--accent-float` (hover inside floating layers; applied by setting `--accent` to it inside menus, popovers, dialogs, sheets and the task sheet) | hover | dark-hover-raised |
 | `--primary` | primary | dark-primary |
 | `--primary-foreground` | surface | dark-on-primary |
 | `--border` | border | dark-border |
@@ -603,7 +623,7 @@ All neutrals are tinted (OKLCH chroma 0.005–0.016, hue 65–90° in light, 70�
 | `--success` | success | dark-success |
 | `--info` | primary | dark-primary |
 | `--sidebar` | neutral | dark-neutral |
-| `--sidebar-accent` | hover (active item: primary-subtle) | dark-raised (active: dark-primary-subtle) |
+| `--sidebar-accent` | hover (active item: primary-subtle) | dark-raised (active: dark-primary-subtle) (the sidebar's own ground is dark-neutral, so this one stays visible) |
 
 The product spec's word "accent" means **primary** in this file. shadcn's `--accent` is a hover surface.
 
@@ -628,7 +648,7 @@ Mobile rules: all form inputs are **16px** (so iOS does not zoom on focus), and 
 **Structure follows content.** Dayboard is a working tool, so the shell is the standard three zones (sidebar, main, optional context panel), never a marketing template.
 
 - **Sidebar 240px** on the `neutral` ground: Today, Inbox, Tasks, Notes, Projects, Search, Trash, Settings, with Quick Capture and Create actions above. At 768–1023px it collapses into a sheet. Below 768px it disappears in favor of a bottom nav (Today, Tasks, Notes, Inbox, More) at 56px plus the safe-area inset, and content is padded so the nav never covers it.
-- **Main** is **flush-left** with a `content-max` of 880px, and the space to its right is left open for the task-detail sheet (480px) at ≥ 1024px. Content is asymmetric on purpose: when the sheet is closed the right margin is simply quiet; when open, the list stays put and the sheet enters. Centered layouts appear nowhere in the app, with one exception: authentication screens are a single ~400px column centered on the viewport, with text still flush-left inside it.
+- **Main** is **flush-left** with a `content-max` of 880px, and the space to its right is left open for the task-detail sheet (480px by default, resizable) at ≥ 1024px. Content is asymmetric on purpose: when the sheet is closed the right margin is simply quiet; when open, the list stays put and the sheet enters. Centered layouts appear nowhere in the app, with one exception: authentication screens are a single ~400px column centered on the viewport, with text still flush-left inside it.
 - **Note editor** is a full page on every screen size, with a single column of `editor-measure` (760px), left-aligned within the main area at ≥ 1280px and full width minus margins below.
 - **Top bar 48px:** global search/command trigger (shows the `⌘K` kbd), Quick Capture, account. It is a rule and a row, not a bar with a background fill.
 
@@ -703,7 +723,7 @@ Keyboard is a design surface, not an afterthought. Shortcuts are visible where t
 
 **Command menu (`CommandMenu`).** `raised` panel, 10px radius, 640px wide, placed at about 15% from the viewport top; full-screen sheet on mobile. A single 44px input, then text tabs **Search · Ask · Create** (the active tab is `on-surface` with a 2px `primary` underline; `Tab` cycles). Results are grouped by type with `label-caps` group headings; each shows emoji, title, project marker. The first row when typing is always *Capture "…" to Inbox*, with a `kbd` hint for `⌘↵`. The highlighted result uses `primary-subtle`.
 
-**Sheets and dialogs.** Task detail is a right-docked sheet (480px, `raised`, square docked edge) at ≥ 1024px, and a full page below. Dialogs (`dialog`, 440px, 10px radius) are only for: confirming a destructive action, a small focused form, or AI confirmation before creating several records. Never nest dialogs; never put the whole app in a modal.
+**Sheets and dialogs.** Task detail is a right-docked sheet (480px by default, `raised`, square docked edge) at ≥ 1024px, and a full page below. The sheet has three states. **Docked** (default): its left edge is a drag handle (a 12px hit area that shows a 2px `primary` line on hover, focus and drag; a `separator` for assistive tech) that resizes it between 360px and 960px, never leaving the list narrower than 420px. The width is remembered per browser; double-click or `Home` restores 480px, and `←`/`→` on the focused handle resize by 16px (48px with Shift). **Expanded**: a header button (`Maximize`) makes the sheet fill the whole content area right of the sidebar, with its content held to an 800px measure; the same button (`Minimize`) restores it. **Minimized**: a header button (`Minus`) tucks the sheet into a 44px bar at the bottom right (title, Restore, Close) and gives the list its full width; the task stays open. `Esc` steps back one level (expanded → docked) and then closes. Picking another task, or closing, always returns the sheet to docked. Header order, right to left: Close, Expand/Restore, Minimize. Dialogs (`dialog`, 440px, 10px radius) are only for: confirming a destructive action, a small focused form, or AI confirmation before creating several records. Never nest dialogs; never put the whole app in a modal.
 
 **Feedback.** Toasts are the one inversion: `on-surface` fill with `surface` text, bottom-left, short, with an Undo action where feasible. Success toasts appear for user-initiated actions only, **never for autosave**. Tooltips use the same inversion, with a 150ms delay in and none out. In dark mode both invert the other way: `dark-on-surface` fill with `dark-surface` text.
 
@@ -747,6 +767,7 @@ Keyboard is a design surface, not an afterthought. Shortcuts are visible where t
 - **Don't** place a destructive action next to a primary one. Destructive buttons live in overflow menus and confirm dialogs, and every deletion offers Undo or a Trash.
 - **Do** cap prose at 68 characters and left-align everything. **Don't** center text, except that the auth column itself sits centered on the viewport.
 - **Do** keep index views tight (36px rows, 44px on touch) and record views generous. **Don't** apply one uniform density or one uniform section gap across a page.
+- **Do** make hover inside a floating layer one step lighter than the layer (light: `hover` on `raised`; dark: `dark-hover-raised` on `dark-raised` or `dark-overlay`). **Don't** reuse the page's hover tone there: in dark it equals the popover surface and the hover vanishes.
 - **Do** honor `prefers-reduced-motion` and keep motion to 120/200/300ms decelerate-in, accelerate-out. **Don't** add bounce, springs, fade-up-on-scroll, or any animation on autosave, hover color or page navigation.
 - **Don't** use pure `#FFFFFF` or `#000000`, navy dark backgrounds, or untinted greys (`R = G = B`) in any theme. Every neutral carries the paper/ink tint.
 - **Do** write like a person: "Move to tomorrow", "Create 3 tasks", "Saved", "Retry". **Don't** leak technical language ("mutation failed", "entity not found", "invoke AI") into any user-facing string, and **don't** show a success toast for routine autosave.

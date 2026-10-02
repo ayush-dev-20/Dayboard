@@ -48,3 +48,36 @@ export function formatCompact(at: Date, now: Date, timeZone: string): string {
     ...(sameYear ? {} : { year: "numeric" }),
   }).format(at);
 }
+
+/** "just now", "12 min ago", "3 hours ago", "Yesterday", "3 days ago", then "Sep 24". */
+export function formatAgo(at: Date, now: Date, timeZone: string): string {
+  const seconds = (now.getTime() - at.getTime()) / 1000;
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  const compact = formatCompact(at, now, timeZone);
+  if (/^\d+h$/.test(compact)) {
+    const hours = Math.floor(seconds / 3600);
+    return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  }
+  if (compact === "Yesterday") return compact;
+  const days = Math.floor(seconds / 86_400);
+  if (days < 7) return `${days} days ago`;
+  return compact;
+}
+
+/** "Today", "Yesterday", "Sep 27" (with the year from an earlier year): the person's own days. */
+export function formatDayWord(at: Date, now: Date, timeZone: string): string {
+  const compact = formatCompact(at, now, timeZone);
+  if (compact === "Yesterday") return compact;
+  if (/^(now|\d+[mh])$/.test(compact)) return "Today";
+  // Within the last week the compact form is a weekday name; a date reads better in a list of deletions.
+  if (
+    /^[A-Z][a-z]{2}$/.test(compact) &&
+    !/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/.test(compact)
+  ) {
+    return new Intl.DateTimeFormat("en-US", { timeZone, month: "short", day: "numeric" }).format(
+      at,
+    );
+  }
+  return compact;
+}

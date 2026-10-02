@@ -60,7 +60,7 @@ export function TaskRow({
     <li
       data-task-id={task.id}
       className={cn(
-        "group border-b border-border transition-colors duration-[120ms]",
+        "group @container border-b border-border transition-colors duration-[120ms]",
         selected ? "bg-primary-subtle" : "hover:bg-accent",
       )}
     >
@@ -109,13 +109,13 @@ export function TaskRow({
             </span>
           ) : null}
           {task.project && !hideProject ? (
-            <span className="hidden max-w-32 sm:inline-flex">
+            <span className="hidden max-w-32 @md:inline-flex">
               <span className="sr-only">Project: </span>
               <ProjectToken project={task.project} />
             </span>
           ) : null}
           {task.tags.length > 0 ? (
-            <span className="hidden items-center gap-1 md:inline-flex">
+            <span className="hidden items-center gap-1 @xl:inline-flex">
               <span className="sr-only">Tags: </span>
               {task.tags.slice(0, 2).map((tag) => (
                 <TagBadge key={tag.id} tag={tag} className="max-w-24" />

@@ -6,6 +6,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
   account,
+  inboxItems,
   noteTags,
   notes,
   projects,
@@ -75,6 +76,7 @@ try {
   if (userId) {
     await seedTasks(userId);
     await seedWorkspace(userId);
+    await seedInbox(userId);
   }
 } catch (error) {
   console.error("Seed failed:", error);
@@ -327,4 +329,36 @@ async function seedWorkspace(userId: string) {
     await db.update(tasks).set({ projectId: home }).where(eq(tasks.id, photographer));
 
   console.log("Added sample projects, tags and notes for the demo user.");
+}
+
+// A few unprocessed thoughts, so the Inbox has something to convert. Added only when it is empty.
+async function seedInbox(userId: string) {
+  const [any] = await db
+    .select({ id: inboxItems.id })
+    .from(inboxItems)
+    .where(eq(inboxItems.userId, userId))
+    .limit(1);
+  if (any) {
+    console.log("Demo inbox items already exist. Nothing to add.");
+    return;
+  }
+  const now = Date.now();
+  await db.insert(inboxItems).values([
+    {
+      userId,
+      text: "Prepare client call notes and send agenda to Meera before Friday",
+      createdAt: new Date(now - 12 * 60_000),
+    },
+    {
+      userId,
+      text: "Look into standing desks under 30k",
+      createdAt: new Date(now - 26 * 3600_000),
+    },
+    {
+      userId,
+      text: "Idea: a weekly review template for the side project",
+      createdAt: new Date(now - 2 * 86_400_000),
+    },
+  ]);
+  console.log("Added sample inbox items for the demo user.");
 }
