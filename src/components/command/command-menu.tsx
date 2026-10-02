@@ -15,7 +15,10 @@ import {
   Tag as TagIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AskPanel } from "@/components/ai/ask-panel";
+import { useAIStream } from "@/components/ai/use-ai";
 import { Kbd } from "@/components/ui/kbd";
+import { useWorkspace } from "@/components/workspace/workspace-context";
 import { ProjectToken } from "@/components/workspace/tokens";
 import { forgetSearches, readRecentSearches, rememberSearch } from "@/lib/search/recent";
 import { parseQuery } from "@/lib/search/query";
@@ -87,10 +90,13 @@ function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) 
  * The one command menu: Search (default) and Create, with quick capture one keystroke away. Search
  * results come from `/api/search` (150 ms debounce, the previous request is cancelled by the next
  * keystroke). Built on cmdk; filtering happens on the server, so cmdk's own filter is off.
- * "Ask" arrives with feature 05 and is not shown until then.
+ * "Ask" (feature 05) streams an answer from the person's own workspace; it is only offered when AI
+ * is available and switched on.
  */
 export function CommandMenu({ mode, onModeChange, onClose }: Props) {
   const router = useRouter();
+  const { aiEnabled } = useWorkspace();
+  const ask = useAIStream("/api/ai/ask");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
   const [recent, setRecent] = useState<SearchHit[]>([]);
@@ -134,6 +140,18 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
         if ((error as Error).name !== "AbortError") setFailed(true);
       }
     }, 150);
+  }
+
+  // Without AI there is no Ask tab, and a stale Ask request (AI switched off while open) falls back.
+  const modes: readonly CommandMode[] = aiEnabled
+    ? (["search", "ask", "create"] as const)
+    : (["search", "create"] as const);
+  const asking = mode === "ask" && aiEnabled;
+
+  function submitQuestion() {
+    const question = query.trim();
+    if (question.length < 2) return;
+    ask.run({ question });
   }
 
   function close() {
@@ -201,10 +219,14 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                   e.preventDefault();
                   void captureTyped();
-                } else if (e.key === "Tab") {
-                  // Tab switches between Search and Create.
+                } else if (e.key === "Enter" && asking) {
                   e.preventDefault();
-                  onModeChange(mode === "search" ? "create" : "search");
+                  submitQuestion();
+                } else if (e.key === "Tab") {
+                  // Tab moves between Search, Ask (when AI is on) and Create.
+                  e.preventDefault();
+                  const at = modes.indexOf(mode);
+                  onModeChange(modes[(at + 1) % modes.length]!);
                 }
               }}
               className="flex min-h-0 flex-1 flex-col"
@@ -220,9 +242,15 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                   value={query}
                   onValueChange={(text) => {
                     setQuery(text);
-                    search(text);
+                    if (!asking) search(text);
                   }}
-                  placeholder={mode === "create" ? "Create something…" : "Search, ask or create"}
+                  placeholder={
+                    mode === "create"
+                      ? "Create something…"
+                      : asking
+                        ? "Ask about your workspace"
+                        : "Search, ask or create"
+                  }
                   className="h-12 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground md:text-[14px]"
                 />
                 <Kbd>esc</Kbd>
@@ -233,7 +261,7 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                 aria-label="Mode"
                 className="flex gap-4 border-b border-border px-4"
               >
-                {(["search", "create"] as const).map((m) => (
+                {modes.map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -252,7 +280,21 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                 ))}
               </div>
 
-              <Command.List className="max-h-[min(380px,calc(100dvh-14rem))] min-h-0 overflow-y-auto p-2 max-md:max-h-none max-md:flex-1">
+              {asking ? (
+                <div className="max-h-[min(420px,calc(100dvh-14rem))] min-h-0 overflow-y-auto max-md:max-h-none max-md:flex-1">
+                  <AskPanel
+                    state={ask.state}
+                    onRetry={ask.retry}
+                    onDismiss={ask.reset}
+                    onOpen={(href) => go(href)}
+                  />
+                </div>
+              ) : null}
+
+              <Command.List
+                hidden={asking}
+                className="max-h-[min(380px,calc(100dvh-14rem))] min-h-0 overflow-y-auto p-2 max-md:max-h-none max-md:flex-1"
+              >
                 {typed ? (
                   <Command.Item
                     value="capture"

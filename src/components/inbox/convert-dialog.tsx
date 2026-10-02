@@ -36,12 +36,14 @@ export const TARGETS: { id: ConvertTarget; label: string; submit: string }[] = [
 type Props = {
   item: { id: string; text: string };
   initialTarget: ConvertTarget;
+  /** An AI-suggested title. The fields start from it; the person can still change anything. */
+  initialTitle?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
 /** Convert an inbox item. Fields are pre-filled from its text and always editable; nothing is created until the person confirms. */
-export function ConvertDialog({ item, initialTarget, open, onOpenChange }: Props) {
+export function ConvertDialog({ item, initialTarget, initialTitle, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[520px]">
@@ -50,25 +52,48 @@ export function ConvertDialog({ item, initialTarget, open, onOpenChange }: Props
           Choose what this item becomes and check the details before creating it.
         </DialogDescription>
         {/* Mounted only while open, so the fields start from the item's text every time. */}
-        <ConvertForm item={item} initialTarget={initialTarget} close={() => onOpenChange(false)} />
+        <ConvertForm
+          item={item}
+          initialTarget={initialTarget}
+          initialTitle={initialTitle}
+          close={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   );
 }
 
+/**
+ * Pre-fills the form. With an AI-suggested title, that title leads and the person's own words go in
+ * the description, so nothing they typed is dropped.
+ */
+function startingFields(text: string, target: ConvertTarget, suggestedTitle?: string) {
+  const derived = deriveFields(text, target);
+  if (!suggestedTitle) return derived;
+  const limit = { task: 500, todo: 300, note: 300, task_note: 500, project: 100 }[target];
+  return {
+    title: Array.from(suggestedTitle).slice(0, limit).join(""),
+    description: target === "todo" ? "" : text.trim(),
+  };
+}
+
 function ConvertForm({
   item,
   initialTarget,
+  initialTitle,
   close,
 }: {
   item: { id: string; text: string };
   initialTarget: ConvertTarget;
+  initialTitle?: string;
   close: () => void;
 }) {
   const router = useRouter();
   const { projects } = useWorkspace();
   const [target, setTarget] = useState<ConvertTarget>(initialTarget);
-  const [fields, setFields] = useState(() => deriveFields(item.text, initialTarget));
+  const [fields, setFields] = useState(() =>
+    startingFields(item.text, initialTarget, initialTitle),
+  );
   const [project, setProject] = useState<ProjectRef | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [decideLater, setDecideLater] = useState(false);
@@ -85,7 +110,7 @@ function ConvertForm({
 
   function pick(next: ConvertTarget) {
     setTarget(next);
-    setFields(deriveFields(item.text, next));
+    setFields(startingFields(item.text, next, initialTitle));
     setTitleError(undefined);
   }
 

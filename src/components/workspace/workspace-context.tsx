@@ -11,12 +11,15 @@ export type WorkspaceValue = {
   tags: TagDTO[];
   /** The small numbers beside Today and Inbox in the sidebar. */
   counts: { today: number; inbox: number };
+  /** AI is configured and the person has it switched on. When false, no AI surface renders. */
+  aiEnabled: boolean;
 };
 
 const WorkspaceContext = createContext<WorkspaceValue>({
   projects: [],
   tags: [],
   counts: { today: 0, inbox: 0 },
+  aiEnabled: false,
 });
 
 export function WorkspaceProvider({

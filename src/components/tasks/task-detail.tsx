@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Ellipsis, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { setTaskStatus, updateTask } from "@/actions/tasks";
+import { setTaskStatus, updateTask, updateTaskDescription } from "@/actions/tasks";
 import { EmojiButton } from "@/components/emoji/emoji-picker";
 import {
   DropdownMenu,
@@ -18,7 +18,12 @@ import type { NoteRefDTO, TaskDetailDTO, TaskDTO } from "@/lib/tasks/dto";
 import type { TaskStatus } from "@/lib/tasks/status";
 import { cn } from "@/lib/utils";
 import { assignToProject } from "@/actions/projects";
+import { useWorkspace } from "@/components/workspace/workspace-context";
+import { toPlainText } from "@/lib/editor/projection";
+import { textToDoc } from "@/lib/inbox/convert";
+import type { TiptapDoc } from "@/lib/editor/types";
 import { DescriptionEditor } from "./description-editor";
+import { TaskAi } from "./task-ai";
 import { RelatedNotes } from "./related-notes";
 import { TagsSection } from "./tags-section";
 import { SubtasksSection } from "./subtasks-section";
@@ -57,6 +62,29 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
   const [subtasks, setSubtasks] = useState<TaskDTO[]>(detail.subtasks);
   const [titleDraft, setTitleDraft] = useState(detail.title);
   const [linkedNotes, setLinkedNotes] = useState<NoteRefDTO[]>(detail.notes);
+  const { aiEnabled } = useWorkspace();
+  // A rewrite the person accepted replaces the editor's content, so the editor starts over from it.
+  const [description, setDescription] = useState<{ doc: TiptapDoc | null; version: number }>({
+    doc: detail.descriptionJson,
+    version: 0,
+  });
+
+  // The latest text in the editor, read only when an AI action opens (never during render).
+  const liveDoc = useRef<TiptapDoc | null>(detail.descriptionJson);
+
+  async function replaceDescription(next: { title: string | null; description: string }) {
+    const doc = textToDoc(next.description);
+    const saved = await updateTaskDescription({ id: task.id, descriptionJson: doc });
+    if (!saved.ok) return firstError(saved.error);
+    if (next.title) {
+      const ok = await save({ title: next.title });
+      if (!ok) return "Couldn’t save the new title. Try again.";
+      setTitleDraft(next.title);
+    }
+    liveDoc.current = doc;
+    setDescription((d) => ({ doc, version: d.version + 1 }));
+    return null;
+  }
 
   async function changeProject(projectId: string | null) {
     const result = await assignToProject({ itemType: "task", itemId: task.id, projectId });
@@ -213,7 +241,7 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
         <SubtasksSection parentId={task.id} items={subtasks} onChange={setSubtasks} />
       )}
 
-      <DescriptionEditor taskId={task.id} initial={detail.descriptionJson} />
+      <DescriptionEditor key={description.version} taskId={task.id} initial={description.doc} />
 
       <RelatedNotes taskId={task.id} notes={linkedNotes} onChange={setLinkedNotes} />
       <TagsSection
@@ -221,6 +249,15 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
         tags={task.tags}
         onChange={(tags) => setTask((t) => ({ ...t, tags }))}
       />
+
+      {aiEnabled ? (
+        <TaskAi
+          task={task}
+          getDescriptionText={() => (liveDoc.current ? toPlainText(liveDoc.current) : "")}
+          onSubtasksAdded={(created) => setSubtasks((list) => [...list, ...created])}
+          onReplace={replaceDescription}
+        />
+      ) : null}
 
       <footer className="mt-8 flex items-center justify-between border-t border-border pt-4">
         <p className="type-body-sm text-muted-foreground">

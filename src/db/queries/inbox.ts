@@ -10,6 +10,7 @@ import {
   type ConvertedRef,
   type InboxItem,
 } from "@/db/schema";
+import { storedSuggestionSchema } from "@/lib/ai/schemas";
 import type { ConvertedLink, InboxItemDTO } from "@/lib/inbox/dto";
 
 const RECENT_DAYS = 7;
@@ -24,6 +25,7 @@ function toDTO(row: InboxItem, links: Map<string, ConvertedLink>): InboxItemDTO 
     convertedAt: row.convertedAt ? row.convertedAt.toISOString() : null,
     // Records that have since been deleted are left out rather than linking to nothing.
     converted: refs.flatMap((r) => links.get(`${r.type}:${r.id}`) ?? []),
+    aiSuggestion: storedSuggestionSchema.safeParse(row.aiSuggestion).data ?? null,
   };
 }
 

@@ -6,8 +6,19 @@ import { updatePreferences } from "@/actions/settings";
 import { Switch } from "@/components/ui/switch";
 import { SettingsRow } from "./settings-ui";
 
-// Usage ("12 of 100 AI actions") and the provider name arrive with feature 05, which owns ai_usage.
-export function AiSettings({ initialEnabled }: { initialEnabled: boolean }) {
+type Props = {
+  initialEnabled: boolean;
+  /** False when the server has a real provider selected but no key: AI is off for everyone. */
+  available: boolean;
+  provider: "anthropic" | "mock";
+  /** AI actions used today (rate-limited attempts don't count) and the daily limit. */
+  used: number;
+  limit: number;
+};
+
+const PROVIDER_NAME = { anthropic: "Anthropic", mock: "a built-in test assistant" } as const;
+
+export function AiSettings({ initialEnabled, available, provider, used, limit }: Props) {
   const [enabled, setEnabled] = useState(initialEnabled);
 
   async function change(next: boolean) {
@@ -28,15 +39,40 @@ export function AiSettings({ initialEnabled }: { initialEnabled: boolean }) {
         <Switch checked={enabled} onCheckedChange={change} aria-label="Enable AI features" />
       </SettingsRow>
 
+      {available ? (
+        <p className="mt-4 type-body-md text-foreground" data-testid="ai-usage">
+          {used} of {limit} AI actions used today.{" "}
+          <span className="text-muted-foreground">Resets at midnight.</span>
+        </p>
+      ) : (
+        <p role="status" className="mt-4 type-body-md text-muted-foreground">
+          AI isn’t set up on this server, so no AI buttons are shown. Everything else works as
+          usual.
+        </p>
+      )}
+
       <section className="mt-6" aria-labelledby="ai-data-heading">
         <h3 id="ai-data-heading" className="type-label-caps text-muted-foreground">
           How your data is used
         </h3>
         <p className="mt-3 max-w-xl type-body-md text-foreground">
           AI actions run only when you ask for them. Each action sends the minimum relevant content
-          to the AI provider. Prompts and answers aren’t stored, except inbox suggestions and the
-          daily suggestion. Deleted accounts may remain in backups until they rotate out.
+          to {PROVIDER_NAME[provider]}. Prompts and answers aren’t stored, except inbox suggestions
+          and the daily suggestion. Nothing is created or changed until you confirm it. Deleted
+          accounts may remain in backups until they rotate out.
         </p>
+        {provider === "anthropic" ? (
+          <p className="mt-3 type-body-md">
+            <a
+              href="https://www.anthropic.com/legal/privacy"
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline"
+            >
+              Read the provider’s data policy
+            </a>
+          </p>
+        ) : null}
       </section>
     </>
   );

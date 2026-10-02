@@ -28,9 +28,12 @@ export function SaveState({ status }: { status: SaveStatus }) {
 export function DescriptionEditor({
   taskId,
   initial,
+  onLiveChange,
 }: {
   taskId: string;
   initial: TiptapDoc | null;
+  /** Every edit, as it happens, for anything that needs the current text (e.g. an AI rewrite). */
+  onLiveChange?: (doc: TiptapDoc) => void;
 }) {
   const { status, schedule, flush } = useAutosave<TiptapDoc>({
     save: async (doc) => (await updateTaskDescription({ id: taskId, descriptionJson: doc })).ok,
@@ -46,7 +49,10 @@ export function DescriptionEditor({
       </div>
       <RichTextEditor
         initialContent={initial}
-        onChange={schedule}
+        onChange={(doc) => {
+          onLiveChange?.(doc);
+          schedule(doc);
+        }}
         onBlur={flush}
         label="Task description"
         placeholder="Add details…"

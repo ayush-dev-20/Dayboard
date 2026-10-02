@@ -9,7 +9,9 @@ import {
   restoreInboxItem,
   unarchiveInboxItem,
 } from "@/actions/inbox";
+import { InboxAi } from "./inbox-ai";
 import { Button } from "@/components/ui/button";
+import { useWorkspace } from "@/components/workspace/workspace-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +35,7 @@ export function InboxItem({
   archived?: boolean;
 }) {
   const [target, setTarget] = useState<ConvertTarget | null>(null);
+  const { aiEnabled } = useWorkspace();
 
   async function archive() {
     const result = await archiveInboxItem({ id: item.id });
@@ -68,6 +71,7 @@ export function InboxItem({
       <p className="text-[16px] break-words whitespace-pre-wrap text-foreground md:text-[14px]">
         {item.text}
       </p>
+      {aiEnabled && !archived ? <InboxAi item={item} /> : null}
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="type-data-sm text-muted-foreground">{ago}</span>
         <div className="flex items-center gap-1">

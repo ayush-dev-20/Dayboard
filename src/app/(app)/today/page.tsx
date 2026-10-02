@@ -6,6 +6,7 @@ import { NoteCard } from "@/components/notes/note-card";
 import { TaskContextProvider } from "@/components/tasks/task-context";
 import { buttonVariants } from "@/components/ui/button";
 import { AiSuggestionSlot } from "@/components/today/ai-suggestion-slot";
+import { OverdueCleanup } from "@/components/today/overdue-cleanup";
 import { FocusCard } from "@/components/today/focus-card";
 import { TodayCapture } from "@/components/today/today-capture";
 import {
@@ -57,6 +58,8 @@ export default async function TodayPage() {
           <FocusCard focus={data.focus} />
         </div>
 
+        <AiSuggestionSlot />
+
         {dayIsClear ? (
           <EmptyState
             className="mt-8"
@@ -75,7 +78,10 @@ export default async function TodayPage() {
         <div className="mt-10 flex flex-col gap-10">
           {data.overdue.length > 0 ? (
             <section aria-labelledby="today-overdue">
-              <SectionHeading id="today-overdue" label="Overdue" count={data.overdueTotal} />
+              <div className="flex items-baseline justify-between gap-4">
+                <SectionHeading id="today-overdue" label="Overdue" count={data.overdueTotal} />
+                <OverdueCleanup />
+              </div>
               <TodayTasks tasks={data.overdue} />
               {data.overdueTotal > TODAY_LIMITS.overdue ? (
                 <Link
@@ -146,8 +152,6 @@ export default async function TodayPage() {
               <TodayCompleted tasks={data.completedTasks} todos={data.completedTodos} />
             </details>
           ) : null}
-
-          <AiSuggestionSlot />
         </div>
       </div>
     </TaskContextProvider>

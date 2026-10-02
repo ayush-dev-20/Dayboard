@@ -60,9 +60,15 @@ Validated at startup by [src/lib/env-schema.ts](src/lib/env-schema.ts). A missin
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional pair | Enables "Continue with Google". Set both or neither |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | optional pair | Enables "Continue with GitHub". Set both or neither |
 | `RESEND_API_KEY`, `EMAIL_FROM` | **required in production** | Sends verification, reset and sign-in emails. Empty in development means "print to the terminal" |
+| `AI_PROVIDER` | optional | `anthropic` or `mock`. Empty means `mock` in development and `anthropic` in production. With `anthropic` and no `AI_API_KEY`, AI is switched off for everyone and every AI button disappears; the rest of the app works |
+| `AI_API_KEY` | needed for `anthropic` | Server-only. Never prefix with `NEXT_PUBLIC_`. `pnpm check:bundle` checks the browser bundle for it |
+| `AI_MODEL`, `AI_MODEL_FAST` | optional | Default and cheaper model (defaults: `claude-sonnet-5-5`, `claude-haiku-4-5-20251001`) |
+| `AI_BASE_URL` | optional | A proxy or gateway that speaks the provider's API |
+| `AI_LIMIT_PER_MINUTE`, `AI_LIMIT_PER_DAY` | optional | Per person (defaults 10 and 100). The day is the person's local day |
+| `AI_MOCK_MODE` | mock only | `error` makes every call fail, `slow` delays them. A single call can also fail with `[mock:error]` in its text |
 | `E2E`, `E2E_EMAIL_FILE` | tests only | Console email sender in a production build; where captured emails go. **Never set in a real deployment** |
 
-AI settings (`AI_PROVIDER`, `AI_API_KEY`, ...) arrive with feature 05.
+The AI assistant works out of the box with the built-in mock (no key, no network). To use a real model, set `AI_PROVIDER=anthropic` and `AI_API_KEY`. See [agent_docs/ai-assistant_v1.md](agent_docs/ai-assistant_v1.md).
 
 ## Setting up Google and GitHub sign-in
 

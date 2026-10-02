@@ -214,3 +214,18 @@ UI: answer text, then a "Sources" list of clickable links. Directly quoted snipp
 - Chat history or multi-turn conversations in Ask (each question is independent)
 - Background/automatic AI runs (everything is user-triggered, except the lazily loaded daily card)
 - Per-user model selection
+
+---
+
+## 12. As built (2026-10-02)
+
+Where the build differs from the text above (details in `agent_docs/ai-assistant_v1.md`):
+
+- **Providers (§2):** `AI_PROVIDER` accepts `anthropic` and `mock`; `openai` is not wired (ADR 0004). Without a key, a real provider means AI is off for everyone. `E2E=true` always uses the mock.
+- **Mock (§2):** besides `AI_MOCK_MODE`, the markers `[mock:error]` and `[mock:slow]` in a call's text fail or delay that call only.
+- **Data (§3):** `ai_daily_suggestions` also has `refresh_count`, which enforces one refresh a day. Rate-limited rows are written but not counted toward limits. The daily count is midnight to midnight in the person's time zone.
+- **Pipeline (§4):** routes return `{ data }` or `{ error }`. A `RATE_LIMITED` error carries `retryAfterSeconds` and a `Retry-After` header. Streams are newline-delimited JSON events (`text`, `sources`, `error`, `done`).
+- **Features (§5):** relative due dates ("Friday", "Oct 3") are resolved on the server against the person's own day (`src/lib/dates/resolve.ts`); a phrase that can't be resolved leaves the date empty. Classify stores nothing for a low-confidence answer. "Turn into tasks" on an inbox item also marks the item converted (`createTasksBatch` with `fromInboxItemId`). Overdue proposals start ticked for Keep and Reschedule and unticked for Archive and Cancel.
+- **Ask (§6):** the relation bonus uses a shared project only. Quoted lines (`> `) are labelled "From your workspace" only when the server finds that text in a record it sent. Citations show as `[1]`, and a label that wasn't provided is removed.
+- **Daily (§7):** the first Today visit of the day makes the call (counts as one action); later visits read the stored row.
+- **Tests (§9):** unit, integration (real routes and database with the mock) and 19 Playwright tests. The nine listed scenarios are covered, plus rewrite, estimate/next steps, Inbox suggestion, overdue cleanup, the daily card and direct-request checks. The key check is `pnpm check:bundle`.

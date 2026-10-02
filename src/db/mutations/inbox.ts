@@ -6,6 +6,7 @@ import { createProject } from "@/db/mutations/projects";
 import { createTask, updateTaskDescription } from "@/db/mutations/tasks";
 import { createTodo } from "@/db/mutations/todos";
 import { inboxItems, taskNotes, type ConvertedRef } from "@/db/schema";
+import type { StoredSuggestion } from "@/lib/ai/schemas";
 import { AppError } from "@/lib/errors";
 import { textToDoc } from "@/lib/inbox/convert";
 import type { TaskPriority } from "@/lib/tasks/status";
@@ -29,6 +30,20 @@ export async function captureInboxItem(userId: string, text: string): Promise<{ 
     .returning({ id: inboxItems.id });
   if (!row) throw new AppError("INTERNAL_ERROR");
   return row;
+}
+
+/** The AI's guess about an item (feature 05), or null to clear it. Never changes the item's text. */
+export async function setInboxSuggestion(
+  userId: string,
+  id: string,
+  suggestion: StoredSuggestion | null,
+): Promise<void> {
+  const [row] = await db
+    .update(inboxItems)
+    .set({ aiSuggestion: suggestion })
+    .where(and(owned(userId, id), eq(inboxItems.status, "OPEN")))
+    .returning({ id: inboxItems.id });
+  if (!row) throw new AppError("NOT_FOUND");
 }
 
 export async function updateInboxItem(userId: string, id: string, text: string): Promise<void> {

@@ -18,6 +18,12 @@ import { toast } from "sonner";
 import { archiveNote, deleteNote, restoreNote, updateNoteMeta } from "@/actions/notes";
 import { assignToProject } from "@/actions/projects";
 import { setNoteTags } from "@/actions/tags";
+import { createTasksBatch } from "@/actions/tasks";
+import { TasksPreviewDialog } from "@/components/ai/tasks-preview-dialog";
+import { useAICall, useAIStream } from "@/components/ai/use-ai";
+import { useWorkspace } from "@/components/workspace/workspace-context";
+import { insertSummary, parseSummary } from "@/lib/ai/summary";
+import type { PreviewTask } from "@/lib/ai/tasks-output";
 import { EmojiButton } from "@/components/emoji/emoji-picker";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { SaveState } from "@/components/tasks/description-editor";
@@ -40,6 +46,7 @@ import type { ProjectRef } from "@/lib/projects/dto";
 import type { TagDTO } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import { LinkedTasks } from "./linked-tasks";
+import { SummaryPanel } from "./note-ai";
 import { useNoteSync } from "./use-note-sync";
 
 type Props = {
@@ -125,6 +132,7 @@ export function NoteEditor({ note, start }: Props) {
   });
   const [draftDismissed, setDraftDismissed] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
+  const [extractOpen, setExtractOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
 
   const sync = useNoteSync({
@@ -135,6 +143,53 @@ export function NoteEditor({ note, start }: Props) {
     onCreated: (id) => window.history.replaceState(window.history.state, "", `/notes/${id}`),
   });
   const noteId = sync.noteId;
+
+  // AI (feature 05): summarize streams into a panel above the note; extract tasks is a preview.
+  const { aiEnabled } = useWorkspace();
+  const summary = useAIStream("/api/ai/summarize-note");
+  const extract = useAICall<{ items: PreviewTask[] }>("/api/ai/action-items");
+  // The latest document, kept for "Insert into note" (read in a click handler, never in render).
+  const liveDoc = useRef<TiptapDoc | null>(note?.contentJson ?? null);
+
+  async function startAi(kind: "summary" | "extract") {
+    if (!noteId) return;
+    // The server reads the saved note, so make sure it has the latest text first.
+    await sync.flush();
+    if (kind === "summary") summary.run({ noteId });
+    else {
+      extract.run({ noteId });
+      setExtractOpen(true);
+    }
+  }
+
+  function insertSummaryIntoNote() {
+    if (summary.state.status !== "complete") return;
+    const next = insertSummary(liveDoc.current, parseSummary(summary.state.data.text));
+    liveDoc.current = next;
+    reseed(next);
+    sync.onDocChange(next);
+    summary.reset();
+  }
+
+  async function createExtractedTasks(chosen: { title: string; dueDate: string | null }[]) {
+    if (!noteId) return "Save the note first.";
+    const result = await createTasksBatch({ items: chosen, linkNoteId: noteId });
+    if (!result.ok) return result.error.message;
+    setTasks((list) => [
+      ...result.data.map((t) => ({
+        id: t.id,
+        title: t.title,
+        emoji: t.emoji,
+        isDone: false,
+        dueDate: t.dueDate,
+      })),
+      ...list,
+    ]);
+    setExtractOpen(false);
+    extract.reset();
+    toast(`Created ${chosen.length} ${chosen.length === 1 ? "task" : "tasks"} and linked them.`);
+    return null;
+  }
 
   // A local draft newer than the saved note (after a failed save or a closed tab) can be recovered.
   const draft = useMemo(() => {
@@ -148,6 +203,7 @@ export function NoteEditor({ note, start }: Props) {
   }, [isClient, note]);
 
   function reseed(doc: TiptapDoc | null) {
+    liveDoc.current = doc;
     setSeed((s) => ({ key: s.key + 1, doc }));
   }
 
@@ -363,6 +419,29 @@ export function NoteEditor({ note, start }: Props) {
               >
                 <SmilePlus strokeWidth={1.5} aria-hidden /> Emoji
               </DropdownMenuItem>
+              {aiEnabled ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={!noteId}
+                    title={noteId ? undefined : needsNote}
+                    onSelect={() => {
+                      afterMenu.current = () => void startAi("summary");
+                    }}
+                  >
+                    Summarize
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!noteId}
+                    title={noteId ? undefined : needsNote}
+                    onSelect={() => {
+                      afterMenu.current = () => void startAi("extract");
+                    }}
+                  >
+                    Extract tasks
+                  </DropdownMenuItem>
+                </>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem disabled={!noteId} onSelect={() => void toggleArchive(!archived)}>
                 <Archive strokeWidth={1.5} aria-hidden /> {archived ? "Unarchive" : "Archive"}
@@ -403,6 +482,15 @@ export function NoteEditor({ note, start }: Props) {
           </TagPicker>
         </div>
       </header>
+
+      {aiEnabled ? (
+        <SummaryPanel
+          state={summary.state}
+          onRetry={summary.retry}
+          onDismiss={summary.reset}
+          onInsert={insertSummaryIntoNote}
+        />
+      ) : null}
 
       {sync.state.phase === "conflict" ? (
         <Banner
@@ -466,10 +554,32 @@ export function NoteEditor({ note, start }: Props) {
         variant="document"
         label="Note content"
         placeholder="Start writing. The note is created when you type."
-        onChange={sync.onDocChange}
+        onChange={(doc) => {
+          liveDoc.current = doc;
+          sync.onDocChange(doc);
+        }}
         onBlur={() => void sync.flush()}
         beforeContent={titleField}
       />
+
+      {aiEnabled ? (
+        <TasksPreviewDialog
+          open={extractOpen}
+          onOpenChange={(open) => {
+            setExtractOpen(open);
+            if (!open) extract.reset();
+          }}
+          title="Tasks found in this note"
+          intro="Created tasks are linked to this note."
+          progress="Reading your note…"
+          state={extract.state}
+          onRetry={extract.retry}
+          confirmLabel={(n) => `Create ${n} ${n === 1 ? "task" : "tasks"} and link`}
+          failureText="Couldn’t find tasks in this note. Nothing was changed."
+          emptyText="No tasks found in this note."
+          onConfirm={createExtractedTasks}
+        />
+      ) : null}
     </div>
   );
 }

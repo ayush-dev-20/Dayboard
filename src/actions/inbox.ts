@@ -32,6 +32,16 @@ export async function captureInboxItem(input: unknown): Promise<ActionResult<{ i
   });
 }
 
+/** Dismisses the AI's guess on an item. Only ever clears it; a guess is stored by the AI route. */
+export async function dismissInboxSuggestion(input: unknown): Promise<ActionResult> {
+  return runAction("inbox.dismissSuggestion", async () => {
+    const user = await requireUser();
+    const { id } = inboxIdSchema.parse(input);
+    await mutations.setInboxSuggestion(user.id, id, null);
+    revalidatePath("/inbox");
+  });
+}
+
 export async function updateInboxItem(input: unknown): Promise<ActionResult> {
   return runAction("inbox.update", async () => {
     const user = await requireUser();

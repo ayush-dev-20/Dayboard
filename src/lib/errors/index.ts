@@ -46,22 +46,31 @@ export class AppError extends Error {
   readonly code: ErrorCode;
   readonly httpStatus: number;
   readonly fieldErrors?: FieldErrors;
+  readonly retryAfterSeconds?: number;
 
   constructor(
     code: ErrorCode,
     message?: string,
-    options?: { fieldErrors?: FieldErrors; cause?: unknown },
+    options?: { fieldErrors?: FieldErrors; cause?: unknown; retryAfterSeconds?: number },
   ) {
     super(message ?? DEFAULT_MESSAGE[code], { cause: options?.cause });
     this.name = "AppError";
     this.code = code;
     this.httpStatus = HTTP_STATUS[code];
     this.fieldErrors = options?.fieldErrors;
+    this.retryAfterSeconds = options?.retryAfterSeconds;
   }
 }
 
 export type ErrorBody = {
-  error: { code: ErrorCode; message: string; fieldErrors?: FieldErrors; requestId?: string };
+  error: {
+    code: ErrorCode;
+    message: string;
+    fieldErrors?: FieldErrors;
+    requestId?: string;
+    /** Only on RATE_LIMITED: how long until the same request can work. */
+    retryAfterSeconds?: number;
+  };
 };
 
 export function toErrorBody(error: unknown, requestId?: string): ErrorBody {
@@ -72,6 +81,7 @@ export function toErrorBody(error: unknown, requestId?: string): ErrorBody {
         message: error.message,
         fieldErrors: error.fieldErrors,
         requestId,
+        retryAfterSeconds: error.retryAfterSeconds,
       },
     };
   }
@@ -80,5 +90,9 @@ export function toErrorBody(error: unknown, requestId?: string): ErrorBody {
 
 export function toErrorResponse(error: unknown, requestId?: string): Response {
   const status = error instanceof AppError ? error.httpStatus : 500;
-  return Response.json(toErrorBody(error, requestId), { status });
+  const headers =
+    error instanceof AppError && error.retryAfterSeconds
+      ? { "Retry-After": String(error.retryAfterSeconds) }
+      : undefined;
+  return Response.json(toErrorBody(error, requestId), { status, headers });
 }

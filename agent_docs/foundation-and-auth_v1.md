@@ -14,7 +14,7 @@ Every later feature needs a signed-in user, a database and a shell, so this is t
 
 ## What was deferred
 - Quick capture, Create, the search trigger and sidebar counts: built in feature 04.
-- Settings **Tags** tab: built in feature 03. AI **usage meter** and provider name (feature 05). Session **location** (needs a GeoIP service). Provider rows show "Linked on {date}", not the provider email.
+- Settings **Tags** tab: built in feature 03. AI usage meter and provider notice: built in feature 05. Session **location** (needs a GeoIP service). Provider rows show "Linked on {date}", not the provider email.
 - Production Compose, Caddy, CI/CD, backups, rollback: feature 06. `motion` and `cmdk` are not installed yet.
 
 ## Related files

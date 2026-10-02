@@ -94,3 +94,16 @@ export function nextMondayOf(prefs: DayPrefs, now: Date = new Date()): string {
   const weekday = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; // Monday = 0
   return addDays(formatDateString(y, m, d), 7 - weekday);
 }
+
+/**
+ * The person's calendar day (midnight to midnight in their time zone), as instants: when it began
+ * and when the next one begins. Unlike "today" above, this does not follow start-of-day; it is
+ * what a daily usage count resets on.
+ */
+export function localDay(timezone: string, now: Date = new Date()) {
+  const date = getUserToday({ timezone, startOfDay: "00:00" }, now);
+  return {
+    start: dueInstant(date, null, timezone),
+    nextMidnight: dueInstant(addDays(date, 1), null, timezone),
+  };
+}

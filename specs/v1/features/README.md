@@ -5,13 +5,14 @@ Each file in this folder is one buildable feature: a technical breakdown of what
 Build them in order. Each feature leaves the app runnable and depends only on features before it.
 
 | # | Feature | Covers | Depends on |
-|---|---------|--------|------------|
+| --- | --- | --- | --- |
 | 01 | [Foundation & Auth](01-foundation-and-auth.md) | Repo scaffold, env, DB base, Better Auth (email/password, Google, GitHub, magic link), app shell, Settings | — |
 | 02 | [Tasks & Todos](02-tasks-and-todos.md) | Tasks, subtasks, recurrence, task detail with rich-text description, Todos, emoji | 01 |
 | 03 | [Notes, Projects & Tags](03-notes-projects-tags.md) | Note editor + autosave, task-note linking, Projects, Tags | 01, 02 |
 | 04 | [Inbox, Today, Search & Trash](04-inbox-today-search-trash.md) | Quick capture + conversion, Today screen, Cmd/Ctrl+K search, unified Trash | 01–03 |
 | 05 | [AI Assistant](05-ai-assistant.md) | Provider adapter, usage limits, AI features A–G | 01–04 |
 | 06 | [Production & DevOps](06-production-devops.md) | Docker, Compose, Caddy, CI/CD, migrations, backups, rollback, logging | 01 (starts early, see note) |
+| 07 | [UI Modernization](07-ui-modernization.md) | DESIGN.md update, new tokens and depth, inset layout, Today and screen rebuilds, motion, inline AI styling, landing page, auth, onboarding, empty states, visual and accessibility tests | 01–05 (independent of 06) |
 
 **Note on 06:** Deployment is a learning goal, so don't leave it to the end. Start the Dockerfile and local Compose during 01, and add CI once 02 lands. Finish CD, backups and rollback after 05. See the milestones in [06-production-devops.md](06-production-devops.md).
 

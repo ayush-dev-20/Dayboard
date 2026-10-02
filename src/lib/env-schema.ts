@@ -22,6 +22,21 @@ const rawSchema = z.object({
   RESEND_API_KEY: optionalString,
   EMAIL_FROM: optionalString,
   E2E: optionalString,
+  // AI (feature 05). `mock` needs no key and is the default outside production.
+  AI_PROVIDER: z.preprocess(blankToUndefined, z.enum(["anthropic", "mock"]).optional()),
+  AI_MODEL: optionalString,
+  AI_MODEL_FAST: optionalString,
+  AI_API_KEY: optionalString,
+  AI_BASE_URL: z.preprocess(blankToUndefined, z.url("must be a full URL").optional()),
+  AI_MOCK_MODE: z.preprocess(blankToUndefined, z.enum(["error", "slow"]).optional()),
+  AI_LIMIT_PER_MINUTE: z.preprocess(
+    blankToUndefined,
+    z.coerce.number().int().min(1).max(1000).default(10),
+  ),
+  AI_LIMIT_PER_DAY: z.preprocess(
+    blankToUndefined,
+    z.coerce.number().int().min(1).max(100000).default(100),
+  ),
 });
 
 export type ParseEnvOptions = {
@@ -83,6 +98,14 @@ export function parseEnv(
 
   const emailProvider: "resend" | "console" = v.RESEND_API_KEY ? "resend" : "console";
 
+  // Real model calls never happen in tests: an E2E run is always the mock. Otherwise the mock is
+  // the default everywhere except production, where a real provider is expected.
+  const aiProvider: "anthropic" | "mock" = e2e
+    ? "mock"
+    : (v.AI_PROVIDER ?? (v.NODE_ENV === "production" ? "anthropic" : "mock"));
+  // A real provider without a key means AI is switched off for everyone; the rest of the app works.
+  const aiAvailable = aiProvider === "mock" || Boolean(v.AI_API_KEY);
+
   return {
     ...v,
     e2e,
@@ -90,6 +113,8 @@ export function parseEnv(
     emailProvider,
     // Verification is enforced whenever mail is really sent, and in E2E runs so the flow is tested.
     emailVerificationRequired: emailProvider === "resend" || e2e,
+    aiProvider,
+    aiAvailable,
     googleEnabled: Boolean(v.GOOGLE_CLIENT_ID && v.GOOGLE_CLIENT_SECRET),
     githubEnabled: Boolean(v.GITHUB_CLIENT_ID && v.GITHUB_CLIENT_SECRET),
   };

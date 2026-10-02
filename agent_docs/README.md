@@ -14,6 +14,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | Tasks & todos | V1 | Done | [tasks-and-todos_v1.md](tasks-and-todos_v1.md) |
 | Notes, projects & tags | V1 | Done | [notes-projects-tags_v1.md](notes-projects-tags_v1.md) |
 | Inbox, Today, Search & Trash | V1 | Done | [inbox-today-search-trash_v1.md](inbox-today-search-trash_v1.md) |
+| AI assistant | V1 | Done | [ai-assistant_v1.md](ai-assistant_v1.md) |
 
 Status is `Done` or `In progress`.
 

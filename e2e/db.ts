@@ -333,3 +333,41 @@ export async function tasksCreatedFor(userId: string) {
   return sql<{ id: string; title: string; status: string; due_date: string | null }[]>`
     select id, title, status::text, to_char(due_date, 'YYYY-MM-DD') as due_date from tasks where user_id = ${userId} order by created_at`;
 }
+
+// ---- AI assistant (feature 05) ----------------------------------------------------------------
+
+export async function aiUsageOf(userId: string) {
+  return sql<{ feature: string; status: string; provider: string }[]>`
+    select feature::text, status::text, provider from ai_usage where user_id = ${userId} order by created_at`;
+}
+
+/** Fills the per-minute window with `count` successful calls, so the next one is rate-limited. */
+export async function fillAiMinute(userId: string, count: number) {
+  await sql`
+    insert into ai_usage (id, user_id, feature, provider, model, status, prompt_version, created_at)
+    select gen_random_uuid(), ${userId}, 'ASK'::ai_feature, 'mock', 'mock', 'SUCCESS'::ai_usage_status, 'ASK_V1',
+           now() - make_interval(secs => g)
+    from generate_series(1, ${count}) as g`;
+}
+
+export async function inboxSuggestionOf(id: string) {
+  const [row] = await sql<
+    { ai_suggestion: unknown }[]
+  >`select ai_suggestion from inbox_items where id = ${id}`;
+  return row?.ai_suggestion ?? null;
+}
+
+export async function dailySuggestionsOf(userId: string) {
+  return sql<{ local_date: string; text: string; refresh_count: number }[]>`
+    select local_date::text, text, refresh_count from ai_daily_suggestions where user_id = ${userId}`;
+}
+
+export async function taskDescriptionText(taskId: string) {
+  const [row] = await sql<{ description_text: string | null }[]>`
+    select description_text from tasks where id = ${taskId}`;
+  return row?.description_text ?? null;
+}
+
+export async function clearDailySuggestions(userId: string) {
+  await sql`delete from ai_daily_suggestions where user_id = ${userId}`;
+}

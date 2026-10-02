@@ -543,8 +543,8 @@ Define typed application errors:
 - NOT_FOUND
 - VALIDATION_ERROR
 - CONFLICT
-- RATE_LIMITED
-- AI_DISABLED
+- RATE_LIMITED (may carry `retryAfterSeconds`, also sent as a `Retry-After` header)
+- AI_DISABLED (AI is switched off for the person, or no provider key is configured on the server)
 - AI_PROVIDER_ERROR
 - DATABASE_ERROR
 - INTERNAL_ERROR

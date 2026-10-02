@@ -2,9 +2,9 @@ import "server-only";
 import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inTransaction, type Executor, type Tx } from "@/db/executor";
-import { assertOwnedProject } from "@/db/mutations/guards";
+import { assertOwnedNote, assertOwnedProject } from "@/db/mutations/guards";
 import { taskMetaFor } from "@/db/queries/meta";
-import { tasks, type NewTask, type Task } from "@/db/schema";
+import { inboxItems, taskNotes, tasks, type NewTask, type Task } from "@/db/schema";
 import { addDays, daysBetween } from "@/lib/dates/calendar";
 import { AppError } from "@/lib/errors";
 import { uuidv7 } from "@/lib/ids";
@@ -21,7 +21,11 @@ import {
   type TaskStatus,
 } from "@/lib/tasks/status";
 import { checkSubtaskParent } from "@/lib/tasks/subtasks";
-import type { CreateTaskInput, UpdateTaskInput } from "@/lib/validations/tasks";
+import type {
+  CreateTaskInput,
+  CreateTasksBatchInput,
+  UpdateTaskInput,
+} from "@/lib/validations/tasks";
 
 // Every function here takes the signed-in person's id first and puts it in every WHERE clause.
 // A task that exists but belongs to someone else behaves exactly like one that doesn't exist.
@@ -140,6 +144,60 @@ export async function createTask(
       .returning();
     if (!created) throw new AppError("INTERNAL_ERROR");
     return dto(tx, created);
+  });
+}
+
+/**
+ * Creates several tasks in one transaction: all of them or none. Each goes through `createTask`, so
+ * ownership, the subtask rules and ordering are the same as creating them one by one. With
+ * `linkNoteId`, every new task is also linked to that note.
+ */
+export async function createTasksBatch(
+  userId: string,
+  input: CreateTasksBatchInput,
+  defaults: { priority: TaskPriority },
+): Promise<TaskDTO[]> {
+  return db.transaction(async (tx) => {
+    if (input.linkNoteId) await assertOwnedNote(tx, userId, input.linkNoteId);
+    const created: TaskDTO[] = [];
+    for (const item of input.items) {
+      const task = await createTask(
+        userId,
+        {
+          title: item.title,
+          dueDate: item.dueDate ?? null,
+          parentTaskId: input.parentTaskId ?? null,
+          projectId: input.parentTaskId ? null : (input.projectId ?? null),
+        },
+        defaults,
+        tx,
+      );
+      if (input.linkNoteId) {
+        await tx.insert(taskNotes).values({ taskId: task.id, noteId: input.linkNoteId, userId });
+      }
+      created.push(task);
+    }
+
+    if (input.fromInboxItemId) {
+      const [item] = await tx
+        .update(inboxItems)
+        .set({
+          status: "CONVERTED",
+          convertedAt: new Date(),
+          convertedRefs: created.map((t) => ({ type: "task" as const, id: t.id })),
+        })
+        .where(
+          and(
+            eq(inboxItems.id, input.fromInboxItemId),
+            eq(inboxItems.userId, userId),
+            eq(inboxItems.status, "OPEN"),
+            isNull(inboxItems.deletedAt),
+          ),
+        )
+        .returning({ id: inboxItems.id });
+      if (!item) throw new AppError("NOT_FOUND");
+    }
+    return created;
   });
 }
 

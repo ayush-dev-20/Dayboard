@@ -9,6 +9,7 @@ import type { TaskDTO } from "@/lib/tasks/dto";
 import type { TaskStatus } from "@/lib/tasks/status";
 import {
   createTaskSchema,
+  createTasksBatchSchema,
   idOnlySchema,
   reorderSchema,
   setTaskStatusSchema,
@@ -32,6 +33,25 @@ export async function createTask(input: unknown): Promise<ActionResult<TaskDTO>>
     const task = await mutations.createTask(user.id, values, { priority: defaultTaskPriority });
     refreshTasks();
     return task;
+  });
+}
+
+/** Used by the AI previews, only after the person clicked the confirm button. */
+export async function createTasksBatch(input: unknown): Promise<ActionResult<TaskDTO[]>> {
+  return runAction("tasks.createBatch", async () => {
+    const user = await requireUser();
+    const values = createTasksBatchSchema.parse(input);
+    const { defaultTaskPriority } = await getPreferences(user.id);
+    const created = await mutations.createTasksBatch(user.id, values, {
+      priority: defaultTaskPriority,
+    });
+    refreshTasks();
+    if (values.fromInboxItemId) {
+      revalidatePath("/inbox");
+      revalidatePath("/", "layout");
+    }
+    if (values.linkNoteId) revalidatePath("/notes", "layout");
+    return created;
   });
 }
 

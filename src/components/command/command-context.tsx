@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from "react";
 
-export type CommandMode = "search" | "create" | "capture";
+export type CommandMode = "search" | "ask" | "create" | "capture";
 
 export type CommandControls = {
   /** Opens the menu. `capture` goes straight to the quick-capture box. */

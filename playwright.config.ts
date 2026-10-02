@@ -52,6 +52,12 @@ export default defineConfig({
       GOOGLE_CLIENT_SECRET: "",
       GITHUB_CLIENT_ID: "",
       GITHUB_CLIENT_SECRET: "",
+      // CI and local runs never reach a real AI provider: always the mock, with no key at all.
+      AI_PROVIDER: "mock",
+      AI_API_KEY: "",
+      AI_MOCK_MODE: "",
+      AI_LIMIT_PER_MINUTE: "10",
+      AI_LIMIT_PER_DAY: "100",
       DATABASE_URL: E2E_DATABASE_URL,
       BETTER_AUTH_SECRET: "e2e-only-secret-not-used-anywhere-else-0123456789",
       BETTER_AUTH_URL: baseURL,

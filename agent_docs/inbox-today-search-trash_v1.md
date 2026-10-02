@@ -15,7 +15,7 @@
 These are the views that cut across every item type, so each is built on the owning feature's own queries and actions: Today reuses `TaskRow`/`TodoRow`/`NoteCard`, conversion calls the same `createTask`/`createNote`/`createTodo`/`createProject` inside one transaction, and Trash calls each feature's own `restore*` and `permanentlyDelete*`.
 
 ## What was deferred
-- **AI:** the suggestion slot on Today (`ai-suggestion-slot.tsx`), the AI suggestion on inbox items (`inbox_items.ai_suggestion` exists, unused) and the "Ask" mode of the menu are feature 05. Ask is hidden until then.
+- **AI:** built in feature 05 (`ai-assistant_v1.md`): the Today suggestion slot, the inbox suggestion chip and the menu's Ask tab.
 - Inline editing of an inbox item's text: `updateInboxItem` exists and is tested but has no UI. Saved searches, `pg_trgm` indexes and automatic trash purge are out of scope (add the index only if search is slow).
 
 ## Related files

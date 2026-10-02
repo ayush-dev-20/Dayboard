@@ -1,3 +1,5 @@
+import type { StoredSuggestion } from "../ai/schemas";
+
 export type InboxStatus = "OPEN" | "CONVERTED" | "ARCHIVED";
 
 /** What a converted item became, with the current title so the link reads well. */
@@ -15,6 +17,8 @@ export type InboxItemDTO = {
   createdAt: string;
   convertedAt: string | null;
   converted: ConvertedLink[];
+  /** What the AI thought this was, kept so the chip is there on the next visit. */
+  aiSuggestion: StoredSuggestion | null;
 };
 
 export const TYPE_NOUN: Record<ConvertedLink["type"], string> = {

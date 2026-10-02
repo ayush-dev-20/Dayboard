@@ -6,6 +6,7 @@ import { WorkspaceProvider } from "@/components/workspace/workspace-context";
 import { listProjectRefs } from "@/db/queries/projects";
 import { getNavCounts } from "@/db/queries/nav-counts";
 import { listTags } from "@/db/queries/tags";
+import { env } from "@/lib/env";
 import { getPreferences } from "@/lib/preferences";
 import { safeNextPath } from "@/lib/redirects";
 import { requireUser } from "@/lib/session";
@@ -29,7 +30,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <WorkspaceProvider value={{ projects, tags, counts }}>
+    <WorkspaceProvider
+      value={{ projects, tags, counts, aiEnabled: env.aiAvailable && preferences.aiEnabled }}
+    >
       <AppShell name={user.name} email={user.email}>
         <ThemeSync theme={preferences.theme} />
         {children}

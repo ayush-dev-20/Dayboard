@@ -15,7 +15,7 @@ Tasks and todos are the daily-use core, so everything here has to be quick and s
 
 ## What was deferred
 - Project, tags and related notes on a task: done in feature 03 (`notes-projects-tags_v1.md`), which also added the `project_id` foreign key.
-- Trash screen, Inbox, Today content, search and Quick capture / Create: built in feature 04 (`inbox-today-search-trash_v1.md`). AI actions on a task: feature 05.
+- Trash screen, Inbox, Today content, search and Quick capture / Create: built in feature 04 (`inbox-today-search-trash_v1.md`). AI actions on a task: built in feature 05 (`ai-assistant_v1.md`).
 - Drag and drop (not wanted in V1), custom repeat rules, turning a todo into a task (V2).
 
 ## Related files

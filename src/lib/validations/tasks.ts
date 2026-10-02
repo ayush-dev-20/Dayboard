@@ -103,6 +103,25 @@ export const updateTaskDescriptionSchema = z.strictObject({
   descriptionJson: richTextSchema.nullable(),
 });
 
+// Several tasks at once, from an AI preview the person has confirmed (feature 05). Up to 15, all or
+// nothing. `parentTaskId` makes them subtasks; `linkNoteId` links every new task to that note.
+export const MAX_BATCH_TASKS = 15;
+export const createTasksBatchSchema = z
+  .strictObject({
+    items: z
+      .array(z.strictObject({ title: taskTitleSchema, dueDate: dateSchema.nullish() }))
+      .min(1, "Choose at least one task.")
+      .max(MAX_BATCH_TASKS, `Create up to ${MAX_BATCH_TASKS} tasks at a time.`),
+    parentTaskId: idSchema.nullish(),
+    linkNoteId: idSchema.nullish(),
+    projectId: idSchema.nullish(),
+    /** Marks this inbox item converted to the new tasks, in the same transaction. */
+    fromInboxItemId: idSchema.nullish(),
+  })
+  .refine((v) => [v.parentTaskId, v.linkNoteId, v.fromInboxItemId].filter(Boolean).length <= 1, {
+    message: "Choose subtasks, a linked note or an inbox item, not a mix.",
+  });
+
 export const setTaskStatusSchema = z.strictObject({ id: idSchema, status: taskStatusSchema });
 export const idOnlySchema = z.strictObject({ id: idSchema });
 
@@ -136,6 +155,7 @@ export const updateTodoSchema = z.strictObject({
 export const setTodoCompleteSchema = z.strictObject({ id: idSchema, isComplete: z.boolean() });
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type CreateTasksBatchInput = z.infer<typeof createTasksBatchSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type CreateTodoInput = z.infer<typeof createTodoSchema>;
 export type UpdateTodoInput = z.infer<typeof updateTodoSchema>;
