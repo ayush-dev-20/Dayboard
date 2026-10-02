@@ -13,6 +13,7 @@ test.describe("creating, editing and completing", () => {
   test("create a task, edit it, complete it, undo, complete again, and it persists", async ({
     page,
   }) => {
+    test.slow(); // a long journey: each Undo toast alone takes five seconds to close
     const { user } = await newUser(page);
     await page.goto("/tasks");
     await expect(page.getByText("No tasks yet.")).toBeVisible();
@@ -368,7 +369,7 @@ test.describe("description", () => {
   });
 
   test("a checklist and a link can be added", async ({ page }) => {
-    await newUser(page);
+    const { user } = await newUser(page);
     await page.goto("/tasks");
     await addTask(page, "Checklist task");
     await openTask(page, "Checklist task");
@@ -381,12 +382,18 @@ test.describe("description", () => {
     await expect(editor.locator('ul[data-type="taskList"] li')).toHaveCount(1);
     await editor.locator('input[type="checkbox"]').check();
     await expect(editor.locator('li[data-checked="true"]')).toHaveCount(1);
+    // The ticked state is what gets saved, not just what is shown.
+    await expect
+      .poll(async () =>
+        JSON.stringify((await taskByTitle(user.id, "Checklist task"))[0]?.description_json),
+      )
+      .toContain('"checked":true');
 
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter");
     await page.keyboard.type("docs");
     for (let i = 0; i < "docs".length; i++) await page.keyboard.press("Shift+ArrowLeft");
-    await sheet.getByRole("button", { name: "Link" }).click();
+    await sheet.getByRole("button", { name: "Link", exact: true }).click();
     await page.getByLabel("Link address").fill("javascript:alert(1)");
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(
@@ -804,7 +811,7 @@ test.describe("accessibility", () => {
       "Link",
       "Inline code",
     ]) {
-      await expect(detailPanel(page).getByRole("button", { name })).toBeVisible();
+      await expect(detailPanel(page).getByRole("button", { name, exact: true })).toBeVisible();
     }
   });
 });

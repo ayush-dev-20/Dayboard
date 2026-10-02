@@ -65,12 +65,18 @@ describe("creating and listing", () => {
       { description: "x" },
       { tags: [] },
       { userId: bob.id },
-      { projectId: crypto.randomUUID() },
     ]) {
       expect(errorOf(await createTodo({ title: "x", ...extra })).code, JSON.stringify(extra)).toBe(
         "VALIDATION_ERROR",
       );
     }
+  });
+
+  it("only accepts a project that is the person's own", async () => {
+    actAs(alice);
+    expect(errorOf(await createTodo({ title: "x", projectId: crypto.randomUUID() })).code).toBe(
+      "NOT_FOUND",
+    );
   });
 
   it("requires a signed-in person", async () => {

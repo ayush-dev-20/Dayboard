@@ -25,9 +25,9 @@ function layout(opts: {
 
   const html = `<!doctype html>
 <html><body style="margin:0;padding:32px 16px;background:#faf8f2;">
-<div style="max-width:440px;margin:0 auto;font-family:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;">
-<p style="margin:0 0 24px;font-family:Georgia,serif;font-size:20px;font-weight:600;color:#221d18;">Dayboard</p>
-<h1 style="margin:0 0 16px;font-family:Georgia,serif;font-size:24px;line-height:1.25;font-weight:600;color:#221d18;">${opts.heading}</h1>
+<div style="max-width:440px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<p style="margin:0 0 24px;font-size:20px;font-weight:600;color:#221d18;">Dayboard</p>
+<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;font-weight:600;color:#221d18;">${opts.heading}</h1>
 ${paragraphs}
 <p style="margin:24px 0;"><a href="${opts.link}" style="display:inline-block;background:#1b5687;color:#faf8f2;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:6px;">${opts.cta}</a></p>
 <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#605a53;">Or paste this link into your browser:<br><span style="word-break:break-all;">${opts.link}</span></p>

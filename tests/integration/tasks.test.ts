@@ -98,10 +98,10 @@ describe("creating and listing", () => {
         await createTask({ title: "x", recurrenceRule: "FREQ=HOURLY", dueDate: "2026-10-01" }),
       ).code,
     ).toBe("VALIDATION_ERROR");
-    // A client can never choose the owner, or a project before projects exist.
+    // A client can never choose the owner; a project must be one of their own (see workspace.test.ts).
     expect(errorOf(await createTask({ title: "x", userId: bob.id })).code).toBe("VALIDATION_ERROR");
     expect(errorOf(await createTask({ title: "x", projectId: crypto.randomUUID() })).code).toBe(
-      "VALIDATION_ERROR",
+      "NOT_FOUND",
     );
   });
 

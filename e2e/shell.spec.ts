@@ -4,8 +4,6 @@ import { signIn, signOut, signUp, newDevice } from "./helpers";
 
 const PLACEHOLDER_PAGES = [
   { path: "/inbox", title: "Inbox" },
-  { path: "/notes", title: "Notes" },
-  { path: "/projects", title: "Projects" },
   { path: "/search", title: "Search" },
   { path: "/trash", title: "Trash" },
 ];
@@ -54,14 +52,15 @@ test.describe("signed in, desktop", () => {
       ).toBeVisible();
     }
 
-    // Tasks is a real page now (feature 02); it is covered in depth by tasks.spec.ts.
-    await primary.getByRole("link", { name: "Tasks" }).click();
-    await expect(page).toHaveURL(/\/tasks$/);
-    await expect(primary.getByRole("link", { name: "Tasks" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    await expect(page.getByRole("heading", { level: 1, name: "Tasks" })).toBeVisible();
+    // Tasks, Notes and Projects are real pages now (features 02 and 03); each has its own spec.
+    for (const title of ["Tasks", "Notes", "Projects"]) {
+      await primary.getByRole("link", { name: title }).click();
+      await expect(primary.getByRole("link", { name: title })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    }
 
     await primary.getByRole("link", { name: "Settings" }).click();
     await expect(page).toHaveURL(/\/settings\/account/);

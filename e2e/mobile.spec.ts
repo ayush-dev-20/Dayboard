@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { test } from "./fixtures";
-import { findUser, insertTask } from "./db";
+import { findUser, insertNote, insertProject, insertTask, noteByTitle } from "./db";
 import { signUp, taskRow } from "./helpers";
 
 async function hasHorizontalScroll(page: Page) {
@@ -181,5 +181,97 @@ test.describe("phone", () => {
       .getByRole("button", { name: "🎯" })
       .tap();
     await expect(page.getByRole("button", { name: "Task emoji" })).toContainText("🎯");
+  });
+
+  test("notes: the list and editor fit a phone; the editor takes the whole screen with its toolbar at the bottom", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    const account = await signUp(page);
+    const user = (await findUser(account.email))!;
+    const project = await insertProject(user.id, { name: "Acme" });
+    const noteId = await insertNote(user.id, {
+      title: "Phone note",
+      text: "hello there",
+      projectId: project,
+    });
+    for (const path of [
+      "/notes",
+      `/notes/${noteId}`,
+      "/projects",
+      `/projects/${project}`,
+      "/settings/tags",
+    ]) {
+      await page.goto(path);
+      expect(await hasHorizontalScroll(page), path).toBe(false);
+    }
+
+    await page.goto("/notes");
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await page.getByRole("link", { name: /Phone note/ }).tap();
+    await expect(page).toHaveURL(new RegExp(`/notes/${noteId}$`));
+
+    // No bottom navigation or top bar here: the page is the editor.
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+    const toolbar = page.getByRole("toolbar", { name: "Formatting" });
+    await expect(toolbar).toBeVisible();
+    const box = await toolbar.boundingBox();
+    expect(box!.y + box!.height).toBeGreaterThan(740 - 4); // pinned to the bottom edge
+    for (const target of [
+      page.getByRole("button", { name: "Bold" }),
+      page.getByRole("button", { name: "More actions" }),
+    ]) {
+      const b = await target.boundingBox();
+      expect(b!.height).toBeGreaterThanOrEqual(44);
+      expect(b!.width).toBeGreaterThanOrEqual(44);
+    }
+
+    // Typing and formatting by touch saves.
+    await page.getByRole("textbox", { name: "Note content" }).tap();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" and more");
+    await page.getByRole("button", { name: "Bold" }).tap();
+    await page.keyboard.type(" bold");
+    await expect(page.getByText("Saved")).toBeVisible();
+    await expect
+      .poll(async () => (await noteByTitle(user.id, "Phone note"))?.content_text)
+      .toBe("hello there and more bold");
+
+    await page.getByRole("link", { name: "Back to notes" }).tap();
+    await expect(page).toHaveURL(/\/notes$/);
+  });
+
+  test("a new note on a phone is created by typing", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    const account = await signUp(page);
+    const user = (await findUser(account.email))!;
+    await page.goto("/notes");
+    await page.getByRole("link", { name: "New note" }).first().tap();
+    await expect(page).toHaveURL(/\/notes\/new$/);
+    await page.getByLabel("Note title").fill("From my phone");
+    await expect(page.getByText("Saved")).toBeVisible();
+    await expect.poll(async () => (await noteByTitle(user.id, "From my phone"))?.id).toBeTruthy();
+    await expect(page).toHaveURL(/\/notes\/[0-9a-f-]{36}$/);
+  });
+
+  test("projects: the list and detail work by touch", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    const account = await signUp(page);
+    const user = (await findUser(account.email))!;
+    const id = await insertProject(user.id, { name: "Phone project" });
+    await insertTask(user.id, { title: "A task here" });
+    await page.goto("/projects");
+    await page.getByRole("link", { name: /Phone project/ }).tap();
+    await expect(page).toHaveURL(new RegExp(`/projects/${id}$`));
+    await page.getByRole("button", { name: "Add task" }).tap();
+    await page.getByLabel("New task in this project").fill("Added by touch");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "Added by touch", exact: true })).toBeVisible();
+    for (const name of ["Add task", "Add todo", "Add note"]) {
+      const b = await page
+        .getByRole(name === "Add note" ? "link" : "button", { name })
+        .boundingBox();
+      expect(b!.height).toBeGreaterThanOrEqual(44);
+    }
   });
 });

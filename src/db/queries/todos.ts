@@ -1,13 +1,26 @@
 import "server-only";
 import { and, asc, desc, eq, gte, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
+import { projectRefsFor } from "@/db/queries/meta";
 import { todos } from "@/db/schema";
 import { toTodoDTO, type TodoDTO } from "@/lib/tasks/dto";
+
+async function withProjects(
+  userId: string,
+  rows: (typeof todos.$inferSelect)[],
+): Promise<TodoDTO[]> {
+  const refs = await projectRefsFor(
+    db,
+    userId,
+    rows.map((r) => r.projectId),
+  );
+  return rows.map((r) => toTodoDTO(r, (r.projectId && refs.get(r.projectId)) || null));
+}
 
 /** Open todos in the person's manual order. */
 export async function listOpenTodos(
   userId: string,
-  options: { archived?: boolean } = {},
+  options: { archived?: boolean; projectId?: string } = {},
 ): Promise<TodoDTO[]> {
   const rows = await db
     .select()
@@ -18,11 +31,12 @@ export async function listOpenTodos(
         isNull(todos.deletedAt),
         eq(todos.isComplete, false),
         options.archived ? isNotNull(todos.archivedAt) : isNull(todos.archivedAt),
+        options.projectId ? eq(todos.projectId, options.projectId) : undefined,
       ),
     )
     .orderBy(asc(todos.sortOrder), asc(todos.createdAt))
     .limit(1000);
-  return rows.map(toTodoDTO);
+  return withProjects(userId, rows);
 }
 
 /** Todos ticked off since `since` (the start of the person's day), newest first. */
@@ -41,5 +55,5 @@ export async function listCompletedTodosSince(userId: string, since: Date): Prom
     )
     .orderBy(desc(todos.completedAt))
     .limit(200);
-  return rows.map(toTodoDTO);
+  return withProjects(userId, rows);
 }

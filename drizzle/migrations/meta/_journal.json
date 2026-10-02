@@ -15,6 +15,13 @@
       "when": 1790855199811,
       "tag": "0001_tasks-and-todos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790860940580,
+      "tag": "0002_notes-projects-tags",
+      "breakpoints": true
     }
   ]
 }

@@ -12,7 +12,9 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   retries: process.env.CI ? 1 : 0,
   forbidOnly: Boolean(process.env.CI),
-  // Many browsers run at once, which can starve animations (a closing dialog) for a few seconds.
+  // Many browsers run at once, which can starve animations (a closing dialog) for a few seconds,
+  // and a test that signs up two people spends most of its time on the two sign-ups.
+  timeout: 45_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
   use: {

@@ -1,7 +1,9 @@
 import "server-only";
 import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { todos, type NewTodo } from "@/db/schema";
+import { assertOwnedProject } from "@/db/mutations/guards";
+import { projectRefsFor } from "@/db/queries/meta";
+import { todos, type NewTodo, type Todo } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { toTodoDTO, type TodoDTO } from "@/lib/tasks/dto";
 import { orderAtTop, orderBetween, renumber } from "@/lib/tasks/ordering";
@@ -35,8 +37,14 @@ async function loadOwned(
   return row;
 }
 
+async function todoDto(executor: Tx | typeof db, todo: Todo): Promise<TodoDTO> {
+  const refs = await projectRefsFor(executor, todo.userId, [todo.projectId]);
+  return toTodoDTO(todo, (todo.projectId && refs.get(todo.projectId)) || null);
+}
+
 export async function createTodo(userId: string, input: CreateTodoInput): Promise<TodoDTO> {
   return db.transaction(async (tx) => {
+    if (input.projectId) await assertOwnedProject(tx, userId, input.projectId);
     const [row] = await tx
       .select({ min: sql<number | null>`min(${todos.sortOrder})` })
       .from(todos)
@@ -46,6 +54,7 @@ export async function createTodo(userId: string, input: CreateTodoInput): Promis
       .insert(todos)
       .values({
         userId,
+        projectId: input.projectId ?? null,
         title: input.title,
         emoji: input.emoji ?? null,
         dueDate: input.dueDate ?? null,
@@ -53,7 +62,7 @@ export async function createTodo(userId: string, input: CreateTodoInput): Promis
       })
       .returning();
     if (!created) throw new AppError("INTERNAL_ERROR");
-    return toTodoDTO(created);
+    return todoDto(tx, created);
   });
 }
 
@@ -63,11 +72,11 @@ export async function updateTodo(userId: string, input: UpdateTodoInput): Promis
   if (input.emoji !== undefined) patch.emoji = input.emoji;
   if (input.dueDate !== undefined) patch.dueDate = input.dueDate;
 
-  if (Object.keys(patch).length === 0) return toTodoDTO(await loadOwned(db, userId, input.id));
+  if (Object.keys(patch).length === 0) return todoDto(db, await loadOwned(db, userId, input.id));
 
   const [updated] = await db.update(todos).set(patch).where(owned(userId, input.id)).returning();
   if (!updated) throw new AppError("NOT_FOUND");
-  return toTodoDTO(updated);
+  return todoDto(db, updated);
 }
 
 /** Ticks or unticks a todo. Returns the value before, so the caller can offer Undo. */
@@ -85,7 +94,7 @@ export async function setTodoComplete(
       .where(owned(userId, id))
       .returning();
     if (!updated) throw new AppError("NOT_FOUND");
-    return { todo: toTodoDTO(updated), wasComplete: todo.isComplete };
+    return { todo: await todoDto(tx, updated), wasComplete: todo.isComplete };
   });
 }
 
@@ -148,7 +157,7 @@ export async function archiveTodo(userId: string, id: string, archived: boolean)
     .where(owned(userId, id))
     .returning();
   if (!updated) throw new AppError("NOT_FOUND");
-  return toTodoDTO(updated);
+  return todoDto(db, updated);
 }
 
 export async function deleteTodo(userId: string, id: string): Promise<{ deletedAt: string }> {
@@ -167,7 +176,7 @@ export async function restoreTodo(userId: string, id: string): Promise<TodoDTO> 
     .where(owned(userId, id, true))
     .returning();
   if (!restored) throw new AppError("NOT_FOUND");
-  return toTodoDTO(restored);
+  return todoDto(db, restored);
 }
 
 /** Only from Trash (feature 04). */

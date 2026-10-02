@@ -14,7 +14,7 @@ Every later feature needs a signed-in user, a database and a shell, so this is t
 
 ## What was deferred
 - Quick capture, Create and the search trigger are visible but **disabled** until features 02 and 04. Sidebar counts need real data.
-- Settings **Tags** tab (feature 03). AI **usage meter** and provider name (feature 05). Session **location** (needs a GeoIP service). Provider rows show "Linked on {date}", not the provider email.
+- Settings **Tags** tab: built in feature 03. AI **usage meter** and provider name (feature 05). Session **location** (needs a GeoIP service). Provider rows show "Linked on {date}", not the provider email.
 - Production Compose, Caddy, CI/CD, backups, rollback: feature 06. `motion` and `cmdk` are not installed yet.
 
 ## Related files
@@ -33,6 +33,7 @@ Every later feature needs a signed-in user, a database and a shell, so this is t
 - `E2E=true` means "console email in a production build, emails written to a file". It is test-only; `env-schema.ts` requires Resend in real production.
 - `next dev` used to append a block to `CLAUDE.md`; `agentRules: false` in `next.config.ts` stops that. Keep it.
 - Pins: TypeScript **6.0** (see ADR 0001), ESLint 9, `@better-auth/utils` 0.4.2 (matches `better-auth`; pnpm resolved 0.5.0 by default and loaded two copies).
+- **Fonts:** the app now uses Inter everywhere (ADR 0003); `DESIGN.md` and `CLAUDE.md` still name Newsreader and IBM Plex until the owner updates them. Code is the source of truth.
 - IDs are UUID v7 from `src/lib/ids.ts`, including Better Auth's tables. Generated `auth.ts` schema was edited to `timestamptz`; re-apply if regenerated.
 - **Design vs DESIGN.md:** the Settings design uses top tabs with Danger zone inside Account; DESIGN.md describes a left list and a separate section. The design was followed. Today is a greeting plus empty state until feature 04.
 - The repo is not a git repository yet (no `.git`); `husky` is set to tolerate that.

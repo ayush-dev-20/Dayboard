@@ -20,7 +20,7 @@ export function SidebarNav({ onNavigate }: Props) {
       <Link
         href="/today"
         onClick={onNavigate}
-        className="mb-5 px-2 font-serif text-xl font-semibold tracking-tight [font-variation-settings:'opsz'_24]"
+        className="mb-5 px-2 text-xl font-semibold tracking-tight"
       >
         Dayboard
       </Link>

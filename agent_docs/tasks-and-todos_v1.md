@@ -14,7 +14,7 @@
 Tasks and todos are the daily-use core, so everything here has to be quick and safe: every mutation is one transaction scoped to the signed-in user, and recurrence, ordering and status rules are pure functions with their own tests.
 
 ## What was deferred
-- Project, tags and related notes on a task: the Project property is a disabled placeholder (feature 03). `tasks.project_id` is a plain uuid until the `projects` table exists; feature 03 adds the foreign key.
+- Project, tags and related notes on a task: done in feature 03 (`notes-projects-tags_v1.md`), which also added the `project_id` foreign key.
 - Trash screen, Inbox, Today content, search and the "Quick capture" / "Create" buttons (still disabled): feature 04. Trashed rows are only restorable through the Undo toast until then. AI actions on a task: feature 05.
 - Drag and drop (not wanted in V1), custom repeat rules, turning a todo into a task (V2).
 
@@ -38,6 +38,7 @@ Tasks and todos are the daily-use core, so everything here has to be quick and s
 - **E2E conventions:** time zone is pinned to Asia/Kolkata; the web server's Google/GitHub keys are blanked so a developer's `.env.local` can't change results; each test uses its own fake IP. On a Mac, Home/End scroll the page, so tests select text with Shift+Arrow.
 - The Cancelled badge is inside the row's title button, so its accessible name is "<title> Cancelled".
 - `pnpm db:seed` also gives the demo user sample tasks and todos (only if they have none).
+- **Checklists in task descriptions** now save their ticked state (feature 03 fixed a bug where it was lost; see its hand-off notes).
 - **Design vs spec:** the design shows the detail as a docked panel, spec 02 said "side sheet"; the design was followed (spec updated).
 
 ## Not verified

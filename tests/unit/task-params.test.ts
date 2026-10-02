@@ -15,6 +15,8 @@ describe("parseTasksParams", () => {
       statuses: ["INBOX", "PLANNED", "IN_PROGRESS", "WAITING"],
       due: "any",
       archived: false,
+      projectId: null,
+      tagId: null,
       taskId: null,
     });
   });
@@ -60,6 +62,27 @@ describe("parseTasksParams", () => {
 
   it("takes the first value when a parameter is repeated", () => {
     expect(parseTasksParams({ due: ["today", "overdue"] }).due).toBe("today");
+  });
+});
+
+describe("project and tag filters", () => {
+  it("reads a project id, the word none, and a tag id; ignores anything else", () => {
+    expect(parseTasksParams({ project: ID, tag: ID })).toMatchObject({ projectId: ID, tagId: ID });
+    expect(parseTasksParams({ project: "none" }).projectId).toBe("none");
+    expect(parseTasksParams({ project: "acme", tag: "x" })).toMatchObject({
+      projectId: null,
+      tagId: null,
+    });
+  });
+
+  it("counts as a filter, and round-trips through the URL", () => {
+    expect(hasActiveFilters(parseTasksParams({ project: "none" }))).toBe(true);
+    expect(hasActiveFilters(parseTasksParams({ tag: ID }))).toBe(true);
+    const original = parseTasksParams({ project: ID, tag: ID });
+    const again = parseTasksParams(
+      Object.fromEntries(new URLSearchParams(buildTasksQuery(original))),
+    );
+    expect(again).toEqual(original);
   });
 });
 

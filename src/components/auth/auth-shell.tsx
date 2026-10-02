@@ -6,10 +6,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="px-4 py-6 md:px-8">
-        <Link
-          href="/"
-          className="font-serif text-xl font-semibold tracking-tight [font-variation-settings:'opsz'_24]"
-        >
+        <Link href="/" className="text-xl font-semibold tracking-tight">
           Dayboard
         </Link>
       </header>

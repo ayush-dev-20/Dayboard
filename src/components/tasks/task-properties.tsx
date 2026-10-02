@@ -35,6 +35,8 @@ import {
   type TaskStatus,
 } from "@/lib/tasks/status";
 import { cn } from "@/lib/utils";
+import { ProjectPicker } from "@/components/workspace/project-picker";
+import type { ProjectRef } from "@/lib/projects/dto";
 import { PriorityGlyph } from "./priority-glyph";
 import { useTaskContext } from "./task-context";
 
@@ -376,15 +378,27 @@ export function RepeatPicker({ rule, dueDate, onChange }: RepeatPickerProps) {
   );
 }
 
-/** Projects arrive with feature 03; until then this is visibly present but off. */
-export function ProjectPlaceholder() {
+/** The task's project. Always optional: "No project" is one click away. */
+export function ProjectPickerControl({
+  value,
+  onChange,
+  disabled,
+  allowCreate,
+}: {
+  value: ProjectRef | null;
+  onChange: (projectId: string | null) => void | Promise<void>;
+  disabled?: boolean;
+  allowCreate?: boolean;
+}) {
   return (
-    <PropertyTrigger
-      icon={Folder}
-      label="Project"
-      value="None"
-      disabled
-      title="Projects are coming soon"
-    />
+    <ProjectPicker value={value} onChange={onChange} allowCreate={allowCreate}>
+      <PropertyTrigger
+        icon={Folder}
+        label="Project"
+        value={value?.name ?? "None"}
+        disabled={disabled}
+        title={disabled ? "A subtask stays in its task's project" : undefined}
+      />
+    </ProjectPicker>
   );
 }

@@ -55,6 +55,7 @@ export const createTaskSchema = z
   .strictObject({
     title: taskTitleSchema,
     emoji: emojiSchema.nullish(),
+    projectId: idSchema.nullish(),
     parentTaskId: idSchema.nullish(),
     status: taskStatusSchema.optional(),
     priority: taskPrioritySchema.optional(),
@@ -121,6 +122,7 @@ export const reorderSchema = z.strictObject({
 export const createTodoSchema = z.strictObject({
   title: todoTitleSchema,
   emoji: emojiSchema.nullish(),
+  projectId: idSchema.nullish(),
   dueDate: dateSchema.nullish(),
 });
 

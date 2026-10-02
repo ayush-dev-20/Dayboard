@@ -13,6 +13,7 @@ import {
 import { useOverride } from "@/hooks/use-override";
 import type { TaskDTO } from "@/lib/tasks/dto";
 import { cn } from "@/lib/utils";
+import { ProjectToken, TagBadge } from "@/components/workspace/tokens";
 import { DueChip } from "./due-chip";
 import { PriorityGlyph } from "./priority-glyph";
 import { archiveWithUndo, completeWithUndo, reopenTask, trashWithUndo } from "./task-actions";
@@ -25,6 +26,8 @@ type Props = {
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMove?: (id: string, direction: -1 | 1) => void;
+  /** Leave the project token out where the project is already obvious (a project page). */
+  hideProject?: boolean;
 };
 
 /**
@@ -32,7 +35,15 @@ type Props = {
  * Click the box to complete, the title to open. Completing is instant and the row stays where it
  * is until the Undo toast closes.
  */
-export function TaskRow({ task, selected, onOpen, canMoveUp, canMoveDown, onMove }: Props) {
+export function TaskRow({
+  task,
+  selected,
+  onOpen,
+  canMoveUp,
+  canMoveDown,
+  onMove,
+  hideProject,
+}: Props) {
   const router = useRouter();
   const { prefs, nowMs } = useTaskContext();
   const [done, setDone] = useOverride(task.status === "DONE");
@@ -95,6 +106,23 @@ export function TaskRow({ task, selected, onOpen, canMoveUp, canMoveDown, onMove
             <span className="type-data-sm text-muted-foreground">
               <span className="sr-only">Subtasks done: </span>
               {task.subtaskDone}/{task.subtaskTotal}
+            </span>
+          ) : null}
+          {task.project && !hideProject ? (
+            <span className="hidden max-w-32 sm:inline-flex">
+              <span className="sr-only">Project: </span>
+              <ProjectToken project={task.project} />
+            </span>
+          ) : null}
+          {task.tags.length > 0 ? (
+            <span className="hidden items-center gap-1 md:inline-flex">
+              <span className="sr-only">Tags: </span>
+              {task.tags.slice(0, 2).map((tag) => (
+                <TagBadge key={tag.id} tag={tag} className="max-w-24" />
+              ))}
+              {task.tags.length > 2 ? (
+                <span className="type-body-sm text-muted-foreground">+{task.tags.length - 2}</span>
+              ) : null}
             </span>
           ) : null}
         </div>

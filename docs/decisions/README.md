@@ -10,6 +10,7 @@ Filename: `NNNN-short-title.md` (for example `0001-use-better-auth.md`). Numbers
 |---|---|---|
 | [0001](0001-pin-typescript-6.md) | Pin TypeScript to the 6.0 line | Accepted |
 | [0002](0002-self-host-emoji-data.md) | Serve emoji data from our own origin | Accepted |
+| [0003](0003-use-inter-everywhere.md) | Use Inter for all interface text | Accepted |
 
 ## Template
 

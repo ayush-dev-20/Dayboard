@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { FOCUS_ADD_EVENT, isTypingTarget } from "@/lib/shortcuts";
 
 /**
- * Single-key shortcuts: N starts a new task, T a new todo. They do nothing while the person is
- * typing, while a dialog or menu is open, or when any modifier key is held (Shift+N is for notes).
+ * Single-key shortcuts: N starts a new task, T a new todo, Shift+N a new note. They do nothing while
+ * the person is typing, while a dialog or menu is open, or when Ctrl, Cmd or Alt is held.
  */
 export function AppShortcuts() {
   const router = useRouter();
@@ -25,18 +25,19 @@ export function AppShortcuts() {
     }
 
     function onKeyDown(event: KeyboardEvent) {
-      if (
-        event.defaultPrevented ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey ||
-        event.shiftKey
-      )
-        return;
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
       if (document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]')) return;
 
       const key = event.key.toLowerCase();
+      // Shift+N is the new note; plain N and T are for tasks and todos.
+      if (event.shiftKey) {
+        if (key === "n") {
+          event.preventDefault();
+          router.push("/notes/new");
+        }
+        return;
+      }
       if (key === "n") {
         event.preventDefault();
         startNew("tasks");

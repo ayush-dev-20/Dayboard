@@ -7,7 +7,7 @@ import type { TodoDTO } from "@/lib/tasks/dto";
 import { handleRowKeys } from "./row-keys";
 import { TodoRow } from "./todo-row";
 
-type Props = { open: TodoDTO[]; completed: TodoDTO[] };
+type Props = { open: TodoDTO[]; completed: TodoDTO[]; openLabel?: string };
 
 function Heading({ id, label, count }: { id: string; label: string; count: number }) {
   return (
@@ -18,7 +18,7 @@ function Heading({ id, label, count }: { id: string; label: string; count: numbe
   );
 }
 
-export function TodoList({ open, completed }: Props) {
+export function TodoList({ open, completed, openLabel = "Open" }: Props) {
   const focusAfter = useRef<string | null>(null);
 
   const orderKey = open.map((t) => t.id).join(",");
@@ -54,7 +54,7 @@ export function TodoList({ open, completed }: Props) {
     >
       {open.length > 0 ? (
         <section aria-labelledby="todos-open">
-          <Heading id="todos-open" label="Open" count={open.length} />
+          <Heading id="todos-open" label={openLabel} count={open.length} />
           <ul className="border-t border-border">
             {open.map((todo, index) => (
               <TodoRow

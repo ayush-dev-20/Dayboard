@@ -12,6 +12,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 |---|---|---|---|
 | Foundation & auth | V1 | Done | [foundation-and-auth_v1.md](foundation-and-auth_v1.md) |
 | Tasks & todos | V1 | Done | [tasks-and-todos_v1.md](tasks-and-todos_v1.md) |
+| Notes, projects & tags | V1 | Done | [notes-projects-tags_v1.md](notes-projects-tags_v1.md) |
 
 Status is `Done` or `In progress`.
 

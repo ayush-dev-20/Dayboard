@@ -8,6 +8,9 @@ export type TasksParams = {
   statuses: TaskStatus[];
   due: DueFilter;
   archived: boolean;
+  /** A project id, "none" for tasks without one, or null for any. */
+  projectId: string | null;
+  tagId: string | null;
   /** The task open in the detail sheet. */
   taskId: string | null;
 };
@@ -40,7 +43,13 @@ export function parseTasksParams(raw: RawParams): TasksParams {
   const taskRaw = first(raw.task);
   const taskId = taskRaw && UUID.test(taskRaw) ? taskRaw : null;
 
-  return { view, statuses, due, archived: first(raw.archived) === "1", taskId };
+  const projectRaw = first(raw.project);
+  const projectId =
+    projectRaw === "none" ? "none" : projectRaw && UUID.test(projectRaw) ? projectRaw : null;
+  const tagRaw = first(raw.tag);
+  const tagId = tagRaw && UUID.test(tagRaw) ? tagRaw : null;
+
+  return { view, statuses, due, archived: first(raw.archived) === "1", projectId, tagId, taskId };
 }
 
 export function isDefaultStatuses(statuses: readonly TaskStatus[]): boolean {
@@ -56,13 +65,21 @@ export function buildTasksQuery(params: Partial<TasksParams>): string {
   }
   if (params.due && params.due !== "any") q.set("due", params.due);
   if (params.archived) q.set("archived", "1");
+  if (params.projectId) q.set("project", params.projectId);
+  if (params.tagId) q.set("tag", params.tagId);
   if (params.taskId) q.set("task", params.taskId);
   const text = q.toString();
   return text ? `?${text}` : "";
 }
 
 export function hasActiveFilters(params: TasksParams): boolean {
-  return !isDefaultStatuses(params.statuses) || params.due !== "any" || params.archived;
+  return (
+    !isDefaultStatuses(params.statuses) ||
+    params.due !== "any" ||
+    params.archived ||
+    params.projectId !== null ||
+    params.tagId !== null
+  );
 }
 
 /** A short label for the Status filter button. */

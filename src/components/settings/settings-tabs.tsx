@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-// Tags joins this list in feature 03.
 const TABS = [
   { href: "/settings/account", label: "Account" },
   { href: "/settings/appearance", label: "Appearance", short: "Look" },
   { href: "/settings/productivity", label: "Productivity" },
   { href: "/settings/ai", label: "AI" },
+  { href: "/settings/tags", label: "Tags" },
 ] as const;
 
 export function SettingsTabs() {

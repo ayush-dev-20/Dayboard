@@ -17,6 +17,7 @@ import { uuidv7 } from "../../lib/ids";
 import type { TiptapDoc } from "../../lib/editor/types";
 import { user } from "./auth";
 import { taskPriorityEnum, taskStatusEnum } from "./enums";
+import { projects } from "./projects";
 
 export const tasks = pgTable(
   "tasks",
@@ -27,8 +28,8 @@ export const tasks = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    // Foreign key to `projects` is added by feature 03, which creates that table.
-    projectId: uuid("project_id"),
+    // Not cleared when a project is moved to Trash, so restoring the project brings the grouping back.
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => tasks.id, {
       onDelete: "cascade",
     }),

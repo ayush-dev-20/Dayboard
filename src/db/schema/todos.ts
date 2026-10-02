@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { uuidv7 } from "../../lib/ids";
 import { user } from "./auth";
+import { projects } from "./projects";
 
 // Todos are deliberately light: no description, priority, tags, subtasks or links (product spec §6.4).
 export const todos = pgTable(
@@ -23,8 +24,7 @@ export const todos = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    // Foreign key to `projects` is added by feature 03.
-    projectId: uuid("project_id"),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     title: text("title").notNull(),
     emoji: text("emoji"),
     isComplete: boolean("is_complete").notNull().default(false),

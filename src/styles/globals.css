@@ -1,9 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@fontsource-variable/newsreader/opsz.css";
-@import "@fontsource/ibm-plex-sans/400.css";
-@import "@fontsource/ibm-plex-sans/600.css";
-@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource-variable/inter/wght.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -148,9 +145,12 @@
   --color-tag-violet: var(--tag-violet);
   --color-tag-pink: var(--tag-pink);
 
-  --font-serif: "Newsreader Variable", Newsreader, "Source Serif 4", Georgia, serif;
-  --font-sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  /* One family, like Notion: Inter, self-hosted, with Notion's system stack as the fallback. */
+  --font-sans:
+    "Inter Variable", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+  /* Only for code (inline code, code blocks). Numbers, dates and shortcuts use Inter. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
   /* cut paper: a different radius for each class of object */
   --radius-sm: 3px;
@@ -227,35 +227,27 @@
 
 /* Type scale from DESIGN.md. Only weights 400 and 600 exist. */
 @utility type-display {
-  font-family: var(--font-serif);
   font-size: 40px;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 72;
 }
 @utility type-headline-lg {
-  font-family: var(--font-serif);
   font-size: 30px;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.015em;
-  font-variation-settings: "opsz" 48;
 }
 @utility type-headline-md {
-  font-family: var(--font-serif);
   font-size: 22px;
   font-weight: 600;
   line-height: 1.28;
   letter-spacing: -0.01em;
-  font-variation-settings: "opsz" 24;
 }
 @utility type-headline-sm {
-  font-family: var(--font-serif);
   font-size: 18px;
   font-weight: 600;
   line-height: 1.3;
-  font-variation-settings: "opsz" 16;
 }
 @utility type-body-lg {
   font-size: 16px;
@@ -283,19 +275,16 @@
   text-transform: uppercase;
 }
 @utility type-data-md {
-  font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.45;
   font-feature-settings: "tnum" 1;
 }
 @utility type-data-sm {
-  font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.4;
   font-feature-settings: "tnum" 1;
 }
 @utility type-kbd {
-  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.3;
 }
@@ -326,22 +315,18 @@
 .rich-text .ProseMirror h1,
 .rich-text .ProseMirror h2,
 .rich-text .ProseMirror h3 {
-  font-family: var(--font-serif);
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.01em;
 }
 .rich-text .ProseMirror h1 {
   font-size: 22px;
-  font-variation-settings: "opsz" 24;
 }
 .rich-text .ProseMirror h2 {
   font-size: 19px;
-  font-variation-settings: "opsz" 20;
 }
 .rich-text .ProseMirror h3 {
   font-size: 16px;
-  font-variation-settings: "opsz" 16;
 }
 .rich-text .ProseMirror ul:not([data-type="taskList"]),
 .rich-text .ProseMirror ol {
@@ -441,11 +426,9 @@
   cursor: pointer;
 }
 
-/* Notes use the same editor with a serif reading face (DESIGN.md: note-body). */
+/* Notes use the same editor at a larger reading size. */
 .rich-text-document .ProseMirror {
-  font-family: var(--font-serif);
   font-size: 18px;
   line-height: 1.65;
   min-height: 40vh;
-  font-variation-settings: "opsz" 16;
 }

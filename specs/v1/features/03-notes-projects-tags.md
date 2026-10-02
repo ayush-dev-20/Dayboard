@@ -203,3 +203,20 @@ Save-state UI: "Saving…" → "Saved" (fades after 2s) → "Not saved, retrying
 - Image/file embeds, `@mentions` / backlinks inside note text
 - Real-time multi-device co-editing (conflict banner only)
 - Tags on todos or projects
+
+---
+
+## 10. As built (2026-10-01)
+
+Where the build differs from the text above (details in `agent_docs/notes-projects-tags_v1.md`):
+
+- **Autosave (§4):** a dedicated hook, `useNoteSync`, with a small state machine (`src/lib/notes/save-state.ts`), not `useAutosave`; that hook has no versions or conflicts. A stale save returns `{ outcome: "conflict", version }` as data instead of a `CONFLICT` error, so the banner can offer Load latest / Keep mine. The first save of a new note waits 300 ms, content 800 ms, title 500 ms.
+- **`updateNoteMeta` (§5)** takes only `emoji`. A note's project is set with `assignToProject`, like tasks and todos.
+- **Note editor (§6):** the toolbar adds a text style menu (paragraph, headings 1–3, code block), strikethrough, quote, divider, undo and redo; a selection menu floats over highlighted text. On a phone the top bar and bottom navigation are hidden on the editor and the toolbar sits above the keyboard. Notes use Inter at 18px (the serif in the design was replaced app-wide, ADR 0003).
+- **Task detail (§6):** "Related notes" (chips, Link note, New linked note via `/notes/new?task=<id>`), the tag combobox and the project picker are in. A subtask's picker is disabled: it follows its task.
+- **Projects (§6):** the project page edits name, status and description in place; colour is under "Edit details". Deleting asks first ("The tasks and notes in it are kept").
+- **Trash:** there is no Trash screen yet (feature 04), so Undo on the toast is the only way back. The restore and permanent-delete actions are built and tested.
+- **Filters:** `/tasks` and `/notes` filter by `?project=<id|none>` and `?tag=<id>`. "No project" includes items whose project is in Trash.
+- **Seed (technical spec §19):** the demo user also gets 3 projects, 4 tags and 3 notes, joined to the sample tasks.
+- **Tests (§7):** the integration layer (real actions on a test database) is added to the unit and E2E scenarios; the autosave state machine is unit tested.
+

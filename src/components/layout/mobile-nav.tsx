@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { isMobileNavActive, MOBILE_NAV_ITEMS } from "./nav-items";
+import { isMobileNavActive, isNoteEditorPath, MOBILE_NAV_ITEMS } from "./nav-items";
 
 /** Bottom navigation below 768px: 56px plus the safe-area inset. Content is padded so it never hides behind it. */
 export function MobileNav() {
   const pathname = usePathname();
+  if (isNoteEditorPath(pathname)) return null;
 
   return (
     <nav

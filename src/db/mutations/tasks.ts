@@ -1,6 +1,8 @@
 import "server-only";
 import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { assertOwnedProject } from "@/db/mutations/guards";
+import { taskMetaFor } from "@/db/queries/meta";
 import { tasks, type NewTask, type Task } from "@/db/schema";
 import { addDays, daysBetween } from "@/lib/dates/calendar";
 import { AppError } from "@/lib/errors";
@@ -56,7 +58,11 @@ async function counts(executor: Executor, id: string) {
 }
 
 async function dto(executor: Executor, task: Task): Promise<TaskDTO> {
-  return toTaskDTO(task, task.parentTaskId ? undefined : await counts(executor, task.id));
+  const [meta, total] = await Promise.all([
+    taskMetaFor(executor, task.userId, [{ id: task.id, projectId: task.projectId }]),
+    task.parentTaskId ? undefined : counts(executor, task.id),
+  ]);
+  return toTaskDTO(task, total, meta.get(task.id));
 }
 
 async function topOrder(executor: Executor, userId: string): Promise<number> {
@@ -101,10 +107,24 @@ export async function createTask(
       ? await bottomOrder(tx, userId, input.parentTaskId)
       : await topOrder(tx, userId);
 
+    // A subtask always follows its parent's project; anything else must be one of the person's own.
+    let projectId: string | null = input.projectId ?? null;
+    if (input.parentTaskId) {
+      const [parent] = await tx
+        .select({ projectId: tasks.projectId })
+        .from(tasks)
+        .where(owned(userId, input.parentTaskId))
+        .limit(1);
+      projectId = parent?.projectId ?? null;
+    } else if (projectId) {
+      await assertOwnedProject(tx, userId, projectId);
+    }
+
     const [created] = await tx
       .insert(tasks)
       .values({
         userId,
+        projectId,
         parentTaskId: input.parentTaskId ?? null,
         title: input.title,
         emoji: input.emoji ?? null,

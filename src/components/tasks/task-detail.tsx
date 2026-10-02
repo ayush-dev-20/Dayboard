@@ -14,16 +14,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { describeActivity, formatShortDate } from "@/lib/dates/relative";
-import type { TaskDetailDTO, TaskDTO } from "@/lib/tasks/dto";
+import type { NoteRefDTO, TaskDetailDTO, TaskDTO } from "@/lib/tasks/dto";
 import type { TaskStatus } from "@/lib/tasks/status";
 import { cn } from "@/lib/utils";
+import { assignToProject } from "@/actions/projects";
 import { DescriptionEditor } from "./description-editor";
+import { RelatedNotes } from "./related-notes";
+import { TagsSection } from "./tags-section";
 import { SubtasksSection } from "./subtasks-section";
 import { archiveWithUndo, completeWithUndo, trashWithUndo } from "./task-actions";
 import {
   DatePicker,
   PriorityPicker,
-  ProjectPlaceholder,
+  ProjectPickerControl,
   RepeatPicker,
   StatusPicker,
 } from "./task-properties";
@@ -51,6 +54,18 @@ export function TaskDetail({ detail, variant, onClose }: Props) {
   const [task, setTask] = useState<TaskDTO>(detail);
   const [subtasks, setSubtasks] = useState<TaskDTO[]>(detail.subtasks);
   const [titleDraft, setTitleDraft] = useState(detail.title);
+  const [linkedNotes, setLinkedNotes] = useState<NoteRefDTO[]>(detail.notes);
+
+  async function changeProject(projectId: string | null) {
+    const result = await assignToProject({ itemType: "task", itemId: task.id, projectId });
+    if (!result.ok) {
+      toast.error(firstError(result.error));
+      return;
+    }
+    setTask((t) => ({ ...t, project: result.data.project }));
+    // Subtasks follow their parent.
+    setSubtasks((list) => list.map((s) => ({ ...s, project: result.data.project })));
+  }
 
   // Saves run one after another, and the last answer wins, so quick successive changes (ticking
   // several weekdays) never overwrite each other with a stale copy.
@@ -181,7 +196,11 @@ export function TaskDetail({ detail, variant, onClose }: Props) {
           />
         </div>
         <div className="-ml-1.5 flex flex-wrap items-center">
-          <ProjectPlaceholder />
+          <ProjectPickerControl
+            value={task.project}
+            onChange={changeProject}
+            disabled={Boolean(task.parentTaskId)}
+          />
         </div>
       </div>
 
@@ -190,6 +209,13 @@ export function TaskDetail({ detail, variant, onClose }: Props) {
       )}
 
       <DescriptionEditor taskId={task.id} initial={detail.descriptionJson} />
+
+      <RelatedNotes taskId={task.id} notes={linkedNotes} onChange={setLinkedNotes} />
+      <TagsSection
+        taskId={task.id}
+        tags={task.tags}
+        onChange={(tags) => setTask((t) => ({ ...t, tags }))}
+      />
 
       <footer className="mt-8 flex items-center justify-between border-t border-border pt-4">
         <p className="type-body-sm text-muted-foreground">

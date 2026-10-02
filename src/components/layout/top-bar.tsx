@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Plus, Search } from "lucide-react";
 import { Kbd } from "@/components/ui/kbd";
+import { cn } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -12,7 +13,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { AccountMenu } from "./account-menu";
-import { pageTitleFor } from "./nav-items";
+import { isNoteEditorPath, pageTitleFor } from "./nav-items";
 import { SidebarNav } from "./sidebar-nav";
 
 type Props = { name: string; email: string };
@@ -27,7 +28,12 @@ export function TopBar({ name, email }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 flex h-12 items-center gap-2 border-b border-border bg-background px-4 md:px-8">
+    <header
+      className={cn(
+        "sticky top-0 z-20 flex h-12 items-center gap-2 border-b border-border bg-background px-4 md:px-8",
+        isNoteEditorPath(pathname) && "max-md:hidden",
+      )}
+    >
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetTrigger
           aria-label="Open menu"

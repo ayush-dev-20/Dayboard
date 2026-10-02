@@ -4,10 +4,25 @@ import { hashPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { account, tasks, todos, user, userPreferences } from "../src/db/schema";
+import {
+  account,
+  noteTags,
+  notes,
+  projects,
+  tags,
+  taskNotes,
+  taskTags,
+  tasks,
+  todos,
+  user,
+  userPreferences,
+} from "../src/db/schema";
 import { addDays } from "../src/lib/dates/calendar";
 import { getUserToday } from "../src/lib/dates/today";
+import { toPlainText } from "../src/lib/editor/projection";
+import type { TiptapDoc } from "../src/lib/editor/types";
 import { uuidv7 } from "../src/lib/ids";
+import { normalizeTagName } from "../src/lib/tags";
 
 try {
   process.loadEnvFile(".env.local");
@@ -57,7 +72,10 @@ try {
     console.log(`Created demo user.\n  email:    ${DEMO_EMAIL}\n  password: ${DEMO_PASSWORD}`);
   }
 
-  if (userId) await seedTasks(userId);
+  if (userId) {
+    await seedTasks(userId);
+    await seedWorkspace(userId);
+  }
 } catch (error) {
   console.error("Seed failed:", error);
   process.exitCode = 1;
@@ -159,4 +177,154 @@ async function seedTasks(userId: string) {
   ]);
 
   console.log("Added sample tasks and todos for the demo user.");
+}
+
+// Plain functions (not consts) so they exist before the top-level seeding above runs.
+function text(value: string) {
+  return { type: "text", text: value };
+}
+function para(value: string) {
+  return { type: "paragraph", content: [text(value)] };
+}
+function heading(level: number, value: string) {
+  return { type: "heading", attrs: { level }, content: [text(value)] };
+}
+function bullets(...items: string[]) {
+  return {
+    type: "bulletList",
+    content: items.map((item) => ({ type: "listItem", content: [para(item)] })),
+  };
+}
+function checklist(...items: [string, boolean][]) {
+  return {
+    type: "taskList",
+    content: items.map(([item, checked]) => ({
+      type: "taskItem",
+      attrs: { checked },
+      content: [para(item)],
+    })),
+  };
+}
+function doc(...content: object[]): TiptapDoc {
+  return { type: "doc", content } as TiptapDoc;
+}
+
+// Projects, tags and notes for the demo user, joined up with the sample tasks: some tasks in a
+// project, some tagged, one linked to a note. Added only when the demo user has no projects.
+async function seedWorkspace(userId: string) {
+  const [anyProject] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.userId, userId))
+    .limit(1);
+  if (anyProject) {
+    console.log("Demo projects already exist. Nothing to add.");
+    return;
+  }
+
+  const acme = uuidv7();
+  const home = uuidv7();
+  await db.insert(projects).values([
+    {
+      id: acme,
+      userId,
+      name: "Acme rebrand",
+      description: "Brand refresh for Acme: identity, website and launch assets.",
+      color: "blue",
+    },
+    { id: home, userId, name: "Home", description: "Moving flat.", color: "green" },
+    { userId, name: "Side project", color: "violet", status: "ON_HOLD" },
+  ]);
+
+  const tagRows = [
+    { name: "Client", color: "teal" },
+    { name: "Brand", color: "violet" },
+    { name: "Waiting", color: "amber" },
+    { name: "Reading", color: "green" },
+  ] as const;
+  const tagIds = new Map<string, string>();
+  for (const tag of tagRows) {
+    const id = uuidv7();
+    tagIds.set(tag.name, id);
+    await db.insert(tags).values({
+      id,
+      userId,
+      name: tag.name,
+      normalizedName: normalizeTagName(tag.name),
+      color: tag.color,
+    });
+  }
+
+  const kickoff = doc(
+    para(
+      "We agreed the first milestone is the brand review. Budget is still open, so I will confirm it in writing before Friday.",
+    ),
+    heading(3, "Decisions"),
+    bullets("Brand review on Oct 7", "Website design starts after sign-off"),
+    heading(3, "Next"),
+    checklist(["Book the design review", true], ["Send the revised timeline", false]),
+  );
+  const ideas = doc(para("Ship search before AI. Keep the inbox tiny."));
+  const reading = doc(para("The Design of Everyday Things, Refactoring UI, A Pattern Language."));
+
+  const kickoffId = uuidv7();
+  const ideasId = uuidv7();
+  const readingId = uuidv7();
+  const now = Date.now();
+  await db.insert(notes).values([
+    {
+      id: kickoffId,
+      userId,
+      projectId: acme,
+      title: "Client call: kickoff",
+      emoji: "📝",
+      contentJson: kickoff,
+      contentText: toPlainText(kickoff),
+      updatedAt: new Date(now - 2 * 3600_000),
+    },
+    {
+      id: ideasId,
+      userId,
+      title: "Roadmap ideas",
+      emoji: "💡",
+      contentJson: ideas,
+      contentText: toPlainText(ideas),
+      updatedAt: new Date(now - 26 * 3600_000),
+    },
+    {
+      id: readingId,
+      userId,
+      title: "Reading list",
+      contentJson: reading,
+      contentText: toPlainText(reading),
+      updatedAt: new Date(now - 4 * 86_400_000),
+    },
+  ]);
+  await db.insert(noteTags).values([
+    { noteId: kickoffId, tagId: tagIds.get("Client")!, userId },
+    { noteId: readingId, tagId: tagIds.get("Reading")!, userId },
+  ]);
+
+  // Join up the sample tasks.
+  const byTitle = async (title: string) => {
+    const [row] = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.title, title));
+    return row?.id;
+  };
+  const prep = await byTitle("Prepare client call notes");
+  const invoice = await byTitle("Send invoice to studio");
+  const photographer = await byTitle("Choose a photographer");
+  if (prep) {
+    await db.update(tasks).set({ projectId: acme }).where(eq(tasks.id, prep));
+    await db.update(tasks).set({ projectId: acme }).where(eq(tasks.parentTaskId, prep));
+    await db.insert(taskNotes).values({ taskId: prep, noteId: kickoffId, userId });
+    await db.insert(taskTags).values([
+      { taskId: prep, tagId: tagIds.get("Client")!, userId },
+      { taskId: prep, tagId: tagIds.get("Waiting")!, userId },
+    ]);
+  }
+  if (invoice) await db.update(tasks).set({ projectId: acme }).where(eq(tasks.id, invoice));
+  if (photographer)
+    await db.update(tasks).set({ projectId: home }).where(eq(tasks.id, photographer));
+
+  console.log("Added sample projects, tags and notes for the demo user.");
 }

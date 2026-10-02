@@ -123,3 +123,150 @@ export async function todoByTitle(userId: string, title: string) {
     from todos where user_id = ${userId} and title = ${title} order by created_at`;
   return rows;
 }
+
+// ---- Projects, notes and tags (feature 03) --------------------------------------------------
+
+type ProjectSeed = {
+  name: string;
+  color?: string;
+  status?: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED";
+};
+
+export async function insertProject(userId: string, seed: ProjectSeed) {
+  const status = seed.status ?? "ACTIVE";
+  const [row] = await sql<{ id: string }[]>`
+    insert into projects (id, user_id, name, color, status, archived_at)
+    values (gen_random_uuid(), ${userId}, ${seed.name}, ${seed.color ?? "slate"}::color_token, ${status}::project_status,
+            ${status === "ARCHIVED" ? sql`now()` : null})
+    returning id`;
+  return row!.id;
+}
+
+export async function projectByName(userId: string, name: string) {
+  const [row] = await sql<
+    {
+      id: string;
+      status: string;
+      color: string;
+      description: string | null;
+      deleted_at: Date | null;
+    }[]
+  >`select id, status::text, color::text, description, deleted_at from projects where user_id = ${userId} and name = ${name} order by created_at`;
+  return row ?? null;
+}
+
+const docOf = (text: string) => ({
+  type: "doc",
+  content: text ? [{ type: "paragraph", content: [{ type: "text", text }] }] : [],
+});
+
+export async function insertNote(
+  userId: string,
+  seed: {
+    title: string;
+    text?: string;
+    projectId?: string | null;
+    emoji?: string;
+    archived?: boolean;
+  },
+) {
+  const text = seed.text ?? "";
+  const [row] = await sql<{ id: string }[]>`
+    insert into notes (id, user_id, title, emoji, project_id, content_json, content_text, archived_at)
+    values (gen_random_uuid(), ${userId}, ${seed.title}, ${seed.emoji ?? null}, ${seed.projectId ?? null},
+            ${sql.json(docOf(text))}, ${text}, ${seed.archived ? sql`now()` : null})
+    returning id`;
+  return row!.id;
+}
+
+export async function noteByTitle(userId: string, title: string) {
+  const [row] = await sql<
+    {
+      id: string;
+      title: string;
+      content_text: string;
+      content_json: { content?: { type: string }[] };
+      version: number;
+      emoji: string | null;
+      project_id: string | null;
+      deleted_at: Date | null;
+      archived_at: Date | null;
+    }[]
+  >`select id, title, content_text, content_json, version, emoji, project_id, deleted_at, archived_at
+    from notes where user_id = ${userId} and title = ${title} order by created_at`;
+  return row ?? null;
+}
+
+export async function notesOf(userId: string) {
+  return sql<{ id: string; title: string; content_text: string; version: number }[]>`
+    select id, title, content_text, version from notes where user_id = ${userId} and deleted_at is null order by created_at`;
+}
+
+/** Simulates another tab or device saving the note: new text, version bumped. */
+export async function saveNoteElsewhere(noteId: string, text: string) {
+  await sql`update notes set content_json = ${sql.json(docOf(text))}, content_text = ${text},
+            version = version + 1, updated_at = now() where id = ${noteId}`;
+}
+
+export async function insertTag(userId: string, name: string, color?: string) {
+  const [row] = await sql<{ id: string }[]>`
+    insert into tags (id, user_id, name, normalized_name, color)
+    values (gen_random_uuid(), ${userId}, ${name}, ${name.toLowerCase()}, ${color ?? null}::color_token)
+    returning id`;
+  return row!.id;
+}
+
+export async function tagByName(userId: string, name: string) {
+  const [row] = await sql<{ id: string; name: string; color: string | null }[]>`
+    select id, name, color::text from tags where user_id = ${userId} and lower(name) = lower(${name})`;
+  return row ?? null;
+}
+
+export async function tagCount(userId: string) {
+  const [row] = await sql<
+    { n: number }[]
+  >`select count(*)::int n from tags where user_id = ${userId}`;
+  return row!.n;
+}
+
+export async function tagTask(taskId: string, tagId: string, userId: string) {
+  await sql`insert into task_tags (task_id, tag_id, user_id) values (${taskId}, ${tagId}, ${userId})`;
+}
+
+export async function tagNote(noteId: string, tagId: string, userId: string) {
+  await sql`insert into note_tags (note_id, tag_id, user_id) values (${noteId}, ${tagId}, ${userId})`;
+}
+
+export async function tagsOfTask(taskId: string) {
+  return sql<{ name: string }[]>`
+    select t.name from task_tags tt join tags t on t.id = tt.tag_id where tt.task_id = ${taskId} order by t.name`;
+}
+
+export async function setTaskProject(taskId: string, projectId: string | null) {
+  await sql`update tasks set project_id = ${projectId} where id = ${taskId}`;
+}
+
+export async function linkTaskToNote(taskId: string, noteId: string, userId: string) {
+  await sql`insert into task_notes (task_id, note_id, user_id) values (${taskId}, ${noteId}, ${userId})`;
+}
+
+export async function linkedNoteIds(taskId: string) {
+  const rows = await sql<
+    { note_id: string }[]
+  >`select note_id from task_notes where task_id = ${taskId}`;
+  return rows.map((r) => r.note_id);
+}
+
+export async function taskProject(taskId: string) {
+  const [row] = await sql<
+    { project_id: string | null }[]
+  >`select project_id from tasks where id = ${taskId}`;
+  return row?.project_id ?? null;
+}
+
+export async function todoProject(todoId: string) {
+  const [row] = await sql<
+    { project_id: string | null }[]
+  >`select project_id from todos where id = ${todoId}`;
+  return row?.project_id ?? null;
+}

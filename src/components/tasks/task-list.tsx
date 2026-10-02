@@ -20,6 +20,7 @@ type Props = {
   doneCount: number;
   selectedId: string | null;
   completedOpenByDefault: boolean;
+  hideProject?: boolean;
 };
 
 function Heading({ id, label, count }: { id: string; label: string; count: number }) {
@@ -35,7 +36,14 @@ function Heading({ id, label, count }: { id: string; label: string; count: numbe
  * Open tasks in groups (Overdue, Today, Upcoming, No date) and a collapsed Completed section.
  * Keyboard: Up/Down move between rows, Space toggles, Enter opens, Alt+Up/Down reorders within a group.
  */
-export function TaskList({ groups, closed, doneCount, selectedId, completedOpenByDefault }: Props) {
+export function TaskList({
+  groups,
+  closed,
+  doneCount,
+  selectedId,
+  completedOpenByDefault,
+  hideProject,
+}: Props) {
   const open = useOpenTask();
   const [completedOpen, setCompletedOpen] = useState(completedOpenByDefault);
   const focusAfter = useRef<string | null>(null);
@@ -89,6 +97,7 @@ export function TaskList({ groups, closed, doneCount, selectedId, completedOpenB
                 task={task}
                 selected={task.id === selectedId}
                 onOpen={open}
+                hideProject={hideProject}
                 canMoveUp={index > 0}
                 canMoveDown={index < group.tasks.length - 1}
                 onMove={(id, direction) => void move(group.tasks, id, direction)}
@@ -127,6 +136,7 @@ export function TaskList({ groups, closed, doneCount, selectedId, completedOpenB
                   task={task}
                   selected={task.id === selectedId}
                   onOpen={open}
+                  hideProject={hideProject}
                 />
               ))}
             </ul>

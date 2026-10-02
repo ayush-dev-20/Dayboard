@@ -38,15 +38,17 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
   const closedStatuses = params.statuses.filter((s) => !isOpenStatus(s));
   const showingClosed = closedStatuses.length > 0;
 
+  const scope = { projectId: params.projectId ?? undefined, tagId: params.tagId ?? undefined };
   const [open, closed, counts, detail] = await Promise.all([
-    listTasks(user.id, { statuses: openStatuses, archived: params.archived }),
+    listTasks(user.id, { statuses: openStatuses, archived: params.archived, ...scope }),
     params.due === "any"
       ? listClosedTasks(user.id, {
           statuses: showingClosed ? closedStatuses : ["DONE"],
           archived: params.archived,
+          ...scope,
         })
       : Promise.resolve([]),
-    countTasksByGroup(user.id, { archived: params.archived }),
+    countTasksByGroup(user.id, { archived: params.archived, ...scope }),
     params.taskId ? getTaskDetail(user.id, params.taskId) : Promise.resolve(null),
   ]);
 

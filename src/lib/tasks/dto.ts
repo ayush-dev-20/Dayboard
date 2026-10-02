@@ -1,5 +1,7 @@
 import type { TiptapDoc } from "../editor/types";
 import { trimTime } from "../dates/calendar";
+import type { ProjectRef } from "../projects/dto";
+import type { TagDTO } from "../tags";
 import type { TaskPriority, TaskStatus } from "./status";
 
 // What crosses from the server to the browser: plain, serialisable values with no Date objects and
@@ -24,9 +26,19 @@ export type TaskDTO = {
   completedAt: string | null;
   subtaskTotal: number;
   subtaskDone: number;
+  /** Null when there is none, and also while the project is in Trash (it shows as "No project"). */
+  project: ProjectRef | null;
+  tags: TagDTO[];
 };
 
-export type TaskDetailDTO = TaskDTO & { descriptionJson: TiptapDoc | null; subtasks: TaskDTO[] };
+export type NoteRefDTO = { id: string; title: string; emoji: string | null };
+
+export type TaskDetailDTO = TaskDTO & {
+  descriptionJson: TiptapDoc | null;
+  subtasks: TaskDTO[];
+  /** Notes linked to this task (those in Trash are left out). */
+  notes: NoteRefDTO[];
+};
 
 export type TodoDTO = {
   id: string;
@@ -39,6 +51,7 @@ export type TodoDTO = {
   archived: boolean;
   createdAt: string;
   updatedAt: string;
+  project: ProjectRef | null;
 };
 
 type TaskRowLike = {
@@ -60,7 +73,14 @@ type TaskRowLike = {
   completedAt: Date | null;
 };
 
-export function toTaskDTO(row: TaskRowLike, counts?: { total: number; done: number }): TaskDTO {
+export type RowMeta = { project: ProjectRef | null; tags: TagDTO[] };
+const NO_META: RowMeta = { project: null, tags: [] };
+
+export function toTaskDTO(
+  row: TaskRowLike,
+  counts?: { total: number; done: number },
+  meta: RowMeta = NO_META,
+): TaskDTO {
   return {
     id: row.id,
     parentTaskId: row.parentTaskId,
@@ -80,6 +100,8 @@ export function toTaskDTO(row: TaskRowLike, counts?: { total: number; done: numb
     completedAt: row.completedAt ? row.completedAt.toISOString() : null,
     subtaskTotal: counts?.total ?? 0,
     subtaskDone: counts?.done ?? 0,
+    project: meta.project,
+    tags: meta.tags,
   };
 }
 
@@ -96,7 +118,7 @@ type TodoRowLike = {
   updatedAt: Date;
 };
 
-export function toTodoDTO(row: TodoRowLike): TodoDTO {
+export function toTodoDTO(row: TodoRowLike, project: ProjectRef | null = null): TodoDTO {
   return {
     id: row.id,
     title: row.title,
@@ -108,5 +130,6 @@ export function toTodoDTO(row: TodoRowLike): TodoDTO {
     archived: row.archivedAt !== null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    project,
   };
 }

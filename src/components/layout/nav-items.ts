@@ -37,6 +37,12 @@ export const MOBILE_NAV_ITEMS: readonly NavItem[] = [
 // Pages reached through "More" keep it highlighted so you always know where you are.
 const MORE_PREFIXES = ["/more", "/projects", "/search", "/trash", "/settings"];
 
+// The note editor takes the whole phone screen: no top bar or bottom navigation, so the formatting
+// bar can sit right above the keyboard (design: Notes, mobile with keyboard).
+export function isNoteEditorPath(pathname: string): boolean {
+  return /^\/notes\/[^/]+$/.test(pathname);
+}
+
 export function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }

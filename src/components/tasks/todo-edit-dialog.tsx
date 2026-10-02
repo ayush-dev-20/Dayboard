@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { assignToProject } from "@/actions/projects";
 import { updateTodo } from "@/actions/todos";
 import { EmojiButton } from "@/components/emoji/emoji-picker";
 import { Alert } from "@/components/ui/alert";
@@ -16,6 +17,9 @@ import {
 } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useWorkspace } from "@/components/workspace/workspace-context";
+import { ProjectPickerControl } from "./task-properties";
+import type { ProjectRef } from "@/lib/projects/dto";
 import type { TodoDTO } from "@/lib/tasks/dto";
 
 type Props = { todo: TodoDTO; open: boolean; onOpenChange: (open: boolean) => void };
@@ -37,9 +41,11 @@ export function TodoEditDialog({ todo, open, onOpenChange }: Props) {
 }
 
 function EditForm({ todo, close }: { todo: TodoDTO; close: () => void }) {
+  const { projects: workspaceProjects } = useWorkspace();
   const [title, setTitle] = useState(todo.title);
   const [emoji, setEmoji] = useState<string | null>(todo.emoji);
   const [dueDate, setDueDate] = useState(todo.dueDate ?? "");
+  const [project, setProject] = useState<ProjectRef | null>(todo.project);
   const [error, setError] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | undefined>();
   const [pending, setPending] = useState(false);
@@ -50,6 +56,18 @@ function EditForm({ todo, close }: { todo: TodoDTO; close: () => void }) {
     setTitleError(undefined);
     setPending(true);
     const result = await updateTodo({ id: todo.id, title, emoji, dueDate: dueDate || null });
+    if (result.ok && (project?.id ?? null) !== (todo.project?.id ?? null)) {
+      const moved = await assignToProject({
+        itemType: "todo",
+        itemId: todo.id,
+        projectId: project?.id ?? null,
+      });
+      if (!moved.ok) {
+        setPending(false);
+        setError(moved.error.message);
+        return;
+      }
+    }
     setPending(false);
     if (!result.ok) {
       if (result.error.fieldErrors?.title) setTitleError(result.error.fieldErrors.title);
@@ -87,6 +105,17 @@ function EditForm({ todo, close }: { todo: TodoDTO; close: () => void }) {
           />
         )}
       </Field>
+      <div className="-ml-1.5">
+        <ProjectPickerControl
+          value={project}
+          allowCreate={false}
+          onChange={(projectId) =>
+            setProject(
+              projectId ? (workspaceProjects.find((p) => p.id === projectId) ?? null) : null,
+            )
+          }
+        />
+      </div>
       <DialogFooter>
         <DialogClose asChild>
           <Button variant="secondary">Cancel</Button>
