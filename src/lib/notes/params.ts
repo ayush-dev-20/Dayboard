@@ -20,10 +20,18 @@ export function parseNotesParams(raw: RawParams): NotesParams {
   };
 }
 
-export function buildNotesQuery(params: Partial<NotesParams>): string {
+export type NotesView = "list" | "grid";
+
+/** `?view=grid` shows cards; anything else is the list (the default). */
+export function parseNotesView(raw: RawParams): NotesView {
+  return first(raw.view) === "grid" ? "grid" : "list";
+}
+
+export function buildNotesQuery(params: Partial<NotesParams> & { view?: NotesView }): string {
   const q = new URLSearchParams();
   if (params.projectId) q.set("project", params.projectId);
   if (params.tagId) q.set("tag", params.tagId);
+  if (params.view === "grid") q.set("view", "grid");
   const text = q.toString();
   return text ? `?${text}` : "";
 }

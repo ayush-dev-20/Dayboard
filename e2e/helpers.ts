@@ -126,3 +126,29 @@ export async function openTask(page: Page, title: string) {
   await taskRow(page, title).getByRole("button", { name: title, exact: true }).click();
   await expect(detailPanel(page)).toBeVisible();
 }
+
+/**
+ * The element's box once it has stopped moving. Rows glide when a list re-centers and panels spring
+ * in (feature 07 motion), so measure positions only after they settle.
+ */
+export async function stillBox(locator: Locator) {
+  let previous = await locator.boundingBox();
+  for (let i = 0; i < 40; i += 1) {
+    await locator.page().waitForTimeout(50);
+    const next = await locator.boundingBox();
+    if (previous && next && JSON.stringify(previous) === JSON.stringify(next)) return next;
+    previous = next;
+  }
+  return previous;
+}
+
+/** Waits for an element's own CSS and Web Animations (an opening dialog's fade and scale) to end. */
+export async function animationsDone(locator: Locator) {
+  await locator.evaluate(async (el) => {
+    // Two frames first, so an animation that starts on mount has begun and can be awaited.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await Promise.all(
+      el.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => undefined)),
+    );
+  });
+}

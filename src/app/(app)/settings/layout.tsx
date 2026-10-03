@@ -1,12 +1,15 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { SettingsTabs } from "@/components/settings/settings-tabs";
+import { PageContainer } from "@/components/layout/page-container";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="max-w-[720px]">
+    <PageContainer>
       <PageHeader title="Settings" className="mb-4" />
-      <SettingsTabs />
-      {children}
-    </div>
+      <div className="max-w-[720px]">
+        <SettingsTabs />
+        {children}
+      </div>
+    </PageContainer>
   );
 }

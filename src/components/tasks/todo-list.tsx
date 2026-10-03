@@ -1,11 +1,16 @@
 "use client";
 
+import { AnimatePresence } from "motion/react";
+import { animateRows } from "@/lib/motion";
+
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { reorderTodo } from "@/actions/todos";
 import type { TodoDTO } from "@/lib/tasks/dto";
 import { handleRowKeys } from "./row-keys";
 import { TodoRow } from "./todo-row";
+import { useTaskContext } from "./task-context";
+import { oldestOverdueId } from "@/lib/tasks/overdue";
 
 type Props = { open: TodoDTO[]; completed: TodoDTO[]; openLabel?: string };
 
@@ -20,6 +25,12 @@ function Heading({ id, label, count }: { id: string; label: string; count: numbe
 
 export function TodoList({ open, completed, openLabel = "Open" }: Props) {
   const focusAfter = useRef<string | null>(null);
+  const { prefs, nowMs } = useTaskContext();
+  const oldest = oldestOverdueId(
+    open.map((t) => ({ id: t.id, status: "PLANNED", dueDate: t.dueDate, dueTime: null })),
+    prefs,
+    new Date(nowMs),
+  );
 
   const orderKey = open.map((t) => t.id).join(",");
   useEffect(() => {
@@ -56,15 +67,19 @@ export function TodoList({ open, completed, openLabel = "Open" }: Props) {
         <section aria-labelledby="todos-open">
           <Heading id="todos-open" label={openLabel} count={open.length} />
           <ul className="border-t border-border">
-            {open.map((todo, index) => (
-              <TodoRow
-                key={todo.id}
-                todo={todo}
-                canMoveUp={index > 0}
-                canMoveDown={index < open.length - 1}
-                onMove={(id, direction) => void move(id, direction)}
-              />
-            ))}
+            <AnimatePresence initial={false}>
+              {open.map((todo, index) => (
+                <TodoRow
+                  layoutAnimation={animateRows(open.length)}
+                  key={todo.id}
+                  todo={todo}
+                  overdueEmphasis={todo.id === oldest}
+                  canMoveUp={index > 0}
+                  canMoveDown={index < open.length - 1}
+                  onMove={(id, direction) => void move(id, direction)}
+                />
+              ))}
+            </AnimatePresence>
           </ul>
         </section>
       ) : null}
@@ -73,9 +88,15 @@ export function TodoList({ open, completed, openLabel = "Open" }: Props) {
         <section aria-labelledby="todos-completed" className="mt-8">
           <Heading id="todos-completed" label="Completed today" count={completed.length} />
           <ul className="border-t border-border">
-            {completed.map((todo) => (
-              <TodoRow key={todo.id} todo={todo} />
-            ))}
+            <AnimatePresence initial={false}>
+              {completed.map((todo) => (
+                <TodoRow
+                  layoutAnimation={animateRows(completed.length)}
+                  key={todo.id}
+                  todo={todo}
+                />
+              ))}
+            </AnimatePresence>
           </ul>
         </section>
       ) : null}

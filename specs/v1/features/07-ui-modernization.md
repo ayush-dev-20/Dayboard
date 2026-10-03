@@ -503,3 +503,15 @@ Answer in Milestone 0. Defaults in brackets.
 5. Free to try? The landing page can say "free" only if that is true. [no pricing claim]
 6. Brand mark: commission with Claude Design or Figma? [Claude Design, then export the SVG]
 7. Should the landing page replace the sign-in page as the front door for signed-out visitors? [yes, with a clear Sign in link]
+
+---
+
+## 16. As built (2026-10-03)
+
+Built on the defaults in §2.2 and §15 (owner sign-off still open). Every deviation, with its reason, is in `agent_docs/ui-modernization_v1.md`. In short:
+
+- **Not built:** the `designs/v2/` mockups (built from `DESIGN.md` and this document instead); sample data in onboarding (D5, skipped by default).
+- **Kept on purpose:** AI preview buttons keep their verbs ("Create 3 tasks") with Select all/none and Enter/Esc; the focus card's checkbox is its "Mark done"; Today's rail keeps the heading "Recently updated notes"; popovers share the dialog layer (50) so pickers inside dialogs stay on top.
+- **Narrowed:** the sidebar shows "Show all (N)" only past five projects; row quick actions are hidden below 768px.
+- **Data:** read-only additions only: exact progress counts and the newest inbox items in the Today loader, `nextDueTasks()`, `checklistCounts()`; plus migration `0005` and `dismissChecklist` (§9.6).
+- **Tests:** visual baselines are a time-independent set of 48 (macOS); the reduced-motion test samples `transform`, `scale` and `translate` and asserts they never change; four existing E2E files needed small edits (listed in the hand-off).

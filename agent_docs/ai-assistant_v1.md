@@ -23,6 +23,8 @@ The feature doc requires AI to be contextual, always previewed, never blocking, 
 - The client bundle check (`pnpm check:bundle`) exists but no CI workflow runs it yet; wire it in feature 06.
 - Not built, per the feature doc: embeddings, weekly review, auto-scheduling, multi-turn chat, background runs, per-user models.
 
+- **Since feature 07** (`ui-modernization_v1.md`): AI output uses the tinted `ai-panel` (`AiPanel`, `GrowingAiPanel` for streams with a caret), previews are forms (Enter confirms, Esc discards) with Select all/none, the Today brief carries "Help me clean up", and the ⌘K menu offers "Ask your workspace" for sentence-like queries. No AI behavior changed.
+
 ## Related files
 
 - `src/lib/ai/gate.ts`: pipeline steps 1–4 and the stream response helper. `index.ts`: retries, validation, usage. `usage.ts` and `limits.ts`: limits (pure part in `limits.ts`).

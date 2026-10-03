@@ -38,7 +38,7 @@ This stack is fixed. Use it for every iteration, in every phase. Do not swap a p
 | Testing | Vitest (unit), Playwright (E2E); the AI provider is always mocked in CI |
 | Quality | ESLint, Prettier, Husky, lint-staged |
 | DevOps | Docker (multi-stage, Next.js standalone output), Docker Compose, Caddy, GitHub Actions, GHCR |
-| Fonts | Newsreader, IBM Plex Sans, IBM Plex Mono (open-licensed, self-hosted), per [DESIGN.md](DESIGN.md) |
+| Fonts | Inter (variable, with the optical-size axis for headings; open-licensed, self-hosted) and the system monospace for code only, per [DESIGN.md](DESIGN.md) and ADR 0003 |
 
 **Not allowed** (unless an ADR in `docs/decisions/` approves it first):
 
@@ -88,8 +88,8 @@ For V2 and V3 work, also read that phase's `Agent.md` and `01`–`05` in full.
 
 For anything the user sees, the design already exists. Do not invent a layout or a style.
 
-- **[designs/](designs/)** holds the screen designs for the app (HTML). Look at the one for your screen before building any UI.
-- **[DESIGN.md](DESIGN.md)** is the design system behind them: colors (light and dark), typography, spacing, shapes, components, screen recipes, and a Do's and Don'ts list. It also maps its tokens to shadcn/ui and Tailwind v4 variables, so use that mapping when setting up the theme.
+- **[designs/](designs/)** holds the screen designs for the app (HTML). Look at the one for your screen before building any UI. Since feature 07 (UI modernization, ADR 0005) the v1 files are **stale for visual style** (fonts, flat panels, red overdue pills, flush-left layout) but still right for content and states; new mockups go in `designs/v2/`. Where a v1 design and DESIGN.md disagree on style, follow DESIGN.md.
+- **[DESIGN.md](DESIGN.md)** is the design system behind them: colors (light and dark), typography, spacing, shapes, components, screen recipes, and a Do's and Don'ts list. Its colors are **generated** by `pnpm theme:generate` from three inputs (paper, ink, contrast) in `src/lib/theme/generate.ts`; never hand-edit a generated hex. It must lint clean: `npx -y @google/design.md@latest lint --format json DESIGN.md`.
 
 | Feature | Design file(s) in `designs/` |
 | --- | --- |
@@ -104,7 +104,7 @@ For anything the user sees, the design already exists. Do not invent a layout or
 
 **When sources disagree.** The designs show how a screen looks (layout, content, states). DESIGN.md holds the exact token values and the rules. If a design and DESIGN.md differ on a *token value*, use DESIGN.md. If they differ on a *layout or behavior*, or you cannot tell which is meant, follow the design and the UI/UX spec, and note the difference in your agent_docs hand-off so the user can resolve it. Do not quietly pick one.
 
-Always apply the rules in DESIGN.md that are easy to forget: one accent color used only for interactive things, hairlines instead of cards, no shadows on static content, only 400 and 600 font weights, square checkboxes for tasks and round ones for todos, no sparkle icons or AI badges, and color is never the only signal.
+Always apply the rules in DESIGN.md that are easy to forget: one accent color used only for interactive things, hairlines by default and a card only for one discrete object (never a list of rows in a card), the four shadow levels and no glow or gradients, red is rare (overdue rows are red text, at most one red fill per section), only 400 and 600 font weights, square checkboxes for tasks and round ones for todos, no sparkle icons, AI badges or chat sidebar, at most two feature animations per screen, and color is never the only signal.
 
 ## 5. Reading order for a new agent
 

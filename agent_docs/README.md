@@ -15,6 +15,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | Notes, projects & tags | V1 | Done | [notes-projects-tags_v1.md](notes-projects-tags_v1.md) |
 | Inbox, Today, Search & Trash | V1 | Done | [inbox-today-search-trash_v1.md](inbox-today-search-trash_v1.md) |
 | AI assistant | V1 | Done | [ai-assistant_v1.md](ai-assistant_v1.md) |
+| UI modernization | V1 | Done | [ui-modernization_v1.md](ui-modernization_v1.md) |
 
 Status is `Done` or `In progress`.
 
@@ -28,6 +29,7 @@ These names come from [specs/v1/features/](../specs/v1/features/README.md). Use 
 4. `inbox-today-search-trash_v1.md`
 5. `ai-assistant_v1.md`
 6. `production-devops_v1.md`
+7. `ui-modernization_v1.md`
 
 ## Template
 

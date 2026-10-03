@@ -21,3 +21,12 @@ export function parseQuery(raw: string | null | undefined): ParsedQuery {
   if (q.length > MAX_QUERY) return { ok: false, reason: "too_long" };
   return { ok: true, q };
 }
+
+/** When a query reads like a question, the command menu offers to Ask (feature 07 §9.2). */
+export const ASK_SUGGEST_MIN = 12;
+
+export function looksLikeQuestion(raw: string): boolean {
+  const q = raw.trim();
+  if (q.length < 2) return false;
+  return q.endsWith("?") || q.length >= ASK_SUGGEST_MIN;
+}

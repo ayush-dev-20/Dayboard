@@ -46,7 +46,10 @@ test.describe("sign up and verification", () => {
     const account = await signUp(page, { onboard: false });
 
     await expect(page.getByLabel("Time zone")).toHaveValue("Asia/Kolkata");
+    // Onboarding has three steps (feature 07): the theme is chosen on the second.
+    await page.getByRole("button", { name: "Next" }).click();
     await page.getByRole("radio", { name: "Dark" }).click();
+    await page.getByRole("button", { name: "Next" }).click();
     await page.getByRole("button", { name: "Continue to Today" }).click();
     await expect(page).toHaveURL(/\/today/);
     await expect(page.locator("html")).toHaveClass(/dark/);

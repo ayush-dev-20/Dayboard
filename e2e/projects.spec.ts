@@ -96,7 +96,8 @@ test.describe("creating and managing projects", () => {
 
     // The list shows it too.
     await page.goto("/projects");
-    const card = page.getByRole("link", { name: /Acme rebrand/ });
+    // The sidebar lists active projects too, so look in the page itself.
+    const card = page.getByRole("main").getByRole("link", { name: /Acme rebrand/ });
     await expect(card).toContainText("1 open");
     await expect(card.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50");
   });
@@ -213,7 +214,8 @@ test.describe("creating and managing projects", () => {
     await page.getByRole("dialog").getByRole("button", { name: "Move to Trash" }).click();
     await expect(page).toHaveURL(/\/projects$/);
     await page.getByRole("button", { name: "Undo" }).click();
-    await expect(page.getByRole("link", { name: /Undo me/ })).toBeVisible();
+    // The sidebar lists active projects too, so look in the page itself.
+    await expect(page.getByRole("main").getByRole("link", { name: /Undo me/ })).toBeVisible();
     await expect
       .poll(async () => (await projectByName(user.id, "Undo me"))?.deleted_at ?? null)
       .toBeNull();

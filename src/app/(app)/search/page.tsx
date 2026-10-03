@@ -11,6 +11,8 @@ import { parseSearchUrl, buildSearchUrl } from "@/lib/search/params";
 import { parseQuery } from "@/lib/search/query";
 import { SEARCH_TYPES, type SearchParams } from "@/lib/search/types";
 import { requireUser } from "@/lib/session";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageContainer } from "@/components/layout/page-container";
 
 export const metadata: Metadata = { title: "Search" };
 
@@ -32,15 +34,17 @@ export default async function SearchPage({ searchParams }: { searchParams: NextS
   );
 
   return (
-    <div className="max-w-content">
-      <header className="mb-6">
-        <h1 className="sr-only type-headline-lg text-foreground md:not-sr-only">Search</h1>
-        <p className="mt-1 type-body-md text-muted-foreground" role="status">
-          {results
-            ? `${results.total} ${results.total === 1 ? "result" : "results"}`
-            : "Search everything you've written"}
-        </p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="Search"
+        description={
+          <span role="status">
+            {results
+              ? `${results.total} ${results.total === 1 ? "result" : "results"}`
+              : "Search everything you've written"}
+          </span>
+        }
+      />
 
       <SearchBox params={params} />
       <SearchFilters params={params} today={today} />
@@ -57,6 +61,7 @@ export default async function SearchPage({ searchParams }: { searchParams: NextS
           />
         ) : hits.length === 0 ? (
           <EmptyState
+            illustration="search-empty"
             title={`Nothing matches “${params.q}”.`}
             description={
               filtered ? "Try fewer words, or clear the filters." : "Try fewer or different words."
@@ -79,6 +84,6 @@ export default async function SearchPage({ searchParams }: { searchParams: NextS
           </ul>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

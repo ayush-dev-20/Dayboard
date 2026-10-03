@@ -23,6 +23,10 @@ The app should feel personal, quiet, and focused.
 - Keyboard-friendly
 - Subtle motion
 - Strong typography
+- Soft depth (four shadow levels; cards only for one discrete object)
+- Quiet springs on things you touch
+
+The direction is **"Paper Daybook, modern calm"** (feature 07, ADR 0005): warm paper and blue-black ink, with the polish of a modern SaaS product and Linear-like restraint. `DESIGN.md` holds the rules and tokens.
 
 Avoid making AI visually dominate the interface.
 
@@ -66,6 +70,8 @@ Use a three-zone shell where useful:
 ```
 
 Do not show the right context panel everywhere. It should appear only where it improves the workflow.
+
+At ≥ 1024px the sidebar sits on the ground color and the main content is an **inset panel** (8px gap from the window edge, 12px top-left radius, 1px border) that scrolls on its own. The sidebar is grouped (Plan: Today, Inbox, Tasks; Library: Notes, Projects with up to five active projects; then Search, Trash, Settings) and **collapsible** to a 56px icon rail (button or `⌘\`, remembered in a cookie). The content column is **centered** in the panel: 960px for lists, 1200px for Today and the card grids, 760px for the note editor; text stays left-aligned. Every page uses the one sticky page header (title, meta line, actions). Today is two columns at ≥ 1280px (main and a 320px right rail).
 
 ### Tablet
 
@@ -358,6 +364,10 @@ Streaming output should render progressively where useful.
 
 Never block the entire page while AI runs.
 
+### AI identity
+
+AI output sits in a **tinted panel** (`ai-surface`, a faint wash of the accent, with a 1px `ai-border`) labelled with the plain words "AI-generated". There is no sparkle icon, no badge, no gradient, and **no chat sidebar or chat page**: AI lives where the work is. Buttons that start AI work are ordinary buttons with a verb. Proposals read like a diff: a checkbox per item, **Accept selected (N)** and **Accept all**, `Enter` confirms and `Esc` discards; nothing is written before the confirm click. Streaming text grows the panel smoothly and shows a caret while generating.
+
 ---
 
 ## 14. Ask my workspace UX
@@ -434,7 +444,7 @@ Example Notes:
 >
 > [Create your first note]
 
-Keep empty states compact.
+Keep empty states compact: a small in-house line illustration (96–120px, single color plus the accent, drawn in once on mount, static under reduced motion), a title, one sentence, one primary action and an optional secondary action or keyboard hint. No emoji and no stock art. Today, Tasks, Notes, Projects, Inbox, Trash and Search each have their own illustration.
 
 ---
 
@@ -497,18 +507,22 @@ Do not put the entire app inside nested modal dialogs.
 
 Use Motion only for meaningful interaction:
 
-- Sheet transitions
-- Dialog appearance
-- List insertion/removal
-- AI content reveal
-- Navigation shell transitions if they improve continuity
+- Sheet transitions (the `gentle` spring)
+- Dialog appearance (fade and scale 0.98 → 1)
+- List insertion, removal and reorder (layout animation with the `snappy` spring)
+- Task completion (the box fills, the tick draws, the title strikes through; the row stays put while Undo is live)
+- AI content reveal (the panel grows as text streams in)
+- Route changes: the main content fades (opacity only, 120ms)
+- Skeleton shimmer, counter crossfades, and the day-progress ring on change
 
-Respect `prefers-reduced-motion`.
+Wrap the app in `<MotionConfig reducedMotion="user">` and keep every duration, easing and spring in `src/lib/motion.ts`. Respect `prefers-reduced-motion`: transforms and layout animation turn off, gentle fades stay.
+
+**Budget:** at most two feature animations per screen; move only `transform` and `opacity`; no infinite animation except loaders (which stop after 8 seconds); lists over 100 rows skip per-row layout animation; hover never moves or scales anything.
 
 Avoid:
 
-- bouncing checkboxes
-- excessive spring animations
+- bouncing checkboxes, overshoot
+- scroll-triggered reveals, parallax, scroll-jacking
 - continuous decorative movement
 
 ---

@@ -10,6 +10,18 @@ import { auth } from "@/lib/auth";
 import { requireUser } from "@/lib/session";
 import { onboardingSchema } from "@/lib/validations/settings";
 
+/** Hides the getting-started checklist on Today for good. No input: it is always the caller's own. */
+export async function dismissChecklist(): Promise<ActionResult> {
+  return runAction("onboarding.dismissChecklist", async () => {
+    const user = await requireUser();
+    await db
+      .update(userPreferences)
+      .set({ checklistDismissedAt: new Date() })
+      .where(eq(userPreferences.userId, user.id));
+    revalidatePath("/today");
+  });
+}
+
 export async function completeOnboarding(input: unknown): Promise<ActionResult<{ theme: string }>> {
   return runAction("onboarding.complete", async () => {
     const user = await requireUser();

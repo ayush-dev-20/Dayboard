@@ -11,7 +11,7 @@ import {
   noteByTitle,
   trashRow,
 } from "./db";
-import { signUp, taskRow, today } from "./helpers";
+import { signUp, taskRow, today, animationsDone } from "./helpers";
 
 async function hasHorizontalScroll(page: Page) {
   return page.evaluate(
@@ -131,6 +131,8 @@ test.describe("phone", () => {
 
     await page.getByRole("button", { name: "Delete account" }).tap();
     const dialog = page.getByRole("dialog");
+    // Measure once the dialog has finished scaling in (feature 07 motion).
+    await animationsDone(dialog);
     const box = await dialog.boundingBox();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(360);
@@ -355,8 +357,10 @@ test.describe("phone", () => {
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(360);
     for (const name of ["Cancel", "Create todo"]) {
-      const b = await dialog.getByRole("button", { name }).boundingBox();
-      expect(b!.height).toBeGreaterThanOrEqual(44);
+      // Polled: the dialog scales in from 0.98 (feature 07 motion); the settled size is what counts.
+      await expect
+        .poll(async () => (await dialog.getByRole("button", { name }).boundingBox())!.height)
+        .toBeGreaterThanOrEqual(44);
     }
     await dialog.getByRole("button", { name: "Create todo" }).tap();
     await expect(page.getByText("Converted to a todo.")).toBeVisible();

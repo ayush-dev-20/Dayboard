@@ -1,6 +1,5 @@
 "use client";
 
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -51,7 +50,22 @@ export function CheckButton({
             : "border-input bg-background",
         )}
       >
-        {checked ? <Check className="size-3" strokeWidth={2} aria-hidden /> : null}
+        {/* The tick draws itself in 150ms after the box fills (stroke, not transform, so it also
+            plays gently under reduced motion, where the global rule makes it instant). */}
+        <svg viewBox="0 0 12 12" aria-hidden className="size-3 overflow-visible">
+          <path
+            d="M2.5 6.2 4.8 8.5 9.5 3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            pathLength={1}
+            strokeDasharray={1}
+            strokeDashoffset={checked ? 0 : 1}
+            className="transition-[stroke-dashoffset] delay-[60ms] duration-150 ease-(--ease-enter)"
+          />
+        </svg>
       </span>
     </button>
   );

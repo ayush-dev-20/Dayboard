@@ -1,36 +1,54 @@
 import { CommandProvider } from "@/components/command/command-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AccountBlock } from "./account-block";
 import { AppShortcuts } from "./app-shortcuts";
 import { MobileNav } from "./mobile-nav";
+import { ShellFrame, SidebarProvider } from "./sidebar-state";
 import { SidebarNav } from "./sidebar-nav";
 import { TopBar } from "./top-bar";
 
-type Props = { name: string; email: string; children: React.ReactNode };
+type Props = {
+  name: string;
+  email: string;
+  /** From the `sidebar_collapsed` cookie, so the first render already has the right width. */
+  sidebarCollapsed: boolean;
+  children: React.ReactNode;
+};
 
 /**
- * Three zones: sidebar (240px, ≥1024px), main, and an optional right context panel that pages
- * add themselves. Below 1024px the sidebar becomes a sheet; below 768px a bottom nav replaces it.
+ * The "inverted L" (DESIGN.md: Layout). At ≥ 1024px the sidebar sits on the ground color and the
+ * main content is an inset panel (8px from the window's top and right edges, 12px top-left radius,
+ * 1px border) that scrolls on its own. Below 1024px the sidebar becomes a sheet and, on phones, a
+ * bottom nav, and the page scrolls as a whole.
  */
-export function AppShell({ name, email, children }: Props) {
+export function AppShell({ name, email, sidebarCollapsed, children }: Props) {
   return (
     <CommandProvider>
-      <div className="min-h-dvh">
-        <aside className="fixed inset-y-0 left-0 z-10 hidden w-sidebar border-r border-sidebar-border bg-sidebar lg:block">
-          <SidebarNav />
-        </aside>
+      <SidebarProvider initialCollapsed={sidebarCollapsed}>
+        <TooltipProvider>
+          <ShellFrame>
+            <aside className="z-10 hidden w-(--sidebar-width) shrink-0 bg-sidebar lg:block">
+              <SidebarNav collapsible account={<AccountBlock name={name} email={email} />} />
+            </aside>
 
-        <div className="lg:pl-sidebar">
-          <TopBar name={name} email={email} />
-          <main
-            id="main"
-            className="px-4 pt-6 pb-[calc(56px+env(safe-area-inset-bottom)+24px)] md:px-8 md:pt-8 md:pb-12"
-          >
-            {children}
-          </main>
-        </div>
+            <div
+              id="main-panel"
+              className="min-w-0 lg:relative lg:mt-2 lg:mr-2 lg:flex-1 lg:overflow-y-auto lg:rounded-tl-lg lg:border lg:border-b-0 lg:border-border lg:bg-background"
+            >
+              <TopBar name={name} email={email} />
+              <main
+                id="main"
+                className="px-4 pt-6 pb-[calc(56px+env(safe-area-inset-bottom)+24px)] md:px-8 md:pt-8 md:pb-12"
+              >
+                {children}
+              </main>
+            </div>
+          </ShellFrame>
+        </TooltipProvider>
 
         <AppShortcuts />
         <MobileNav />
-      </div>
+      </SidebarProvider>
     </CommandProvider>
   );
 }

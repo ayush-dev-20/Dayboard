@@ -20,6 +20,10 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "check:bundle": "node scripts/check-client-bundle.mjs",
+    "capture:screens": "tsx scripts/capture-screens.ts",
+    "capture:marketing": "tsx scripts/capture-marketing.ts",
+    "theme:generate": "tsx scripts/generate-theme.ts",
+    "theme:check": "tsx scripts/generate-theme.ts --check",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
@@ -54,6 +58,7 @@
     "drizzle-orm": "0.45.3",
     "frimousse": "0.4.0",
     "lucide-react": "1.49.0",
+    "motion": "14.0.0",
     "next": "16.3.8",
     "next-themes": "0.4.6",
     "postgres": "3.4.9",
@@ -68,6 +73,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^24.19.0",

@@ -10,6 +10,7 @@ import {
   FileText,
   Folder,
   History,
+  MessageCircleQuestion,
   Plus,
   Search,
   Tag as TagIcon,
@@ -21,7 +22,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { ProjectToken } from "@/components/workspace/tokens";
 import { forgetSearches, readRecentSearches, rememberSearch } from "@/lib/search/recent";
-import { parseQuery } from "@/lib/search/query";
+import { looksLikeQuestion, parseQuery } from "@/lib/search/query";
 import {
   SEARCH_TYPES,
   type SearchHit,
@@ -71,6 +72,15 @@ function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) 
       </span>
       <span className="min-w-0 flex-1 truncate">
         {hit.title}
+        {hit.snippet ? (
+          <span className="ml-2 type-body-sm text-muted-foreground">
+            {hit.snippet.before}
+            <mark className="rounded-[2px] bg-primary-subtle px-0.5 text-foreground">
+              {hit.snippet.match}
+            </mark>
+            {hit.snippet.after}
+          </span>
+        ) : null}
         {hit.archived ? (
           <span className="ml-2 type-label-caps text-muted-foreground">Archived</span>
         ) : null}
@@ -191,7 +201,7 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
   return (
     <DialogPrimitive.Root open onOpenChange={(next) => !next && close()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-70 bg-scrim duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
           onOpenAutoFocus={(e) => {
@@ -199,7 +209,9 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
             if (mode === "capture") e.preventDefault();
           }}
           className={cn(
-            "fixed z-50 flex flex-col overflow-hidden bg-overlay text-foreground outline-none float-surface",
+            "fixed z-70 flex flex-col overflow-hidden bg-overlay text-foreground outline-none float-surface",
+            // Fade and scale 0.98 → 1 in 160ms.
+            "duration-160 ease-(--ease-enter) data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-safe:md:data-[state=open]:zoom-in-98",
             // Phone: the whole screen. Larger: a centered dialog near the top.
             "max-md:inset-0 md:top-32 md:left-1/2 md:max-h-[min(560px,calc(100dvh-10rem))] md:w-[640px] md:max-w-[calc(100vw-32px)] md:-translate-x-1/2 md:rounded-lg md:shadow-float md:dark:border md:dark:border-border",
           )}
@@ -429,6 +441,33 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                       </Command.Group>
                     ))
                   : null}
+
+                {/* A visible way into Ask, without a new global key: a sentence-like query offers it last. */}
+                {mode === "search" && aiEnabled && looksLikeQuestion(query) ? (
+                  <Command.Group
+                    heading={<span className="type-label-caps text-muted-foreground">Ask</span>}
+                    className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1"
+                  >
+                    <Command.Item
+                      value="ask-workspace"
+                      onSelect={() => {
+                        onModeChange("ask");
+                        ask.run({ question: query.trim() });
+                      }}
+                      className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 type-body-md data-[selected=true]:bg-primary-subtle md:min-h-9"
+                    >
+                      <MessageCircleQuestion
+                        className="size-4 shrink-0 text-muted-foreground"
+                        strokeWidth={1.5}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 truncate">
+                        Ask your workspace: “{query.trim()}”
+                      </span>
+                      <Kbd className="max-md:hidden">↵</Kbd>
+                    </Command.Item>
+                  </Command.Group>
+                ) : null}
 
                 {mode === "search" &&
                 typed &&

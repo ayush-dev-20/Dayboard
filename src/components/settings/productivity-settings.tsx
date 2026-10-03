@@ -27,7 +27,7 @@ const PRIORITIES: { value: Priority; label: string }[] = [
   { value: "HIGH", label: "High" },
 ];
 // Half-hour steps from 00:00 to 23:30.
-const START_TIMES = Array.from({ length: 48 }, (_, i) => {
+export const START_TIMES = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
   return `${h}:${i % 2 === 0 ? "00" : "30"}`;
 });

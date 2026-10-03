@@ -12,8 +12,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
-export function AccountMenu({ name, email }: { name: string; email: string }) {
+type Props = {
+  name: string;
+  email: string;
+  /** `bar`: an avatar in the top bar. `sidebar`: avatar and name, the desktop account block. */
+  variant?: "bar" | "sidebar";
+  /** Sidebar rail: the avatar alone. */
+  compact?: boolean;
+};
+
+export function AccountMenu({ name, email, variant = "bar", compact }: Props) {
   const router = useRouter();
 
   async function signOut() {
@@ -26,11 +36,22 @@ export function AccountMenu({ name, email }: { name: string; email: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Account menu"
-        className="inline-flex size-11 items-center justify-center rounded-full md:size-8"
+        className={cn(
+          "inline-flex cursor-pointer items-center",
+          variant === "bar" || compact
+            ? "size-11 justify-center rounded-full md:size-8"
+            : "h-10 min-w-0 flex-1 gap-2 rounded-md px-2 text-left transition-colors duration-150 hover:bg-sidebar-accent",
+        )}
       >
         <UserAvatar name={name} />
+        {variant === "sidebar" && !compact ? (
+          <span className="min-w-0 truncate type-label-md text-foreground">{name}</span>
+        ) : null}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align={variant === "sidebar" ? "start" : "end"}
+        side={variant === "sidebar" ? "top" : "bottom"}
+      >
         <DropdownMenuLabel>
           <p className="truncate type-label-md">{name}</p>
           <p className="truncate type-body-sm text-muted-foreground">{email}</p>

@@ -18,6 +18,7 @@ import { applyDueFilter, GROUP_LABELS, groupTasks } from "@/lib/tasks/grouping";
 import { hasActiveFilters, parseTasksParams } from "@/lib/tasks/params";
 import { isOpenStatus } from "@/lib/tasks/status";
 import { TodosView } from "./todos-view";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata: Metadata = { title: "Tasks" };
 
@@ -66,15 +67,12 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
   return (
     <TaskContextProvider value={context}>
       <TaskListShell sheetOpen={sheetOpen}>
-        <header className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <h1 className="sr-only type-headline-lg text-foreground md:not-sr-only">Tasks</h1>
-            <p className="mt-1 type-body-md text-muted-foreground">
-              {counts.open} open{params.archived ? " (archived)" : ""}
-            </p>
-          </div>
+        <PageHeader
+          title="Tasks"
+          description={`${counts.open} open${params.archived ? " (archived)" : ""}`}
+        >
           <NewItemButton label="New task" />
-        </header>
+        </PageHeader>
 
         <ViewTabs active="tasks" />
         <TaskFilters params={params} />
@@ -82,7 +80,11 @@ export default async function TasksPage({ searchParams }: { searchParams: Search
 
         <div className="mt-8">
           {nothingAtAll ? (
-            <EmptyState title="No tasks yet." description="Add one above, or press N.">
+            <EmptyState
+              illustration="tasks-empty"
+              title="No tasks yet."
+              description="Add one above, or press N."
+            >
               <Link href="/inbox" className={buttonVariants({ variant: "secondary" })}>
                 Go to Inbox
               </Link>

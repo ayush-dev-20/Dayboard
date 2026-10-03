@@ -5,7 +5,7 @@ import { listNotes } from "@/db/queries/notes";
 import { selectTasks } from "@/db/queries/tasks";
 import { listOpenTodos } from "@/db/queries/todos";
 import { projectRefsFor } from "@/db/queries/meta";
-import { tasks, todos, userPreferences } from "@/db/schema";
+import { inboxItems, tasks, todos, userPreferences } from "@/db/schema";
 import { getUserToday, startOfUserDay, type DayPrefs } from "@/lib/dates/today";
 import type { NoteListItemDTO } from "@/lib/notes/dto";
 import { OPEN_STATUSES } from "@/lib/tasks/status";
@@ -25,6 +25,14 @@ export type TodayData = {
   notes: NoteListItemDTO[];
   completedTasks: TaskDTO[];
   completedTodos: TodoDTO[];
+  /**
+   * The day-progress ring (feature 07 §7.1): tasks and todos finished since the start of the
+   * person's day, out of those plus what is still open and due today. Overdue is not counted, so a
+   * backlog never makes the day feel lost.
+   */
+  progress: { done: number; total: number };
+  /** The rail's Inbox card: how many open items, and the two newest. */
+  inbox: { open: number; latest: { id: string; text: string; createdAt: string }[] };
 };
 
 const open = inArray(tasks.status, [...OPEN_STATUSES]);
@@ -43,57 +51,84 @@ export async function getTodayData(
   const today = getUserToday(prefs, now);
   const since = startOfUserDay(prefs, now);
 
-  const [focusRows, dueTasks, openTodos, planning, notes, completedTasks, completedTodoRows] =
-    await Promise.all([
-      focusTaskId
-        ? selectTasks(userId, [eq(tasks.id, focusTaskId), open], {
-            orderBy: [asc(tasks.sortOrder)],
-            limit: 1,
-          })
-        : Promise.resolve([] as TaskDTO[]),
-      // Everything due today or earlier; bucketing (overdue / today / later) is the pure helper's job.
-      selectTasks(userId, [open, isNotNull(tasks.dueDate), lte(tasks.dueDate, today)], {
-        orderBy: [asc(tasks.sortOrder), asc(tasks.createdAt)],
-        limit: 500,
-      }),
-      listOpenTodos(userId, { dueByOrUndated: today, limit: TODAY_LIMITS.todos }),
-      selectTasks(
-        userId,
-        [
-          open,
-          isNull(tasks.dueDate),
-          inArray(tasks.priority, ["HIGH", "MEDIUM"]),
-          ne(tasks.status, "WAITING"),
-        ],
-        {
-          // High before medium, then the person's own order.
-          orderBy: [
-            sql`case ${tasks.priority} when 'HIGH' then 0 else 1 end`,
-            asc(tasks.sortOrder),
-          ],
-          limit: TODAY_LIMITS.planning,
-        },
-      ),
-      listNotes(userId, { limit: TODAY_LIMITS.notes }),
-      selectTasks(userId, [eq(tasks.status, "DONE"), gte(tasks.completedAt, since)], {
-        orderBy: [sql`${tasks.completedAt} desc`],
-        limit: TODAY_LIMITS.completed,
-      }),
-      db
-        .select()
-        .from(todos)
-        .where(
-          and(
-            eq(todos.userId, userId),
-            isNull(todos.deletedAt),
-            isNull(todos.archivedAt),
-            eq(todos.isComplete, true),
-            gte(todos.completedAt, since),
-          ),
-        )
-        .orderBy(desc(todos.completedAt))
-        .limit(TODAY_LIMITS.completed),
-    ]);
+  const [
+    focusRows,
+    dueTasks,
+    openTodos,
+    planning,
+    notes,
+    completedTasks,
+    completedTodoRows,
+    counts,
+    latestInbox,
+  ] = await Promise.all([
+    focusTaskId
+      ? selectTasks(userId, [eq(tasks.id, focusTaskId), open], {
+          orderBy: [asc(tasks.sortOrder)],
+          limit: 1,
+        })
+      : Promise.resolve([] as TaskDTO[]),
+    // Everything due today or earlier; bucketing (overdue / today / later) is the pure helper's job.
+    selectTasks(userId, [open, isNotNull(tasks.dueDate), lte(tasks.dueDate, today)], {
+      orderBy: [asc(tasks.sortOrder), asc(tasks.createdAt)],
+      limit: 500,
+    }),
+    listOpenTodos(userId, { dueByOrUndated: today, limit: TODAY_LIMITS.todos }),
+    selectTasks(
+      userId,
+      [
+        open,
+        isNull(tasks.dueDate),
+        inArray(tasks.priority, ["HIGH", "MEDIUM"]),
+        ne(tasks.status, "WAITING"),
+      ],
+      {
+        // High before medium, then the person's own order.
+        orderBy: [sql`case ${tasks.priority} when 'HIGH' then 0 else 1 end`, asc(tasks.sortOrder)],
+        limit: TODAY_LIMITS.planning,
+      },
+    ),
+    listNotes(userId, { limit: TODAY_LIMITS.notes }),
+    selectTasks(userId, [eq(tasks.status, "DONE"), gte(tasks.completedAt, since)], {
+      orderBy: [sql`${tasks.completedAt} desc`],
+      limit: TODAY_LIMITS.completed,
+    }),
+    db
+      .select()
+      .from(todos)
+      .where(
+        and(
+          eq(todos.userId, userId),
+          isNull(todos.deletedAt),
+          isNull(todos.archivedAt),
+          eq(todos.isComplete, true),
+          gte(todos.completedAt, since),
+        ),
+      )
+      .orderBy(desc(todos.completedAt))
+      .limit(TODAY_LIMITS.completed),
+    // Exact numbers for the progress ring and the rail (the lists above are capped).
+    db
+      .select({
+        tasksDone: sql<number>`(select count(*)::int from tasks t where t.user_id = ${userId} and t.deleted_at is null and t.archived_at is null and t.parent_task_id is null and t.status = 'DONE' and t.completed_at >= ${since.toISOString()}::timestamptz)`,
+        todosDone: sql<number>`(select count(*)::int from todos d where d.user_id = ${userId} and d.deleted_at is null and d.archived_at is null and d.is_complete and d.completed_at >= ${since.toISOString()}::timestamptz)`,
+        todosDueToday: sql<number>`(select count(*)::int from todos d where d.user_id = ${userId} and d.deleted_at is null and d.archived_at is null and not d.is_complete and d.due_date = ${today})`,
+        inboxOpen: sql<number>`(select count(*)::int from inbox_items i where i.user_id = ${userId} and i.deleted_at is null and i.status = 'OPEN')`,
+      })
+      .from(sql`(select 1) as one`),
+    db
+      .select({ id: inboxItems.id, text: inboxItems.text, createdAt: inboxItems.createdAt })
+      .from(inboxItems)
+      .where(
+        and(
+          eq(inboxItems.userId, userId),
+          isNull(inboxItems.deletedAt),
+          eq(inboxItems.status, "OPEN"),
+        ),
+      )
+      .orderBy(desc(inboxItems.createdAt))
+      .limit(2),
+  ]);
 
   const focus = focusRows[0] ?? null;
   if (focusTaskId && !focus) {
@@ -110,6 +145,10 @@ export async function getTodayData(
     completedTodoRows.map((r) => r.projectId),
   );
 
+  const c = counts[0] ?? { tasksDone: 0, todosDone: 0, todosDueToday: 0, inboxOpen: 0 };
+  const done = c.tasksDone + c.todosDone;
+  const openDueToday = buckets.today.length + buckets.later.length + c.todosDueToday;
+
   return {
     focus,
     overdue: buckets.overdue.slice(0, TODAY_LIMITS.overdue),
@@ -123,6 +162,11 @@ export async function getTodayData(
     completedTodos: completedTodoRows.map((r) =>
       toTodoDTO(r, (r.projectId && refs.get(r.projectId)) || null),
     ),
+    progress: { done, total: done + openDueToday },
+    inbox: {
+      open: c.inboxOpen,
+      latest: latestInbox.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
+    },
   };
 }
 

@@ -20,9 +20,9 @@ import { SidebarNav } from "./sidebar-nav";
 type Props = { name: string; email: string };
 
 /**
- * 48px row with a hairline, no fill. Desktop: search trigger, Quick capture, account. Tablet adds a
- * menu button that opens the sidebar as a sheet. Mobile shows the page title and a search icon.
-
+ * 48px row with a hairline. Desktop: search trigger and Quick capture, inside the main panel (the
+ * account is in the sidebar). Tablet adds a menu button that opens the sidebar as a sheet and keeps
+ * the account here. Mobile shows the page title, a search icon and the account.
  */
 export function TopBar({ name, email }: Props) {
   const pathname = usePathname();
@@ -83,7 +83,10 @@ export function TopBar({ name, email }: Props) {
         <Plus className="size-4" strokeWidth={1.5} aria-hidden /> Quick capture
       </button>
 
-      <AccountMenu name={name} email={email} />
+      {/* On desktop the account lives at the bottom of the sidebar. */}
+      <div className="lg:hidden">
+        <AccountMenu name={name} email={email} />
+      </div>
     </header>
   );
 }

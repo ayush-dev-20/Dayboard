@@ -25,6 +25,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/settings", label: "Settings", icon: SlidersHorizontal },
 ];
 
+/** The desktop sidebar's groups, in product-spec order (§5). Same items as `NAV_ITEMS`. */
+export const NAV_GROUPS: readonly { label: string | null; items: readonly NavItem[] }[] = [
+  { label: "Plan", items: NAV_ITEMS.slice(0, 3) },
+  { label: "Library", items: NAV_ITEMS.slice(3, 5) },
+  { label: null, items: NAV_ITEMS.slice(5) },
+];
+
+/** How many active projects the sidebar lists under Projects. */
+export const SIDEBAR_PROJECTS = 5;
+
 // Mobile bottom navigation. "More" holds everything that doesn't fit.
 export const MOBILE_NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today", icon: Sun },

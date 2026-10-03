@@ -46,7 +46,7 @@ export function ThemeSetting({ initial }: { initial: Theme }) {
 }
 
 // A tiny rendering of a task list in each theme. `.light` / `.dark` re-scope the color tokens.
-function ThemePreview({ mode }: { mode: "light" | "dark" }) {
+export function ThemePreview({ mode }: { mode: "light" | "dark" }) {
   return (
     <div className={cn(mode, "rounded-lg border border-border bg-background p-4 text-foreground")}>
       <p className="type-headline-sm">{mode === "light" ? "Light" : "Dark"}</p>

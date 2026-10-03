@@ -22,7 +22,12 @@ export default async function OnboardingPage({ searchParams }: { searchParams: S
         title="Welcome to Dayboard"
         description="Confirm a few things. You can change them later in Settings."
       />
-      <OnboardingForm initialName={user.name} initialTheme={preferences.theme} next={next} />
+      <OnboardingForm
+        initialName={user.name}
+        initialTheme={preferences.theme}
+        initialStartOfDay={preferences.startOfDay.slice(0, 5)}
+        next={next}
+      />
     </>
   );
 }

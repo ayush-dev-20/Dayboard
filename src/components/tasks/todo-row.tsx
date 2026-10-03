@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
+import { rowMotion, snappy } from "@/lib/motion";
 import { Archive, ArrowDown, ArrowUp, Ellipsis, Pencil, Trash2 } from "lucide-react";
 import { CheckButton } from "@/components/ui/check-button";
 import {
@@ -24,22 +26,40 @@ type Props = {
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMove?: (id: string, direction: -1 | 1) => void;
+  /** The oldest overdue item in its section: the one that gets the filled red chip. */
+  overdueEmphasis?: boolean;
+  /** Siblings slide when rows come and go. Lists turn this off past 100 rows (`animateRows`). */
+  layoutAnimation?: boolean;
 };
 
 /**
  * A todo is a circular checkbox, an emoji, a title, an optional due date and an overflow menu.
  * Nothing else: no subtasks, priority, tags or description (those are what Tasks are for).
  */
-export function TodoRow({ todo, canMoveUp, canMoveDown, onMove }: Props) {
+export function TodoRow({
+  todo,
+  canMoveUp,
+  canMoveDown,
+  onMove,
+  overdueEmphasis,
+  layoutAnimation = true,
+}: Props) {
   const router = useRouter();
   const { prefs, nowMs } = useTaskContext();
+  // Under reduced motion a new row only fades in; it never starts offset.
+  const reduceMotion = useReducedMotion();
   const [done, setDone] = useOverride(todo.isComplete);
   const [editing, setEditing] = useState(false);
 
   return (
-    <li
+    <motion.li
       data-todo-id={todo.id}
-      className="group border-b border-border transition-colors duration-[120ms] hover:bg-accent"
+      layout={layoutAnimation ? "position" : false}
+      initial={reduceMotion ? { opacity: 0 } : rowMotion.initial}
+      animate={rowMotion.animate}
+      exit={rowMotion.exit}
+      transition={snappy}
+      className="group overflow-hidden border-b border-border transition-colors duration-[120ms] hover:bg-accent"
     >
       <div className="flex min-h-row-touch items-center gap-2 pr-1 pl-3 md:min-h-row">
         <CheckButton
@@ -62,7 +82,12 @@ export function TodoRow({ todo, canMoveUp, canMoveDown, onMove }: Props) {
               {todo.emoji}
             </span>
           ) : null}
-          <span className={cn("truncate", done && "text-muted-foreground line-through")}>
+          <span
+            className={cn(
+              "truncate transition-colors duration-200",
+              done && "text-muted-foreground line-through",
+            )}
+          >
             {todo.title}
           </span>
         </button>
@@ -74,6 +99,7 @@ export function TodoRow({ todo, canMoveUp, canMoveDown, onMove }: Props) {
             status={done ? "DONE" : "PLANNED"}
             prefs={prefs}
             nowMs={nowMs}
+            emphasis={overdueEmphasis}
           />
         ) : null}
 
@@ -116,6 +142,6 @@ export function TodoRow({ todo, canMoveUp, canMoveDown, onMove }: Props) {
         </DropdownMenu>
       </div>
       <TodoEditDialog todo={todo} open={editing} onOpenChange={setEditing} />
-    </li>
+    </motion.li>
   );
 }

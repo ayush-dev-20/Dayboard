@@ -1,4 +1,5 @@
 import { format, formatDistanceStrict, isSameYear } from "date-fns";
+import { daysBetween } from "./calendar";
 
 /** "active now", "2 hours ago", "Sep 24" (or "Sep 24, 2025" from an earlier year). */
 export function describeActivity(at: Date, now: Date = new Date()): string {
@@ -80,4 +81,28 @@ export function formatDayWord(at: Date, now: Date, timeZone: string): string {
     );
   }
   return compact;
+}
+
+/** Whole days a due date is behind the person's `today` ("YYYY-MM-DD"); 0 if not behind. */
+export function daysLate(dueDate: string, today: string): number {
+  return Math.max(0, daysBetween(dueDate, today));
+}
+
+/** After this many days, an overdue row shows its date again instead of "Nd late". */
+export const LATE_LABEL_MAX_DAYS = 14;
+
+/**
+ * The short text an overdue row shows (feature 07 §5.3): "Late" (earlier today), "1d late" …
+ * "14d late", then the date itself ("Sep 2") once it is that old.
+ */
+export function lateLabel(days: number, dateLabel: string): string {
+  if (days <= 0) return "Late";
+  if (days <= LATE_LABEL_MAX_DAYS) return `${days}d late`;
+  return dateLabel;
+}
+
+/** The spoken version: "3 days late, due Sep 29". */
+export function lateDescription(days: number, dateLabel: string): string {
+  if (days <= 0) return `late, due ${dateLabel}`;
+  return `${days} ${days === 1 ? "day" : "days"} late, due ${dateLabel}`;
 }

@@ -12,6 +12,7 @@ Filename: `NNNN-short-title.md` (for example `0001-use-better-auth.md`). Numbers
 | [0002](0002-self-host-emoji-data.md) | Serve emoji data from our own origin | Accepted |
 | [0003](0003-use-inter-everywhere.md) | Use Inter for all interface text | Accepted |
 | [0004](0004-ai-provider-package.md) | Anthropic through the Vercel AI SDK, plus a mock | Accepted |
+| [0005](0005-modern-calm-ui-direction.md) | Modern calm UI direction (Option B) | Accepted |
 
 ## Template
 

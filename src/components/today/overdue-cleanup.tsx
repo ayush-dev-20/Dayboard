@@ -27,6 +27,7 @@ import {
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { formatPickerDay } from "@/lib/dates/calendar";
 import type { OverdueProposal } from "@/lib/ai/overdue";
+import { cn } from "@/lib/utils";
 import { OVERDUE_ACTIONS, type OverdueAction } from "@/lib/ai/schemas";
 
 const ACTION_LABEL: Record<OverdueAction, string> = {
@@ -36,8 +37,11 @@ const ACTION_LABEL: Record<OverdueAction, string> = {
   CANCEL: "Cancel task",
 };
 
-/** "Help me clean up" beside the Overdue heading. Proposes; each applied row is the person's click. */
-export function OverdueCleanup() {
+/**
+ * "Help me clean up", the daily brief's one action when something is overdue. It proposes; each
+ * applied row is the person's click.
+ */
+export function OverdueCleanup({ className }: { className?: string }) {
   const { aiEnabled } = useWorkspace();
   const call = useAICall<{ proposals: OverdueProposal[] }>("/api/ai/overdue-cleanup");
   const [open, setOpen] = useState(false);
@@ -51,7 +55,10 @@ export function OverdueCleanup() {
           call.run({});
           setOpen(true);
         }}
-        className="inline-flex h-8 items-center type-body-md text-primary underline underline-offset-2"
+        className={cn(
+          "inline-flex h-11 cursor-pointer items-center rounded-md px-3 type-label-md text-primary transition-colors duration-150 hover:bg-primary-subtle md:h-8",
+          className,
+        )}
       >
         Help me clean up
       </button>
@@ -133,7 +140,9 @@ function ProposalList({ proposals, onDone }: { proposals: OverdueProposal[]; onD
     setRows((list) => list.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   }
 
-  async function apply() {
+  async function apply(event?: React.FormEvent) {
+    event?.preventDefault();
+    if (pending || chosen.length === 0 || missingDate) return;
     setPending(true);
     let changed = 0;
     let failed = 0;
@@ -164,7 +173,8 @@ function ProposalList({ proposals, onDone }: { proposals: OverdueProposal[]; onD
   }
 
   return (
-    <>
+    // A form, so Enter applies; Esc closes the dialog and changes nothing.
+    <form onSubmit={(e) => void apply(e)} noValidate>
       <DialogDescription>
         Change any action before you apply. Nothing changes until you do.
       </DialogDescription>
@@ -230,13 +240,10 @@ function ProposalList({ proposals, onDone }: { proposals: OverdueProposal[]; onD
         <DialogClose asChild>
           <Button variant="secondary">Cancel</Button>
         </DialogClose>
-        <Button
-          disabled={pending || chosen.length === 0 || missingDate}
-          onClick={() => void apply()}
-        >
+        <Button disabled={pending || chosen.length === 0 || missingDate} type="submit">
           {chosen.length === 0 ? "Apply" : `Apply ${chosen.length}`}
         </Button>
       </DialogFooter>
-    </>
+    </form>
   );
 }

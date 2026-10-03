@@ -1,7 +1,16 @@
 import { expect, type Page } from "@playwright/test";
 import { test } from "./fixtures";
 import { findUser, insertTask, taskByTitle } from "./db";
-import { addTask, chipFor, detailPanel, openTask, signUp, taskRow, today } from "./helpers";
+import {
+  addTask,
+  chipFor,
+  detailPanel,
+  openTask,
+  signUp,
+  stillBox,
+  taskRow,
+  today,
+} from "./helpers";
 
 async function newUser(page: import("@playwright/test").Page) {
   const account = await signUp(page);
@@ -45,6 +54,8 @@ test.describe("creating, editing and completing", () => {
     ).toBeVisible();
     await expect(taskRow(page, "Write quarterly report")).toContainText(chipFor(1));
 
+    // The date popover fades out (200ms); Escape after it has gone closes the panel itself.
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(detailPanel(page)).toHaveCount(0);
     await expect(page).not.toHaveURL(/task=/);
@@ -52,7 +63,8 @@ test.describe("creating, editing and completing", () => {
     // Complete: the box fills at once and the row stays where it is while Undo is offered.
     const row = taskRow(page, "Write quarterly report");
     const checkbox = row.getByRole("checkbox");
-    const before = await row.boundingBox();
+    // Closing the panel re-centers the list and rows glide into place; measure once they settle.
+    const before = await stillBox(row);
     await checkbox.click();
     await expect(checkbox).toBeChecked();
     await expect(page.getByText("Task completed.")).toBeVisible();
@@ -836,8 +848,8 @@ test.describe("the task panel: resize, expand and minimize", () => {
     await expect(detailPanel(page)).toBeVisible();
     expect(await widthOf(page)).toBe(480);
 
-    // Drag the left edge 120px to the left: the panel is 120px wider.
-    const box = (await handle(page).boundingBox())!;
+    // Drag the left edge 120px to the left: the panel is 120px wider. (Once it has slid in.)
+    const box = (await stillBox(handle(page)))!;
     const y = box.y + box.height / 2;
     await page.mouse.move(box.x + box.width / 2, y);
     await page.mouse.down();
@@ -886,7 +898,9 @@ test.describe("the task panel: resize, expand and minimize", () => {
     const panel = detailPanel(page);
 
     await panel.getByRole("button", { name: "Expand task" }).click();
-    await expect.poll(() => widthOf(page)).toBe(1440 - 240); // everything right of the sidebar
+    // Everything right of the sidebar: the inset main panel (feature 07), inside its border.
+    const mainPanel = await page.locator("#main-panel").boundingBox();
+    await expect.poll(() => widthOf(page)).toBe(Math.round(mainPanel!.width) - 2);
     await expect(handle(page)).toHaveCount(0);
     await expect(panel.getByRole("button", { name: "Restore task size" })).toHaveAttribute(
       "aria-pressed",
@@ -904,7 +918,7 @@ test.describe("the task panel: resize, expand and minimize", () => {
 
     // Esc steps back one level: expanded → docked → closed.
     await panel.getByRole("button", { name: "Expand task" }).click();
-    await expect.poll(() => widthOf(page)).toBe(1440 - 240);
+    await expect.poll(() => widthOf(page)).toBe(Math.round(mainPanel!.width) - 2);
     await panel.getByLabel("Task title").focus();
     await page.keyboard.press("Escape"); // first Escape: expanded -> docked
     await expect.poll(() => widthOf(page)).toBe(480);

@@ -237,7 +237,16 @@ function SubtasksPreview({
   }
 
   return (
-    <AiPanel aria-label="Suggested subtasks">
+    <AiPanel
+      aria-label="Suggested subtasks"
+      onKeyDown={(event) => {
+        // Esc discards the proposal; nothing was written.
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onDiscard();
+        }
+      }}
+    >
       <AiLabel />
       <h4 className="mt-2 type-label-md font-semibold">Suggested subtasks</h4>
       <ul className="mt-2">

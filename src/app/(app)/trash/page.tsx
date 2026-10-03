@@ -9,6 +9,8 @@ import { getPreferences } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
 import { TRASH_TYPES, type TrashType } from "@/lib/trash";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageContainer } from "@/components/layout/page-container";
 
 export const metadata: Metadata = { title: "Trash" };
 
@@ -43,16 +45,15 @@ export default async function TrashPage({ searchParams }: { searchParams: Search
   const href = (t: TrashType | null) => (t ? `/trash?type=${t}` : "/trash");
 
   return (
-    <div className="max-w-content">
-      <header className="mb-6">
-        <h1 className="sr-only type-headline-lg text-foreground md:not-sr-only">Trash</h1>
-        <p className="mt-1 type-body-md text-muted-foreground">
-          {counts.total} {counts.total === 1 ? "item" : "items"}
-        </p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="Trash"
+        description={`${counts.total} ${counts.total === 1 ? "item" : "items"}`}
+      />
 
       {counts.total === 0 ? (
         <EmptyState
+          illustration="trash-empty"
           title="Trash is empty."
           description="Things you delete wait here until you delete them for good."
         />
@@ -103,6 +104,6 @@ export default async function TrashPage({ searchParams }: { searchParams: Search
           </p>
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }

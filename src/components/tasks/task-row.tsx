@@ -1,6 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
+import { rowMotion, snappy } from "@/lib/motion";
 import { Archive, ArrowDown, ArrowUp, Ellipsis, ExternalLink, Trash2 } from "lucide-react";
 import { CheckButton } from "@/components/ui/check-button";
 import {
@@ -16,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { ProjectToken, TagBadge } from "@/components/workspace/tokens";
 import { DueChip } from "./due-chip";
 import { PriorityGlyph } from "./priority-glyph";
+import { TaskQuickActions } from "./task-quick-actions";
 import { archiveWithUndo, completeWithUndo, reopenTask, trashWithUndo } from "./task-actions";
 import { useTaskContext } from "./task-context";
 
@@ -28,6 +31,10 @@ type Props = {
   onMove?: (id: string, direction: -1 | 1) => void;
   /** Leave the project token out where the project is already obvious (a project page). */
   hideProject?: boolean;
+  /** This is the oldest overdue item in its section: the one that gets the filled red chip. */
+  overdueEmphasis?: boolean;
+  /** Siblings slide when rows come and go. Lists turn this off past 100 rows (`animateRows`). */
+  layoutAnimation?: boolean;
 };
 
 /**
@@ -43,9 +50,13 @@ export function TaskRow({
   canMoveDown,
   onMove,
   hideProject,
+  overdueEmphasis,
+  layoutAnimation = true,
 }: Props) {
   const router = useRouter();
   const { prefs, nowMs } = useTaskContext();
+  // Under reduced motion a new row only fades in; it never starts offset.
+  const reduceMotion = useReducedMotion();
   const [done, setDone] = useOverride(task.status === "DONE");
   const cancelled = task.status === "CANCELLED";
   const closed = done || cancelled;
@@ -57,10 +68,15 @@ export function TaskRow({
   }
 
   return (
-    <li
+    <motion.li
       data-task-id={task.id}
+      layout={layoutAnimation ? "position" : false}
+      initial={reduceMotion ? { opacity: 0 } : rowMotion.initial}
+      animate={rowMotion.animate}
+      exit={rowMotion.exit}
+      transition={snappy}
       className={cn(
-        "group @container border-b border-border transition-colors duration-[120ms]",
+        "group @container overflow-hidden border-b border-border transition-colors duration-[120ms]",
         selected ? "bg-primary-subtle" : "hover:bg-accent",
       )}
     >
@@ -83,7 +99,12 @@ export function TaskRow({
               {task.emoji}
             </span>
           ) : null}
-          <span className={cn("truncate", closed && "text-muted-foreground line-through")}>
+          <span
+            className={cn(
+              "truncate transition-colors duration-200",
+              closed && "text-muted-foreground line-through",
+            )}
+          >
             {task.title}
           </span>
           {cancelled ? (
@@ -99,6 +120,7 @@ export function TaskRow({
               status={done ? "DONE" : task.status}
               prefs={prefs}
               nowMs={nowMs}
+              emphasis={overdueEmphasis}
             />
           ) : null}
           {!closed ? <PriorityGlyph priority={task.priority} /> : null}
@@ -126,6 +148,8 @@ export function TaskRow({
             </span>
           ) : null}
         </div>
+
+        {!closed ? <TaskQuickActions task={task} /> : null}
 
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -167,6 +191,6 @@ export function TaskRow({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </li>
+    </motion.li>
   );
 }

@@ -6,6 +6,8 @@ import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/compone
 import { Button } from "@/components/ui/button";
 import { formatPickerDay, parseDateString } from "@/lib/dates/calendar";
 import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
+import { duration, ease } from "@/lib/motion";
 import type { AIFailure } from "./ai-client";
 
 // Shared pieces of every AI surface. No sparkle icons and no "AI" badges (DESIGN.md): AI output is
@@ -15,12 +17,53 @@ export function AiLabel({ children = "AI-generated" }: { children?: string }) {
   return <p className="type-label-caps text-muted-foreground">{children}</p>;
 }
 
-/** A tinted block for AI output. Hairlines elsewhere, but AI content is set apart on purpose. */
+/**
+ * The AI panel (DESIGN.md: ai-panel): a faint ink tint, its own hairline and a 12px radius. AI
+ * content is set apart on purpose; there is no icon or badge, only the "AI-generated" label.
+ */
 export function AiPanel({ className, children, ...props }: React.ComponentProps<"section">) {
   return (
-    <section className={cn("rounded-md bg-muted p-4", className)} {...props}>
+    <section className={cn("ai-panel p-4", className)} {...props}>
       {children}
     </section>
+  );
+}
+
+/**
+ * The same panel for streamed answers: it eases to its new height as text arrives (Motion layout,
+ * 200ms) while the text inside keeps its scale. Under reduced motion it simply grows.
+ */
+export function GrowingAiPanel({
+  className,
+  children,
+  label,
+  busy,
+}: {
+  className?: string;
+  children: React.ReactNode;
+  label: string;
+  busy?: boolean;
+}) {
+  return (
+    <motion.section
+      layout
+      transition={{ duration: duration.base, ease: ease.enter }}
+      aria-label={label}
+      aria-busy={busy}
+      className={cn("ai-panel p-4", className)}
+    >
+      <motion.div layout="position">{children}</motion.div>
+    </motion.section>
+  );
+}
+
+/** The caret at the end of streaming text. It blinks only when the person allows motion. */
+export function StreamCaret() {
+  return (
+    <span
+      aria-hidden
+      className="ml-0.5 inline-block h-[1.1em] w-[2px] translate-y-[0.2em] rounded-full bg-primary motion-safe:animate-[caret-blink_1s_steps(2,start)_infinite]"
+    />
   );
 }
 

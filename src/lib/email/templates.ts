@@ -8,8 +8,20 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-// Plain, calm layout. No images, no tracking pixels. Inline styles because mail clients ignore
-// stylesheets. Colors follow DESIGN.md (paper, ink, ink-blue link).
+// Plain, calm layout (feature 07 §9.8): tables, inline styles and system fonts, because mail
+// clients ignore stylesheets and web fonts. No images and no tracking pixels: the brand mark is a
+// small ink square drawn with a table cell. Colors are the generated light theme (DESIGN.md).
+const C = {
+  paper: "#faf8f2",
+  card: "#fdfcf9",
+  border: "#e1dcd4",
+  ink: "#221d18",
+  muted: "#605a53",
+  primary: "#1c5687",
+  onPrimary: "#faf8f2",
+};
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+
 function layout(opts: {
   heading: string;
   paragraphs: string[];
@@ -19,20 +31,34 @@ function layout(opts: {
 }) {
   const paragraphs = opts.paragraphs
     .map(
-      (p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#221d18;">${p}</p>`,
+      (p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:${C.ink};">${p}</p>`,
     )
     .join("");
 
   const html = `<!doctype html>
-<html><body style="margin:0;padding:32px 16px;background:#faf8f2;">
-<div style="max-width:440px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-<p style="margin:0 0 24px;font-size:20px;font-weight:600;color:#221d18;">Dayboard</p>
-<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;font-weight:600;color:#221d18;">${opts.heading}</h1>
+<html><body style="margin:0;padding:0;background:${C.paper};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.paper};">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;font-family:${FONT};">
+<tr><td style="padding:0 0 20px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="20" height="20" style="width:20px;height:20px;background:${C.primary};border-radius:5px;font-size:0;line-height:0;">&nbsp;</td>
+<td style="padding-left:10px;font-size:18px;font-weight:600;color:${C.ink};">Dayboard</td>
+</tr></table>
+</td></tr>
+<tr><td style="background:${C.card};border:1px solid ${C.border};border-radius:12px;padding:28px 28px 24px;">
+<h1 style="margin:0 0 16px;font-size:22px;line-height:1.28;font-weight:600;color:${C.ink};">${opts.heading}</h1>
 ${paragraphs}
-<p style="margin:24px 0;"><a href="${opts.link}" style="display:inline-block;background:#1b5687;color:#faf8f2;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:6px;">${opts.cta}</a></p>
-<p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#605a53;">Or paste this link into your browser:<br><span style="word-break:break-all;">${opts.link}</span></p>
-<p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#605a53;">${opts.footnote}</p>
-</div></body></html>`;
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;"><tr>
+<td style="background:${C.primary};border-radius:8px;"><a href="${opts.link}" style="display:inline-block;padding:11px 20px;font-size:14px;font-weight:600;color:${C.onPrimary};text-decoration:none;">${opts.cta}</a></td>
+</tr></table>
+<p style="margin:0;font-size:13px;line-height:1.5;color:${C.muted};">Or paste this link into your browser:<br><span style="word-break:break-all;">${opts.link}</span></p>
+</td></tr>
+<tr><td style="padding:16px 4px 0;font-size:13px;line-height:1.5;color:${C.muted};">${opts.footnote}</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
 
   return html;
 }

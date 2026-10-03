@@ -20,17 +20,20 @@ export function TaskListShell({
   const reserve = sheetOpen && mode === "docked";
 
   return (
-    // The padding goes on an outer box and the 880px cap on the inner one, so the cap measures the
-    // list itself and not the list plus the gap kept for the panel.
+    // The padding goes on an outer box and the width cap on the inner one, so the cap measures the
+    // list itself and not the list plus the gap kept for the panel. Centered when the panel is
+    // closed; left-aligned beside it, so the list doesn't slide under the panel.
     <div
       className={cn(reserve && "lg:pr-(--sheet-gap)")}
       style={
         reserve
-          ? ({ "--sheet-gap": `min(${width}px, calc(100vw - 724px))` } as React.CSSProperties)
+          ? ({
+              "--sheet-gap": `min(${width}px, calc(100vw - var(--sidebar-width, 240px) - 484px))`,
+            } as React.CSSProperties)
           : undefined
       }
     >
-      <div className="max-w-content">{children}</div>
+      <div className={cn("w-full max-w-content", reserve ? "lg:mx-0" : "mx-auto")}>{children}</div>
     </div>
   );
 }

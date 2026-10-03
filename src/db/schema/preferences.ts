@@ -29,6 +29,8 @@ export const userPreferences = pgTable(
     // Today's focus (feature 04). Cleared if the task is permanently deleted.
     focusTaskId: uuid("focus_task_id").references(() => tasks.id, { onDelete: "set null" }),
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+    // The getting-started checklist on Today (feature 07 §9.6): hidden once dismissed.
+    checklistDismissedAt: timestamp("checklist_dismissed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

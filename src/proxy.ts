@@ -27,6 +27,12 @@ export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const path = `${pathname}${search}`;
 
+  // The landing page is for visitors. Someone who (probably) has a session goes straight to Today;
+  // a stale cookie just means Today sends them on to sign in, as for any private page.
+  if (pathname === "/" && getSessionCookie(request)) {
+    return NextResponse.redirect(new URL("/today", request.url));
+  }
+
   if (isProtected(pathname) && !getSessionCookie(request)) {
     const url = new URL("/sign-in", request.url);
     url.searchParams.set("next", path);

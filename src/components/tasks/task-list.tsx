@@ -1,5 +1,8 @@
 "use client";
 
+import { AnimatePresence } from "motion/react";
+import { animateRows } from "@/lib/motion";
+
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { handleRowKeys } from "./row-keys";
 import { TaskRow } from "./task-row";
 import { useOpenTask } from "./use-open-task";
+import { useTaskContext } from "./task-context";
+import { oldestOverdueId } from "@/lib/tasks/overdue";
 
 export type TaskGroupData = { key: GroupKey; label: string; tasks: TaskDTO[] };
 
@@ -23,11 +28,21 @@ type Props = {
   hideProject?: boolean;
 };
 
-function Heading({ id, label, count }: { id: string; label: string; count: number }) {
+function Heading({
+  id,
+  label,
+  count,
+  alarm,
+}: {
+  id: string;
+  label: string;
+  count: number;
+  alarm?: boolean;
+}) {
   return (
     <h2 id={id} className="flex items-baseline gap-2 pb-2 type-label-caps text-muted-foreground">
       {label}
-      <span className="type-data-sm">{count}</span>
+      <span className={cn("type-data-sm", alarm && "text-destructive")}>{count}</span>
     </h2>
   );
 }
@@ -45,6 +60,7 @@ export function TaskList({
   hideProject,
 }: Props) {
   const open = useOpenTask();
+  const { prefs, nowMs } = useTaskContext();
   const [completedOpen, setCompletedOpen] = useState(completedOpenByDefault);
   const focusAfter = useRef<string | null>(null);
 
@@ -87,25 +103,41 @@ export function TaskList({
   return (
     // The list handles keys for all its rows; each row's title button is the focus target.
     <div data-task-list onKeyDown={onKeyDown}>
-      {groups.map((group) => (
-        <section key={group.key} aria-labelledby={`group-${group.key}`} className="mt-8 first:mt-0">
-          <Heading id={`group-${group.key}`} label={group.label} count={group.tasks.length} />
-          <ul className="border-t border-border">
-            {group.tasks.map((task, index) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                selected={task.id === selectedId}
-                onOpen={open}
-                hideProject={hideProject}
-                canMoveUp={index > 0}
-                canMoveDown={index < group.tasks.length - 1}
-                onMove={(id, direction) => void move(group.tasks, id, direction)}
-              />
-            ))}
-          </ul>
-        </section>
-      ))}
+      {groups.map((group) => {
+        const oldest = oldestOverdueId(group.tasks, prefs, new Date(nowMs));
+        return (
+          <section
+            key={group.key}
+            aria-labelledby={`group-${group.key}`}
+            className="mt-8 first:mt-0"
+          >
+            <Heading
+              id={`group-${group.key}`}
+              label={group.label}
+              count={group.tasks.length}
+              alarm={group.key === "overdue"}
+            />
+            <ul className="border-t border-border">
+              <AnimatePresence initial={false}>
+                {group.tasks.map((task, index) => (
+                  <TaskRow
+                    layoutAnimation={animateRows(group.tasks.length)}
+                    key={task.id}
+                    task={task}
+                    overdueEmphasis={task.id === oldest}
+                    selected={task.id === selectedId}
+                    onOpen={open}
+                    hideProject={hideProject}
+                    canMoveUp={index > 0}
+                    canMoveDown={index < group.tasks.length - 1}
+                    onMove={(id, direction) => void move(group.tasks, id, direction)}
+                  />
+                ))}
+              </AnimatePresence>
+            </ul>
+          </section>
+        );
+      })}
 
       {doneCount > 0 || closed.length > 0 ? (
         <section aria-labelledby="group-completed" className="mt-8">
@@ -130,15 +162,18 @@ export function TaskList({
           </h2>
           {completedOpen ? (
             <ul className="border-t border-border">
-              {closed.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  selected={task.id === selectedId}
-                  onOpen={open}
-                  hideProject={hideProject}
-                />
-              ))}
+              <AnimatePresence initial={false}>
+                {closed.map((task) => (
+                  <TaskRow
+                    layoutAnimation={animateRows(closed.length)}
+                    key={task.id}
+                    task={task}
+                    selected={task.id === selectedId}
+                    onOpen={open}
+                    hideProject={hideProject}
+                  />
+                ))}
+              </AnimatePresence>
             </ul>
           ) : (
             <div className="border-t border-border" />

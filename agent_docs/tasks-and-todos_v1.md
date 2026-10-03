@@ -13,6 +13,8 @@
 ## Why
 Tasks and todos are the daily-use core, so everything here has to be quick and safe: every mutation is one transaction scoped to the signed-in user, and recurrence, ordering and status rules are pure functions with their own tests.
 
+- **Since feature 07** (`ui-modernization_v1.md`): "red is rare" (overdue rows are red text with "Nd late"; only the oldest overdue item per section keeps the filled chip, via `oldestOverdueId()`), hover/focus quick actions for due date and priority (`task-quick-actions.tsx`), and row motion (`motion.li`, `AnimatePresence`, layout off past 100 rows).
+
 ## What was deferred
 - Project, tags and related notes on a task: done in feature 03 (`notes-projects-tags_v1.md`), which also added the `project_id` foreign key.
 - Trash screen, Inbox, Today content, search and Quick capture / Create: built in feature 04 (`inbox-today-search-trash_v1.md`). AI actions on a task: built in feature 05 (`ai-assistant_v1.md`).

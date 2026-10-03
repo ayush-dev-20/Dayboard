@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageContainer } from "@/components/layout/page-container";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/layout/empty-state";
 import { NoteCard } from "@/components/notes/note-card";
@@ -39,7 +40,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   return (
     <TaskContextProvider value={context}>
-      <div className="max-w-content">
+      <PageContainer>
         {/* Keyed by project and values, so edits made elsewhere show up after a refresh. */}
         <ProjectHeader
           key={`${project.id}:${project.updatedAt}`}
@@ -97,7 +98,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             ) : null}
           </div>
         )}
-      </div>
+      </PageContainer>
     </TaskContextProvider>
   );
 }

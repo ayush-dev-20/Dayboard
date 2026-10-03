@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
+import { gentle } from "@/lib/motion";
 import { Maximize2, Minimize2, Minus, X, ChevronsLeft } from "lucide-react";
 import { DESKTOP_QUERY } from "@/hooks/use-media-query";
 import type { TaskDetailDTO } from "@/lib/tasks/dto";
@@ -27,6 +29,8 @@ export function TaskDetailSheet({ detail }: { detail: TaskDetailDTO }) {
   const panel = useRef<HTMLElement>(null);
   const width = useSheetWidth();
   const mode = useSheetMode();
+  // Under reduced motion it starts in place (no offset at all), so not even one frame is shifted.
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     if (!window.matchMedia(DESKTOP_QUERY).matches) router.replace(`/tasks/${detail.id}`);
@@ -77,8 +81,12 @@ export function TaskDetailSheet({ detail }: { detail: TaskDetailDTO }) {
 
   return (
     <>
-      <aside
+      <motion.aside
         ref={panel}
+        // Slides in from the right on the gentle spring; resizing by drag is direct (no animation).
+        initial={reduce ? { opacity: 0 } : { opacity: 0, x: 24 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={gentle}
         tabIndex={-1}
         aria-label="Task detail"
         data-mode={mode}
@@ -88,11 +96,16 @@ export function TaskDetailSheet({ detail }: { detail: TaskDetailDTO }) {
           if (expanded) setSheetMode("docked");
           else closeAndRestoreFocus();
         }}
-        style={expanded ? undefined : { width: `min(${width}px, calc(100vw - 724px))` }}
+        style={
+          expanded
+            ? undefined
+            : { width: `min(${width}px, calc(100vw - var(--sidebar-width, 240px) - 484px))` }
+        }
         className={cn(
-          "fixed top-12 right-0 bottom-0 z-20 hidden overflow-y-auto border-l border-border bg-card outline-none float-surface",
+          // Docks to the right edge of the inset main panel, under its top bar (DESIGN.md: Layout).
+          "fixed top-[calc(0.5rem+3rem+1px)] right-[calc(0.5rem+1px)] bottom-0 z-40 hidden overflow-y-auto border-l border-border bg-card shadow-md outline-none float-surface",
           mode === "minimized" ? "lg:hidden" : "lg:block",
-          expanded && "lg:left-sidebar",
+          expanded && "lg:left-[calc(var(--sidebar-width,240px)+1px)]",
         )}
       >
         {expanded ? null : <SheetResizeHandle width={width} />}
@@ -105,7 +118,7 @@ export function TaskDetailSheet({ detail }: { detail: TaskDetailDTO }) {
             controls={controls}
           />
         </div>
-      </aside>
+      </motion.aside>
 
       {mode === "minimized" ? (
         <section
@@ -113,7 +126,7 @@ export function TaskDetailSheet({ detail }: { detail: TaskDetailDTO }) {
           onKeyDown={(event) => {
             if (event.key === "Escape") closeAndRestoreFocus();
           }}
-          className="fixed right-6 bottom-6 z-20 hidden max-w-sm items-center gap-1 rounded-lg border border-border bg-card py-1 pr-1 pl-3 shadow-float float-surface lg:flex"
+          className="fixed right-6 bottom-6 z-40 hidden max-w-sm items-center gap-1 rounded-lg border border-border bg-card py-1 pr-1 pl-3 shadow-float float-surface lg:flex"
         >
           <span className="min-w-0 truncate type-label-md text-foreground">{detail.title}</span>
           <button

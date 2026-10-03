@@ -1,7 +1,13 @@
 "use client";
 
 import { toast } from "sonner";
-import { AiFailureNotice, AiGenerating, AiLabel, AiPanel } from "@/components/ai/ai-ui";
+import {
+  AiFailureNotice,
+  AiGenerating,
+  AiLabel,
+  GrowingAiPanel,
+  StreamCaret,
+} from "@/components/ai/ai-ui";
 import type { StreamState } from "@/components/ai/use-ai";
 import { parseSummary, summaryToPlainText } from "@/lib/ai/summary";
 
@@ -36,7 +42,7 @@ export function SummaryPanel({ state, onRetry, onDismiss, onInsert }: Props) {
 
   return (
     <div className="mb-4">
-      <AiPanel aria-label="Note summary" aria-busy={streaming}>
+      <GrowingAiPanel label="Note summary" busy={streaming}>
         {streaming && sections.length === 0 ? (
           <AiGenerating label="Generating" />
         ) : (
@@ -60,6 +66,11 @@ export function SummaryPanel({ state, onRetry, onDismiss, onInsert }: Props) {
                   ) : null}
                 </div>
               ))}
+              {streaming ? (
+                <p className="-mt-3">
+                  <StreamCaret />
+                </p>
+              ) : null}
             </div>
             {state.status === "failed" ? (
               <AiFailureNotice
@@ -71,7 +82,7 @@ export function SummaryPanel({ state, onRetry, onDismiss, onInsert }: Props) {
             ) : null}
           </>
         )}
-      </AiPanel>
+      </GrowingAiPanel>
       {state.status === "complete" ? (
         <div className="mt-2 flex items-center gap-4">
           <button type="button" onClick={onInsert} className="type-body-md text-primary underline">

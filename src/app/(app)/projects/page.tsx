@@ -3,16 +3,20 @@ import { ChevronRight } from "lucide-react";
 import { EmptyState } from "@/components/layout/empty-state";
 import { NewProjectButton } from "@/components/projects/new-project-button";
 import { ProjectCard } from "@/components/projects/project-card";
-import { listProjects } from "@/db/queries/projects";
+import { listProjects, nextDueTasks } from "@/db/queries/projects";
+import { getUserToday } from "@/lib/dates/today";
+import { getPreferences } from "@/lib/preferences";
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from "@/lib/projects/status";
 import type { SearchParams } from "@/lib/oauth-providers";
 import { requireUser } from "@/lib/session";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageContainer } from "@/components/layout/page-container";
 
 export const metadata: Metadata = { title: "Projects" };
 
 function Heading({ label, count }: { label: string; count: number }) {
   return (
-    <h2 className="flex items-baseline gap-2 pb-2 type-label-caps text-muted-foreground">
+    <h2 className="flex items-baseline gap-2 pb-3 type-label-caps text-muted-foreground">
       {label}
       <span className="type-data-sm">{count}</span>
     </h2>
@@ -21,26 +25,30 @@ function Heading({ label, count }: { label: string; count: number }) {
 
 export default async function ProjectsPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser({ redirect: true });
-  const projects = await listProjects(user.id);
+  const [projects, nextDue, prefs] = await Promise.all([
+    listProjects(user.id),
+    nextDueTasks(user.id),
+    getPreferences(user.id),
+  ]);
+  const today = getUserToday({ timezone: prefs.timezone, startOfDay: prefs.startOfDay });
+  const grid = "grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3";
   const autoOpen = (await searchParams).new === "1";
   const by = (status: ProjectStatus) => projects.filter((p) => p.status === status);
   const active = by("ACTIVE");
   const archived = by("ARCHIVED");
 
   return (
-    <div className="max-w-content">
-      <header className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="sr-only type-headline-lg text-foreground md:not-sr-only">Projects</h1>
-          {projects.length > 0 ? (
-            <p className="mt-1 type-body-md text-muted-foreground">{active.length} active</p>
-          ) : null}
-        </div>
+    <PageContainer width="wide">
+      <PageHeader
+        title="Projects"
+        description={projects.length > 0 ? `${active.length} active` : undefined}
+      >
         <NewProjectButton autoOpen={autoOpen} />
-      </header>
+      </PageHeader>
 
       {projects.length === 0 ? (
         <EmptyState
+          illustration="projects-empty"
           title="No projects yet."
           description="Projects group tasks, todos and notes. Everything also works without one."
         >
@@ -54,9 +62,14 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
             return (
               <section key={status} aria-label={PROJECT_STATUS_LABELS[status]}>
                 <Heading label={PROJECT_STATUS_LABELS[status]} count={items.length} />
-                <ul className="border-t border-border">
+                <ul className={grid}>
                   {items.map((project) => (
-                    <ProjectCard key={project.id} project={project} />
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      nextDue={nextDue.get(project.id)}
+                      today={today}
+                    />
                   ))}
                 </ul>
               </section>
@@ -74,15 +87,20 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
                 Archived
                 <span className="type-data-sm">{archived.length}</span>
               </summary>
-              <ul className="border-t border-border">
+              <ul className={grid}>
                 {archived.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    nextDue={nextDue.get(project.id)}
+                    today={today}
+                  />
                 ))}
               </ul>
             </details>
           ) : null}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

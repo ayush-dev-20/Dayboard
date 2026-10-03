@@ -12,7 +12,7 @@ export const RichTextEditor = dynamic<RichTextEditorProps>(
   {
     ssr: false,
     loading: () => (
-      <div aria-busy="true" aria-label="Loading editor" className="animate-pulse">
+      <div role="status" aria-busy="true" aria-label="Loading editor" className="animate-pulse">
         <div className="mb-2 h-8" />
         <div className="h-14 rounded-md bg-secondary" />
       </div>

@@ -12,6 +12,7 @@ export function Toaster(props: ToasterProps) {
       theme={(resolvedTheme as ToasterProps["theme"]) ?? "system"}
       position="bottom-left"
       closeButton={false}
+      style={{ zIndex: 60 }}
       toastOptions={{
         classNames: {
           toast:

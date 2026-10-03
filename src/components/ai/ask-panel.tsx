@@ -1,6 +1,6 @@
 "use client";
 
-import { AiFailureNotice, AiLabel, AiPanel } from "@/components/ai/ai-ui";
+import { AiFailureNotice, AiLabel, GrowingAiPanel, StreamCaret } from "@/components/ai/ai-ui";
 import type { StreamState } from "@/components/ai/use-ai";
 import { splitAnswer } from "@/lib/ai/answer";
 import { NOTHING_FOUND_TEXT } from "@/lib/ai/types";
@@ -57,13 +57,14 @@ export function AskPanel({ state, onRetry, onDismiss, onOpen }: Props) {
 
   return (
     <div className="p-4">
-      <AiPanel aria-label="Answer" aria-busy={streaming}>
+      <GrowingAiPanel label="Answer" busy={streaming}>
         <AiLabel>{streaming ? "Generating" : "AI-generated"}</AiLabel>
         <div className="mt-2 flex flex-col gap-2" aria-live="polite">
           {parts.map((part, i) =>
             part.kind === "text" ? (
               <p key={i} className="type-body-md">
                 {part.text}
+                {streaming && i === parts.length - 1 ? <StreamCaret /> : null}
               </p>
             ) : (
               <blockquote key={i} className="border-l-2 border-border pl-3">
@@ -105,7 +106,7 @@ export function AskPanel({ state, onRetry, onDismiss, onOpen }: Props) {
             onRetry={onRetry}
           />
         ) : null}
-      </AiPanel>
+      </GrowingAiPanel>
     </div>
   );
 }

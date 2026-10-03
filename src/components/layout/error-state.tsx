@@ -18,7 +18,10 @@ export function ErrorState({
   digest,
 }: Props) {
   return (
-    <div role="alert" className="max-w-prose rounded-md bg-destructive-subtle p-4 text-destructive">
+    <div
+      role="alert"
+      className="mx-auto max-w-content rounded-lg border border-destructive/20 bg-destructive-subtle p-4 text-destructive"
+    >
       <div className="flex items-start gap-3">
         <CircleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} aria-hidden />
         <div>

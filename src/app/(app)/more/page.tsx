@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { NAV_ITEMS } from "@/components/layout/nav-items";
+import { PageContainer } from "@/components/layout/page-container";
 
 export const metadata: Metadata = { title: "More" };
 
@@ -15,8 +16,8 @@ export default function MorePage() {
   const rowClasses = "type-body-lg flex h-11 w-full items-center gap-3 border-b border-border";
 
   return (
-    <div className="max-w-content">
-      <PageHeader title="More" />
+    <PageContainer>
+      <PageHeader title="More" sticky={false} />
       <ul>
         {MORE_LINKS.map(({ href, label, icon: Icon }) => (
           <li key={href}>
@@ -30,6 +31,6 @@ export default function MorePage() {
           <SignOutButton className={`${rowClasses} text-left text-muted-foreground`} />
         </li>
       </ul>
-    </div>
+    </PageContainer>
   );
 }

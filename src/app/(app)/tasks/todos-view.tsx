@@ -5,6 +5,8 @@ import { TodoList } from "@/components/tasks/todo-list";
 import { ViewTabs } from "@/components/tasks/view-tabs";
 import { listCompletedTodosSince, listOpenTodos } from "@/db/queries/todos";
 import { startOfUserDay, type DayPrefs } from "@/lib/dates/today";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageContainer } from "@/components/layout/page-container";
 
 export async function TodosView({
   userId,
@@ -21,16 +23,13 @@ export async function TodosView({
   ]);
 
   return (
-    <div className="max-w-content">
-      <header className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="sr-only type-headline-lg text-foreground md:not-sr-only">Tasks</h1>
-          <p className="mt-1 type-body-md text-muted-foreground">
-            {open.length} open {open.length === 1 ? "todo" : "todos"}
-          </p>
-        </div>
+    <PageContainer>
+      <PageHeader
+        title="Tasks"
+        description={`${open.length} open ${open.length === 1 ? "todo" : "todos"}`}
+      >
         <NewItemButton label="New todo" />
-      </header>
+      </PageHeader>
 
       <ViewTabs active="todos" />
       <div className="mt-2">
@@ -39,7 +38,11 @@ export async function TodosView({
 
       <div className="mt-8">
         {open.length === 0 && completed.length === 0 ? (
-          <EmptyState title="No todos yet." description="Add one above, or press T." />
+          <EmptyState
+            illustration="tasks-empty"
+            title="No todos yet."
+            description="Add one above, or press T."
+          />
         ) : (
           <TodoList open={open} completed={completed} />
         )}
@@ -47,6 +50,6 @@ export async function TodosView({
           Todos are quick checkboxes. They have no priority, subtasks or tags.
         </p>
       </div>
-    </div>
+    </PageContainer>
   );
 }

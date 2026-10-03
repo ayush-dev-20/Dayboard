@@ -20,10 +20,13 @@ export function SheetResizeHandle({ width }: { width: number }) {
   const dragging = useRef(false);
   // A plain click (or the two clicks of a double-click) must not nudge the width.
   const startX = useRef(0);
+  const startWidth = useRef(width);
   const moved = useRef(false);
 
+  // Relative to where the drag began: the panel sits inside the main panel's inset, so its edge
+  // isn't `innerWidth - x`, and grabbing it must never make it jump.
   function fromPointer(clientX: number, persist: boolean) {
-    setSheetWidth(window.innerWidth - clientX, persist);
+    setSheetWidth(startWidth.current + (startX.current - clientX), persist);
   }
 
   return (
@@ -40,6 +43,7 @@ export function SheetResizeHandle({ width }: { width: number }) {
         dragging.current = true;
         moved.current = false;
         startX.current = event.clientX;
+        startWidth.current = width;
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {

@@ -9,6 +9,8 @@ import { formatAgo } from "@/lib/dates/relative";
 import { describeConversion } from "@/lib/inbox/dto";
 import { getPreferences } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageContainer } from "@/components/layout/page-container";
 
 export const metadata: Metadata = { title: "Inbox" };
 
@@ -44,17 +46,15 @@ export default async function InboxPage() {
   const ago = (iso: string) => formatAgo(new Date(iso), now, timezone);
 
   return (
-    <div className="max-w-content">
-      <header className="mb-6">
-        <h1 className="sr-only type-headline-lg text-foreground md:not-sr-only">Inbox</h1>
-        <p className="mt-1 type-body-md text-muted-foreground">{inbox.open.length} open</p>
-      </header>
+    <PageContainer>
+      <PageHeader title="Inbox" description={`${inbox.open.length} open`} />
 
       <InboxCapture />
 
       <div className="mt-6">
         {inbox.open.length === 0 ? (
           <EmptyState
+            illustration="inbox-zero"
             title="Your inbox is empty."
             description="Capture a thought here, or press C from anywhere. Convert it into a task, todo, note or project when you're ready."
           />
@@ -97,6 +97,6 @@ export default async function InboxPage() {
           </ul>
         </Disclosure>
       ) : null}
-    </div>
+    </PageContainer>
   );
 }

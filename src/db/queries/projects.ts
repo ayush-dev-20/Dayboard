@@ -71,6 +71,34 @@ export async function listProjects(userId: string): Promise<ProjectSummaryDTO[]>
   return rows.map((r) => ({ ...toDTO(r.project), ...counts(r) }));
 }
 
+export type NextDueTask = { id: string; title: string; emoji: string | null; dueDate: string };
+
+/**
+ * For the project cards: each project's open task with the nearest due date (top-level, not
+ * archived or deleted). One query for all projects; owner-scoped like everything else.
+ */
+export async function nextDueTasks(userId: string): Promise<Map<string, NextDueTask>> {
+  const rows = await db.execute<{
+    project_id: string;
+    id: string;
+    title: string;
+    emoji: string | null;
+    due_date: string;
+  }>(sql`
+    select distinct on (t.project_id) t.project_id, t.id, t.title, t.emoji, to_char(t.due_date, 'YYYY-MM-DD') as due_date
+    from tasks t
+    where t.user_id = ${userId} and t.project_id is not null and t.deleted_at is null
+      and t.archived_at is null and t.parent_task_id is null and t.due_date is not null
+      and t.status not in ('DONE', 'CANCELLED')
+    order by t.project_id, t.due_date asc, t.due_time asc nulls last, t.sort_order asc`);
+  return new Map(
+    [...rows].map((r) => [
+      r.project_id,
+      { id: r.id, title: r.title, emoji: r.emoji, dueDate: r.due_date },
+    ]),
+  );
+}
+
 /** For pickers: active first, then on hold, then the rest; alphabetical within each. */
 export async function listProjectRefs(userId: string): Promise<ProjectRef[]> {
   const rows = await db
