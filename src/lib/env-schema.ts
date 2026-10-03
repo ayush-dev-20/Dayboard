@@ -23,7 +23,7 @@ const rawSchema = z.object({
   EMAIL_FROM: optionalString,
   E2E: optionalString,
   // AI (feature 05). `mock` needs no key and is the default outside production.
-  AI_PROVIDER: z.preprocess(blankToUndefined, z.enum(["anthropic", "mock"]).optional()),
+  AI_PROVIDER: z.preprocess(blankToUndefined, z.enum(["anthropic", "gemini", "mock"]).optional()),
   AI_MODEL: optionalString,
   AI_MODEL_FAST: optionalString,
   AI_API_KEY: optionalString,
@@ -100,7 +100,7 @@ export function parseEnv(
 
   // Real model calls never happen in tests: an E2E run is always the mock. Otherwise the mock is
   // the default everywhere except production, where a real provider is expected.
-  const aiProvider: "anthropic" | "mock" = e2e
+  const aiProvider: "anthropic" | "gemini" | "mock" = e2e
     ? "mock"
     : (v.AI_PROVIDER ?? (v.NODE_ENV === "production" ? "anthropic" : "mock"));
   // A real provider without a key means AI is switched off for everyone; the rest of the app works.

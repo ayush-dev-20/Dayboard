@@ -14,12 +14,12 @@ This repository is built in phases from the specs in [specs/](specs/). Status: *
 
 ## Requirements
 
-| Tool | Version | Notes |
-| --- | --- | --- |
-| Node.js | 24 LTS | `nvm use` reads `.nvmrc` |
-| pnpm | 10 | `corepack enable` picks the version in `package.json` |
-| PostgreSQL | 17 or newer | Docker (below) or a local install |
-| Docker | optional | Only for the database container and the production image |
+| Tool       | Version     | Notes                                                    |
+| ---------- | ----------- | -------------------------------------------------------- |
+| Node.js    | 24 LTS      | `nvm use` reads `.nvmrc`                                 |
+| pnpm       | 10          | `corepack enable` picks the version in `package.json`    |
+| PostgreSQL | 17 or newer | Docker (below) or a local install                        |
+| Docker     | optional    | Only for the database container and the production image |
 
 ## Quick start
 
@@ -51,33 +51,33 @@ Without Docker, create any database and point `DATABASE_URL` at it, for example 
 
 Validated at startup by [src/lib/env-schema.ts](src/lib/env-schema.ts). A missing or invalid value stops the app with a list of every problem. `.env.example` is the template; real values never go in Git or an image.
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | yes | PostgreSQL connection string |
-| `BETTER_AUTH_SECRET` | yes | Signs sessions. 32+ characters. Changing it signs everyone out |
-| `BETTER_AUTH_URL` | yes | Public origin of the app. Must be `https://` in production |
-| `NEXT_PUBLIC_APP_URL` | yes | Same origin, for links built in the browser |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional pair | Enables "Continue with Google". Set both or neither |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | optional pair | Enables "Continue with GitHub". Set both or neither |
-| `RESEND_API_KEY`, `EMAIL_FROM` | **required in production** | Sends verification, reset and sign-in emails. Empty in development means "print to the terminal" |
-| `AI_PROVIDER` | optional | `anthropic` or `mock`. Empty means `mock` in development and `anthropic` in production. With `anthropic` and no `AI_API_KEY`, AI is switched off for everyone and every AI button disappears; the rest of the app works |
-| `AI_API_KEY` | needed for `anthropic` | Server-only. Never prefix with `NEXT_PUBLIC_`. `pnpm check:bundle` checks the browser bundle for it |
-| `AI_MODEL`, `AI_MODEL_FAST` | optional | Default and cheaper model (defaults: `claude-sonnet-5-5`, `claude-haiku-4-5-20251001`) |
-| `AI_BASE_URL` | optional | A proxy or gateway that speaks the provider's API |
-| `AI_LIMIT_PER_MINUTE`, `AI_LIMIT_PER_DAY` | optional | Per person (defaults 10 and 100). The day is the person's local day |
-| `AI_MOCK_MODE` | mock only | `error` makes every call fail, `slow` delays them. A single call can also fail with `[mock:error]` in its text |
-| `E2E`, `E2E_EMAIL_FILE` | tests only | Console email sender in a production build; where captured emails go. **Never set in a real deployment** |
+| Variable                                   | Required                   | Purpose                                                                                                                                                                                                                           |
+| ------------------------------------------ | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                             | yes                        | PostgreSQL connection string                                                                                                                                                                                                      |
+| `BETTER_AUTH_SECRET`                       | yes                        | Signs sessions. 32+ characters. Changing it signs everyone out                                                                                                                                                                    |
+| `BETTER_AUTH_URL`                          | yes                        | Public origin of the app. Must be `https://` in production                                                                                                                                                                        |
+| `NEXT_PUBLIC_APP_URL`                      | yes                        | Same origin, for links built in the browser                                                                                                                                                                                       |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional pair              | Enables "Continue with Google". Set both or neither                                                                                                                                                                               |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | optional pair              | Enables "Continue with GitHub". Set both or neither                                                                                                                                                                               |
+| `RESEND_API_KEY`, `EMAIL_FROM`             | **required in production** | Sends verification, reset and sign-in emails. Empty in development means "print to the terminal"                                                                                                                                  |
+| `AI_PROVIDER`                              | optional                   | `anthropic`, `gemini` or `mock`. Empty means `mock` in development and `anthropic` in production. With `anthropic` and no `AI_API_KEY`, AI is switched off for everyone and every AI button disappears; the rest of the app works |
+| `AI_API_KEY`                               | needed for `anthropic`     | Server-only. Never prefix with `NEXT_PUBLIC_`. `pnpm check:bundle` checks the browser bundle for it                                                                                                                               |
+| `AI_MODEL`, `AI_MODEL_FAST`                | optional                   | Default and cheaper model (defaults: `claude-sonnet-5-5`, `claude-haiku-4-5-20251001`)                                                                                                                                            |
+| `AI_BASE_URL`                              | optional                   | A proxy or gateway that speaks the provider's API                                                                                                                                                                                 |
+| `AI_LIMIT_PER_MINUTE`, `AI_LIMIT_PER_DAY`  | optional                   | Per person (defaults 10 and 100). The day is the person's local day                                                                                                                                                               |
+| `AI_MOCK_MODE`                             | mock only                  | `error` makes every call fail, `slow` delays them. A single call can also fail with `[mock:error]` in its text                                                                                                                    |
+| `E2E`, `E2E_EMAIL_FILE`                    | tests only                 | Console email sender in a production build; where captured emails go. **Never set in a real deployment**                                                                                                                          |
 
-The AI assistant works out of the box with the built-in mock (no key, no network). To use a real model, set `AI_PROVIDER=anthropic` and `AI_API_KEY`. See [agent_docs/ai-assistant_v1.md](agent_docs/ai-assistant_v1.md).
+The AI assistant works out of the box with the built-in mock (no key, no network). To use a real model, set `AI_PROVIDER` (`anthropic` or `gemini`) and `AI_API_KEY`. See [agent_docs/ai-assistant_v1.md](agent_docs/ai-assistant_v1.md).
 
 ## Setting up Google and GitHub sign-in
 
 Use a separate OAuth app for local development and for production. Each provider needs the callback URL below, where `{origin}` is `BETTER_AUTH_URL`.
 
-| Provider | Where | Callback URL |
-| --- | --- | --- |
-| Google | Google Cloud Console, APIs & Services, Credentials, OAuth client ID, type **Web application** | `{origin}/api/auth/callback/google` |
-| GitHub | GitHub, Settings, Developer settings, OAuth Apps | `{origin}/api/auth/callback/github` |
+| Provider | Where                                                                                         | Callback URL                        |
+| -------- | --------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Google   | Google Cloud Console, APIs & Services, Credentials, OAuth client ID, type **Web application** | `{origin}/api/auth/callback/google` |
+| GitHub   | GitHub, Settings, Developer settings, OAuth Apps                                              | `{origin}/api/auth/callback/github` |
 
 Local example: `http://localhost:3000/api/auth/callback/google`. GitHub allows one callback URL per app, so make one app for local and one for production. For Google, also publish the OAuth consent screen (or add test users) before real people try it. Then put the client ID and secret in `.env.local`.
 

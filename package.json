@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.71",
+    "@ai-sdk/google": "^4.0.87",
     "@better-auth/core": "1.7.7",
     "@better-auth/drizzle-adapter": "1.7.7",
     "@better-auth/utils": "0.4.2",

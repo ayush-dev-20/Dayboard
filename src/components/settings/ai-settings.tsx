@@ -10,13 +10,22 @@ type Props = {
   initialEnabled: boolean;
   /** False when the server has a real provider selected but no key: AI is off for everyone. */
   available: boolean;
-  provider: "anthropic" | "mock";
+  provider: "anthropic" | "gemini" | "mock";
   /** AI actions used today (rate-limited attempts don't count) and the daily limit. */
   used: number;
   limit: number;
 };
 
-const PROVIDER_NAME = { anthropic: "Anthropic", mock: "a built-in test assistant" } as const;
+const PROVIDER_NAME = {
+  anthropic: "Anthropic",
+  gemini: "Google (Gemini)",
+  mock: "a built-in test assistant",
+} as const;
+
+const POLICY_URL = {
+  anthropic: "https://www.anthropic.com/legal/privacy",
+  gemini: "https://ai.google.dev/gemini-api/terms",
+} as const;
 
 export function AiSettings({ initialEnabled, available, provider, used, limit }: Props) {
   const [enabled, setEnabled] = useState(initialEnabled);
@@ -61,10 +70,16 @@ export function AiSettings({ initialEnabled, available, provider, used, limit }:
           and the daily suggestion. Nothing is created or changed until you confirm it. Deleted
           accounts may remain in backups until they rotate out.
         </p>
-        {provider === "anthropic" ? (
+        {provider === "gemini" ? (
+          <p className="mt-3 max-w-xl type-body-md text-foreground">
+            This server uses Google’s free Gemini tier. Google may use content sent on the free tier
+            to improve its products, so avoid using AI actions on anything you wouldn’t want shared.
+          </p>
+        ) : null}
+        {provider !== "mock" ? (
           <p className="mt-3 type-body-md">
             <a
-              href="https://www.anthropic.com/legal/privacy"
+              href={POLICY_URL[provider]}
               target="_blank"
               rel="noreferrer"
               className="text-primary underline"

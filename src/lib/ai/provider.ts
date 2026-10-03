@@ -27,7 +27,7 @@ export type TextStream = {
 };
 
 export interface AIProvider {
-  readonly id: "anthropic" | "mock";
+  readonly id: "anthropic" | "gemini" | "mock";
   modelName(tier: ModelTier): string;
   /** The raw model answer. The caller validates it; a provider only has to return JSON-shaped data. */
   generateStructured(options: CallOptions, schema: z.ZodType): Promise<StructuredResult>;

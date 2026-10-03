@@ -22,3 +22,7 @@ Install `ai` and `@ai-sdk/anthropic` only. `AI_PROVIDER` accepts `anthropic` and
 - Adding OpenAI later is a new `providers/openai.ts` plus one enum value; no feature code changes.
 - `AI_PROVIDER=openai` from the feature doc is **not** accepted. The env check fails at startup with a clear message rather than silently using the mock.
 - Tests and CI always use the mock (`E2E=true` forces it), so they make no paid calls.
+
+## Update (2026-10-03): Gemini added
+
+The owner wants to start on Google's free tier, so `@ai-sdk/google` was added and `AI_PROVIDER=gemini` is accepted (defaults `gemini-3.5-flash` and `gemini-3.5-flash-lite`). This is a second provider package, approved by the owner's request; it is still used only inside `src/lib/ai/providers/sdk.ts`. Gemini's free tier may use prompts to improve Google's products, so Settings → AI says so when it is the provider. `openai` is still not wired.

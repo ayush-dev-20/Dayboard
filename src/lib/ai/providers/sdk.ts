@@ -1,5 +1,6 @@
 import "server-only";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText, Output, streamText } from "ai";
 import type { z } from "zod";
 import { env } from "@/lib/env";
@@ -14,8 +15,12 @@ import type { ModelTier, TokenUsage } from "../types";
 
 // The only file that imports the Vercel AI SDK. Swapping the model vendor means changing this file.
 
-const DEFAULT_MODEL = "claude-sonnet-5-5";
-const DEFAULT_FAST_MODEL = "claude-haiku-4-5-20251001";
+// Defaults per vendor. Gemini defaults: 3.5 Flash for structured and streamed work,
+// Flash-Lite (higher free limits) for the short jobs.
+const DEFAULTS = {
+  anthropic: { main: "claude-sonnet-5-5", fast: "claude-haiku-4-5-20251001" },
+  gemini: { main: "gemini-3.5-flash", fast: "gemini-3.5-flash-lite" },
+} as const;
 
 function isRetryable(error: unknown): boolean {
   const e = error as { statusCode?: number; isRetryable?: boolean; name?: string } | null;
@@ -30,22 +35,27 @@ function usageOf(usage: { inputTokens?: number; outputTokens?: number } | undefi
 }
 
 export function createSdkProvider(): AIProvider {
-  const anthropic = createAnthropic({
+  const vendor = env.aiProvider === "gemini" ? "gemini" : "anthropic";
+  const settings = {
     apiKey: env.AI_API_KEY,
     ...(env.AI_BASE_URL ? { baseURL: env.AI_BASE_URL } : {}),
-  });
+  };
+  const anthropic = createAnthropic(settings);
+  const google = createGoogleGenerativeAI(settings);
+  const languageModel = (name: string) => (vendor === "gemini" ? google(name) : anthropic(name));
 
+  const defaults = DEFAULTS[vendor];
   const modelName = (tier: ModelTier) =>
-    tier === "fast" ? (env.AI_MODEL_FAST ?? DEFAULT_FAST_MODEL) : (env.AI_MODEL ?? DEFAULT_MODEL);
+    tier === "fast" ? (env.AI_MODEL_FAST ?? defaults.fast) : (env.AI_MODEL ?? defaults.main);
 
   return {
-    id: "anthropic",
+    id: vendor,
     modelName,
 
     async generateStructured(options: CallOptions, schema: z.ZodType): Promise<StructuredResult> {
       try {
         const result = await generateText({
-          model: anthropic(modelName(options.tier)),
+          model: languageModel(modelName(options.tier)),
           system: options.system,
           prompt: options.prompt,
           output: Output.object({ schema }),
@@ -67,7 +77,7 @@ export function createSdkProvider(): AIProvider {
         resolveUsage = resolve;
       });
       const result = streamText({
-        model: anthropic(modelName(options.tier)),
+        model: languageModel(modelName(options.tier)),
         system: options.system,
         prompt: options.prompt,
         abortSignal: options.signal,
