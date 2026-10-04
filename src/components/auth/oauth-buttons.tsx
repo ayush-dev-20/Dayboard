@@ -77,7 +77,7 @@ export function OAuthButtons({ providers, callbackURL, onError }: Props) {
           <Button
             key={provider}
             variant="secondary"
-            className="h-11 w-full gap-3 border border-border px-5 [&_svg]:size-5"
+            className="h-12 w-full gap-3 border border-border px-5 type-body-md font-semibold md:h-12 [&_svg]:size-5"
             disabled={pending !== null}
             aria-busy={pending === provider}
             onClick={() => start(provider)}
