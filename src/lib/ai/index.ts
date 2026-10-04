@@ -34,6 +34,8 @@ type CommonArgs = {
   tier?: ModelTier;
   system: string;
   prompt: string;
+  /** Most tokens the model may write (a longer note needs a bigger cap). */
+  maxOutputTokens?: number;
   /** Plain-data copy of the request, for the mock provider only. */
   fixture?: unknown;
 };
@@ -123,7 +125,10 @@ export async function generateStructured<S extends z.ZodType>(
 
 export type StreamSession = {
   chunks: AsyncIterable<string>;
-  /** Call once when the stream ended (ok) or broke (not ok). Records usage. */
+  /**
+   * Call once when the stream ended (ok) or broke (not ok). Records usage. A stream the person
+   * stopped (the client went away) counts as a success: the provider worked and quota was used.
+   */
   finish(ok: boolean): Promise<void>;
 };
 
@@ -139,6 +144,7 @@ export function streamText(args: CommonArgs & { signal?: AbortSignal }): StreamS
     tier,
     system: args.system,
     prompt: args.prompt,
+    maxOutputTokens: args.maxOutputTokens,
     fixture: args.fixture,
     signal,
   });
@@ -156,7 +162,7 @@ export function streamText(args: CommonArgs & { signal?: AbortSignal }): StreamS
         provider: provider.id,
         model: provider.modelName(tier),
         promptVersion: PROMPT_VERSIONS[args.feature],
-        status: ok ? "SUCCESS" : "PROVIDER_ERROR",
+        status: ok || args.signal?.aborted ? "SUCCESS" : "PROVIDER_ERROR",
         latencyMs: Date.now() - started,
         tokens,
       });

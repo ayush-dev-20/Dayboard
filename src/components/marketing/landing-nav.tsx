@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { ArrowRight, Menu, X } from "lucide-react";
 import { BrandLockup } from "@/components/layout/brand";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -47,7 +47,7 @@ export function LandingNav() {
           Sign in
         </Link>
         <Link href="/sign-up" className={buttonVariants()}>
-          Get started
+          Get started <ArrowRight strokeWidth={1.5} aria-hidden />
         </Link>
         <button
           type="button"

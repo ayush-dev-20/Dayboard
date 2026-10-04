@@ -117,14 +117,14 @@ export function TodaySkeleton() {
   );
 }
 
-/** The note editor: a title and a few lines of prose at the reading measure. */
+/** The note editor: a title and a few lines of prose, in the same column as the real editor. */
 export function EditorSkeleton() {
   return (
     <div
       role="status"
       aria-busy="true"
       aria-label="Loading note"
-      className="mx-auto w-full max-w-editor"
+      className="mx-auto w-full max-w-content"
     >
       <Bar className="mb-8 w-32" />
       <Bar className="mb-6 h-9 w-2/3" />

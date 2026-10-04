@@ -1,11 +1,12 @@
 "use client";
 
-import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import { TaskItem, TaskList } from "@tiptap/extension-list";
-import Placeholder from "@tiptap/extension-placeholder";
+import { useEffect, useRef, useState } from "react";
+import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { AiEditPanel } from "./ai-edit-panel";
+import { readSelection, type SelectionInfo } from "./ai-apply";
+import { createExtensions } from "./extensions";
+import type { EditMode } from "@/lib/ai/types";
 import { FormatToolbar, SelectionMenu } from "./toolbar";
-import { isAllowedLink } from "@/lib/editor/schema";
 import type { TiptapDoc } from "@/lib/editor/types";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,12 @@ export type RichTextEditorProps = {
   autoFocus?: boolean;
   /** Shown between the toolbar and the text (a note's title sits here). */
   beforeContent?: React.ReactNode;
+  /** Called when the editor exists, so a host can insert content with transactions (one undo). */
+  onEditorReady?: (editor: Editor) => void;
+  /** Called when the editor goes away; drop the instance. */
+  onEditorDestroy?: () => void;
+  /** Notes with AI on: show Writing help (Improve, Shorten, Fix grammar, Continue). */
+  writingHelp?: boolean;
 };
 
 /**
@@ -49,27 +56,33 @@ export default function RichTextEditor({
   className,
   autoFocus,
   beforeContent,
+  onEditorReady,
+  onEditorDestroy,
+  writingHelp,
 }: RichTextEditorProps) {
+  const [help, setHelp] = useState<{ mode: EditMode; info: SelectionInfo } | null>(null);
+  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+
   const editor = useEditor({
     immediatelyRender: false,
     content: initialContent ?? undefined,
     autofocus: autoFocus ? "end" : false,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-        link: {
-          openOnClick: false,
-          autolink: true,
-          defaultProtocol: "https",
-          HTMLAttributes: { rel: "noopener noreferrer nofollow", target: "_blank" },
-          isAllowedUri: (url, ctx) => ctx.defaultValidate(url) && isAllowedLink(url),
-        },
-      }),
-      TaskList,
-      TaskItem.configure({ nested: false }),
-      Placeholder.configure({ placeholder: placeholder ?? "" }),
-    ],
+    extensions: createExtensions(placeholder),
     editorProps: {
+      // ⌘/Ctrl+Shift+J opens Writing help for the current selection.
+      handleKeyDown: (_view, event) => {
+        if (
+          writingHelp &&
+          (event.metaKey || event.ctrlKey) &&
+          event.shiftKey &&
+          event.key.toLowerCase() === "j"
+        ) {
+          event.preventDefault();
+          setHelpMenuOpen(true);
+          return true;
+        }
+        return false;
+      },
       attributes: {
         role: "textbox",
         "aria-multiline": "true",
@@ -80,16 +93,54 @@ export default function RichTextEditor({
     onBlur: () => onBlur?.(),
   });
 
+  // Hosts get the editor through callbacks that may change every render; the latest ones are read
+  // inside the effect so the editor is announced once, not on every render.
+  const ready = useRef(onEditorReady);
+  const destroy = useRef(onEditorDestroy);
+  useEffect(() => {
+    ready.current = onEditorReady;
+    destroy.current = onEditorDestroy;
+  });
+  useEffect(() => {
+    if (!editor) return;
+    ready.current?.(editor);
+    return () => destroy.current?.();
+  }, [editor]);
+
+  function chooseHelp(mode: EditMode) {
+    if (!editor) return;
+    setHelpMenuOpen(false);
+    setHelp({ mode, info: readSelection(editor) });
+  }
+
+  const helpControl = writingHelp
+    ? { onChoose: chooseHelp, open: helpMenuOpen, onOpenChange: setHelpMenuOpen }
+    : undefined;
+
   return (
     <div className={cn("rich-text", variant === "document" && "rich-text-document", className)}>
       {editor ? (
-        <FormatToolbar editor={editor} variant={variant} />
+        <FormatToolbar editor={editor} variant={variant} writingHelp={helpControl} />
       ) : (
         <div className="mb-2 h-8" aria-hidden />
       )}
       {beforeContent}
       <EditorContent editor={editor} />
-      {editor && variant === "document" ? <SelectionMenu editor={editor} /> : null}
+      {editor && variant === "document" ? (
+        <SelectionMenu
+          editor={editor}
+          writingHelp={helpControl ? { onChoose: chooseHelp } : undefined}
+        />
+      ) : null}
+      {editor && help ? (
+        <AiEditPanel
+          key={`${help.mode}-${help.info.from}-${help.info.to}`}
+          editor={editor}
+          mode={help.mode}
+          info={help.info}
+          onClose={() => setHelp(null)}
+        />
+      ) : null}
     </div>
   );
 }

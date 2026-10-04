@@ -27,7 +27,7 @@ export function AppShell({ name, email, sidebarCollapsed, children }: Props) {
       <SidebarProvider initialCollapsed={sidebarCollapsed}>
         <TooltipProvider>
           <ShellFrame>
-            <aside className="z-10 hidden w-(--sidebar-width) shrink-0 bg-sidebar lg:block">
+            <aside className="z-10 hidden w-(--sidebar-width) shrink-0 overflow-hidden bg-sidebar transition-[width] duration-200 ease-(--ease-enter) motion-reduce:transition-none lg:block">
               <SidebarNav collapsible account={<AccountBlock name={name} email={email} />} />
             </aside>
 

@@ -30,6 +30,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
+import type { EditMode } from "@/lib/ai/types";
+import { WritingHelpMenu } from "./ai-selection-menu";
 import { isAllowedLink } from "@/lib/editor/schema";
 import { cn } from "@/lib/utils";
 
@@ -225,12 +227,21 @@ const icon = "size-4";
  * (notes) adds the text style menu, strikethrough, quote, rule and undo/redo, and on a phone sits
  * as a scrollable bar above the on-screen keyboard.
  */
+export type WritingHelpControl = {
+  onChoose: (mode: EditMode) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
 export function FormatToolbar({
   editor,
   variant,
+  writingHelp,
 }: {
   editor: Editor;
   variant: "compact" | "document";
+  /** Notes with AI on: adds the Writing help menu. */
+  writingHelp?: WritingHelpControl;
 }) {
   const state = useEditorState({
     editor,
@@ -346,6 +357,12 @@ export function FormatToolbar({
           >
             <Minus className={icon} strokeWidth={1.5} aria-hidden />
           </ToolButton>
+          {writingHelp ? (
+            <>
+              <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
+              <WritingHelpMenu editor={editor} placement="toolbar" {...writingHelp} />
+            </>
+          ) : null}
           <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
           <ToolButton
             label="Undo"
@@ -368,7 +385,13 @@ export function FormatToolbar({
 }
 
 /** A small floating bar over a text selection: the few formats you reach for mid-sentence. */
-export function SelectionMenu({ editor }: { editor: Editor }) {
+export function SelectionMenu({
+  editor,
+  writingHelp,
+}: {
+  editor: Editor;
+  writingHelp?: Pick<WritingHelpControl, "onChoose">;
+}) {
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -414,6 +437,12 @@ export function SelectionMenu({ editor }: { editor: Editor }) {
       >
         <Code className={icon} strokeWidth={1.5} aria-hidden />
       </ToolButton>
+      {writingHelp ? (
+        <>
+          <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
+          <WritingHelpMenu editor={editor} placement="bubble" onChoose={writingHelp.onChoose} />
+        </>
+      ) : null}
     </BubbleMenu>
   );
 }

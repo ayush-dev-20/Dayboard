@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
@@ -349,6 +350,20 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                         {action.label}
                       </Command.Item>
                     ))}
+                    {aiEnabled ? (
+                      <Command.Item
+                        value="write-note-with-ai"
+                        onSelect={() => go("/notes/new?ai=1")}
+                        className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 type-body-md data-[selected=true]:bg-primary-subtle md:min-h-9"
+                      >
+                        <Plus
+                          className="size-4 text-muted-foreground"
+                          strokeWidth={1.5}
+                          aria-hidden
+                        />{" "}
+                        Write a note with AI
+                      </Command.Item>
+                    ) : null}
                     <Command.Item
                       value="capture-mode"
                       onSelect={() => onModeChange("capture")}
@@ -390,16 +405,16 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                         {s}
                       </Command.Item>
                     ))}
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
                       onClick={() => {
                         forgetSearches();
                         setSearches([]);
                       }}
-                      className="px-2 py-1 type-body-sm text-muted-foreground underline underline-offset-2"
+                      className="mx-2 mt-1"
                     >
                       Clear recent searches
-                    </button>
+                    </Button>
                   </Command.Group>
                 ) : null}
 
@@ -493,13 +508,12 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
 
               {mode === "search" && typed && results && results.total > 0 ? (
                 <div className="border-t border-border px-4 py-2">
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
                     onClick={() => go(`/search?q=${encodeURIComponent(query.trim())}`)}
-                    className="type-body-sm text-primary underline underline-offset-2"
                   >
                     See all results on the Search page
-                  </button>
+                  </Button>
                 </div>
               ) : null}
             </Command>

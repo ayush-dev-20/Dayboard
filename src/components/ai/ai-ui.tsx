@@ -123,14 +123,14 @@ export function AiFailureNotice({ error, text, onRetry, onDismiss, className }: 
       <p className="min-w-0 flex-1">{message}</p>
       {limited || disabled ? (
         onDismiss ? (
-          <button type="button" onClick={onDismiss} className="shrink-0 font-semibold underline">
+          <Button variant="secondary" onClick={onDismiss} className="shrink-0">
             Dismiss
-          </button>
+          </Button>
         ) : null
       ) : onRetry ? (
-        <button type="button" onClick={onRetry} className="shrink-0 font-semibold underline">
+        <Button variant="secondary" onClick={onRetry} className="shrink-0">
           Retry
-        </button>
+        </Button>
       ) : null}
     </div>
   );

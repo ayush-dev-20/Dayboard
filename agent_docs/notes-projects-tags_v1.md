@@ -46,3 +46,5 @@ Notes and projects are what turn a task list into a workspace, and the spec want
 ## Not verified
 - Touch behaviour and the on-screen keyboard on a real phone (emulated only); Safari and Firefox.
 - The Dockerfile and Compose with the new migration: Docker is not installed on this machine.
+
+- **Since feature 08** (`ai-writing-and-planning_v1.md`): `RichTextEditor` accepts `onEditorReady` / `onEditorDestroy` and `writingHelp`; its extensions live in `components/editor/extensions.ts` (shared with the read-only AI preview). The note menu has "Generate with AI", and `/notes/new?ai=1` opens the panel without creating a note.

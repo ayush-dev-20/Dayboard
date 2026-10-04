@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/layout/empty-state";
 import { TrashList } from "@/components/trash/trash-list";
 import { listTrash, parseCursor, trashCounts } from "@/db/queries/trash";
@@ -94,7 +95,7 @@ export default async function TrashPage({ searchParams }: { searchParams: Search
           {next ? (
             <Link
               href={`${href(type)}${type ? "&" : "?"}before=${encodeURIComponent(`${next.at}_${next.id}`)}`}
-              className="mt-4 inline-flex h-11 items-center type-body-md text-primary underline underline-offset-2 md:h-8"
+              className={`${buttonVariants({ variant: "secondary" })} mt-4`}
             >
               Show older items
             </Link>

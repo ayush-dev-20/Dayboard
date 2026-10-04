@@ -11,10 +11,18 @@ export const DropdownMenuTrigger = MenuPrimitive.Trigger;
 export function DropdownMenuContent({
   className,
   sideOffset = 6,
+  container,
   ...props
-}: React.ComponentProps<typeof MenuPrimitive.Content>) {
+}: React.ComponentProps<typeof MenuPrimitive.Content> & {
+  /**
+   * Where to render the menu. Defaults to `document.body`. A menu opened from a floating bar that
+   * hides itself when focus leaves (the editor's selection menu) must render inside that bar, or the
+   * bar is removed from the page and the menu loses its anchor.
+   */
+  container?: HTMLElement | null;
+}) {
   return (
-    <MenuPrimitive.Portal>
+    <MenuPrimitive.Portal container={container ?? undefined}>
       <MenuPrimitive.Content
         sideOffset={sideOffset}
         className={cn(
@@ -35,7 +43,7 @@ export function DropdownMenuItem({
   return (
     <MenuPrimitive.Item
       className={cn(
-        "flex h-11 cursor-default items-center gap-2 rounded-md px-2 type-body-md outline-none md:h-8",
+        "flex min-h-11 cursor-default items-center gap-2 rounded-md px-2 py-1 type-body-md outline-none md:min-h-8",
         "data-[disabled]:opacity-60 data-[highlighted]:bg-accent [&_svg]:size-4 [&_svg]:shrink-0",
         className,
       )}
@@ -61,7 +69,7 @@ export function DropdownMenuSeparator({
 }
 
 const itemClasses =
-  "type-body-md flex h-11 cursor-default items-center gap-2 rounded-md py-0 pr-2 pl-8 outline-none md:h-8 " +
+  "type-body-md flex min-h-11 cursor-default items-center gap-2 rounded-md py-1 pr-2 pl-8 outline-none md:min-h-8 " +
   "data-[highlighted]:bg-accent data-[disabled]:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0";
 
 /** A row with a check on the left when selected. Pass `onSelect={(e) => e.preventDefault()}` to keep the menu open. */

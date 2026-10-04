@@ -17,7 +17,8 @@ export function Toaster(props: ToasterProps) {
         classNames: {
           toast:
             "!rounded-md !border-0 !bg-foreground !text-background !shadow-float !px-3 !py-3 !text-[13px]",
-          actionButton: "!bg-transparent !text-background !font-semibold !underline",
+          actionButton:
+            "!rounded-md !border !border-background/40 !bg-transparent !px-3 !font-semibold !text-background hover:!bg-background/10",
           description: "!text-background/80",
         },
       }}

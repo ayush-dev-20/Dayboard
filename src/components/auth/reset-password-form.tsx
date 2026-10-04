@@ -1,5 +1,6 @@
 "use client";
 
+import { KeyRound } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
@@ -81,6 +82,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           )}
         </Field>
         <Button type="submit" className="mt-2 w-full" disabled={pending}>
+          <KeyRound strokeWidth={1.5} aria-hidden />
           {pending ? "Updating…" : "Update password"}
         </Button>
       </form>

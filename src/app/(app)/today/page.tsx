@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
@@ -10,6 +10,7 @@ import { AiSuggestionSlot } from "@/components/today/ai-suggestion-slot";
 import { CollapsibleSection } from "@/components/today/collapsible-section";
 import { DayProgress } from "@/components/today/day-progress";
 import { FocusHero } from "@/components/today/focus-hero";
+import { PlanDay } from "@/components/today/plan-day";
 import { TodayCapture } from "@/components/today/today-capture";
 import {
   SectionHeading,
@@ -79,6 +80,7 @@ export default async function TodayPage() {
               visibleOnPhone
               className="mb-8 items-center"
             >
+              <PlanDay focusId={data.focus?.id ?? null} />
               <DayProgress done={data.progress.done} total={data.progress.total} />
             </PageHeader>
 
@@ -100,7 +102,7 @@ export default async function TodayPage() {
                 description="Capture a task or start a note."
               >
                 <Link href="/tasks?focus=add" className={buttonVariants()}>
-                  New task
+                  <Plus strokeWidth={1.5} aria-hidden /> New task
                 </Link>
                 <Link href="/notes/new" className={buttonVariants({ variant: "secondary" })}>
                   New note
@@ -120,7 +122,7 @@ export default async function TodayPage() {
                   {data.overdueTotal > TODAY_LIMITS.overdue ? (
                     <Link
                       href="/tasks?due=overdue"
-                      className="mt-2 inline-flex h-11 items-center type-body-md text-primary underline underline-offset-2 md:h-8"
+                      className={`${buttonVariants({ variant: "secondary" })} mt-2`}
                     >
                       Show all {data.overdueTotal}
                     </Link>

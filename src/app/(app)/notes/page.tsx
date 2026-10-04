@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, Plus, Sparkles } from "lucide-react";
 import { NoteCard, NoteTile } from "@/components/notes/note-card";
 import { NotesFilters } from "@/components/notes/notes-filters";
 import { EmptyState } from "@/components/layout/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { countNotes, listNotes } from "@/db/queries/notes";
+import { env } from "@/lib/env";
 import { getPreferences } from "@/lib/preferences";
 import {
   buildNotesQuery,
@@ -27,7 +28,7 @@ export default async function NotesPage({ searchParams }: { searchParams: Search
   const view = parseNotesView(raw);
   const scope = { projectId: params.projectId ?? undefined, tagId: params.tagId ?? undefined };
 
-  const [{ timezone }, notes, archived, counts] = await Promise.all([
+  const [{ timezone, aiEnabled }, notes, archived, counts] = await Promise.all([
     getPreferences(user.id),
     listNotes(user.id, scope),
     listNotes(user.id, { ...scope, archived: true, limit: 200 }),
@@ -44,6 +45,11 @@ export default async function NotesPage({ searchParams }: { searchParams: Search
         title="Notes"
         description={`${counts.active} ${counts.active === 1 ? "note" : "notes"}`}
       >
+        {env.aiAvailable && aiEnabled ? (
+          <Link href="/notes/new?ai=1" className={buttonVariants({ variant: "secondary" })}>
+            <Sparkles strokeWidth={1.5} aria-hidden /> Write with AI
+          </Link>
+        ) : null}
         <Link href="/notes/new" className={buttonVariants()}>
           <Plus strokeWidth={1.5} aria-hidden /> New note
         </Link>
@@ -59,7 +65,7 @@ export default async function NotesPage({ searchParams }: { searchParams: Search
             description="Notes autosave as you type. Press Shift+N from anywhere."
           >
             <Link href="/notes/new" className={buttonVariants()}>
-              New note
+              <Plus strokeWidth={1.5} aria-hidden /> New note
             </Link>
           </EmptyState>
         ) : noMatches ? (

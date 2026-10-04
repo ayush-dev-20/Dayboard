@@ -1,6 +1,7 @@
 "use client";
 
 import { setTaskTags } from "@/actions/tags";
+import { Button } from "@/components/ui/button";
 import { TagPicker } from "@/components/workspace/tag-picker";
 import { TagBadge } from "@/components/workspace/tokens";
 import type { TagDTO } from "@/lib/tags";
@@ -27,12 +28,7 @@ export function TagsSection({ taskId, tags, onChange }: Props) {
             return result.data;
           }}
         >
-          <button
-            type="button"
-            className="inline-flex min-h-11 items-center type-body-md text-primary underline underline-offset-2 hover:text-primary-strong md:min-h-8"
-          >
-            {tags.length === 0 ? "Add tag" : "Edit tags"}
-          </button>
+          <Button variant="secondary">{tags.length === 0 ? "Add tag" : "Edit tags"}</Button>
         </TagPicker>
       </div>
     </section>

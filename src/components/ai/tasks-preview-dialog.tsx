@@ -1,5 +1,6 @@
 "use client";
 
+import { ListPlus } from "lucide-react";
 import { useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -160,13 +161,12 @@ function PreviewList({
             <span aria-live="polite">
               {chosen.length} of {rows.length} selected
             </span>
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={() => setRows((list) => list.map((r) => ({ ...r, checked: !allChecked })))}
-              className="cursor-pointer text-primary underline-offset-2 hover:underline"
             >
               {allChecked ? "Select none" : "Select all"}
-            </button>
+            </Button>
           </p>
         </div>
         <ul className="mt-1 max-h-[50vh] overflow-y-auto" aria-label="Tasks found">
@@ -212,6 +212,7 @@ function PreviewList({
           <Button variant="secondary">Cancel</Button>
         </DialogClose>
         <Button type="submit" disabled={pending || chosen.length === 0 || blank}>
+          <ListPlus strokeWidth={1.5} aria-hidden />
           {chosen.length === 0 ? "Create tasks" : confirmLabel(chosen.length)}
         </Button>
       </DialogFooter>

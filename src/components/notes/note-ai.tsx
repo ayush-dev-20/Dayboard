@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   AiFailureNotice,
   AiGenerating,
@@ -84,25 +85,24 @@ export function SummaryPanel({ state, onRetry, onDismiss, onInsert }: Props) {
         )}
       </GrowingAiPanel>
       {state.status === "complete" ? (
-        <div className="mt-2 flex items-center gap-4">
-          <button type="button" onClick={onInsert} className="type-body-md text-primary underline">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button variant="secondary" onClick={onInsert}>
             Insert into note
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => {
               void navigator.clipboard
                 .writeText(summaryToPlainText(sections))
                 .then(() => toast("Copied."))
                 .catch(() => toast.error("Couldn’t copy that."));
             }}
-            className="type-body-md text-primary underline"
           >
             Copy
-          </button>
-          <button type="button" onClick={onDismiss} className="type-body-md text-primary underline">
+          </Button>
+          <Button variant="secondary" onClick={onDismiss}>
             Dismiss
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>

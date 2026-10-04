@@ -9,6 +9,8 @@ export type CallOptions = {
   tier: ModelTier;
   system: string;
   prompt: string;
+  /** Most tokens the model may write. Left to the vendor's default when absent. */
+  maxOutputTokens?: number;
   /** Stops the call, for timeouts and for a person who closed the panel. */
   signal: AbortSignal;
   /**

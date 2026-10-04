@@ -117,13 +117,9 @@ export function TaskAi({ task, getDescriptionText, onSubtasksAdded, onReplace }:
               </span>
             </p>
             <p className="mt-2 type-body-md">{estimate.state.data.rationale}</p>
-            <button
-              type="button"
-              onClick={estimate.reset}
-              className="mt-3 type-body-md text-primary underline"
-            >
+            <Button variant="secondary" onClick={estimate.reset} className="mt-3">
               Dismiss
-            </button>
+            </Button>
           </AiPanel>
         ) : null}
         {next.state.status === "complete" ? (
@@ -312,26 +308,21 @@ function NextSteps({
               added.includes(step) ? (
                 <span className="shrink-0 type-body-sm text-muted-foreground">Added</span>
               ) : (
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   onClick={() => void make(step)}
                   aria-label={`Make subtask: ${step}`}
-                  className="shrink-0 type-body-sm text-primary underline"
                 >
                   Make subtask
-                </button>
+                </Button>
               )
             ) : null}
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="mt-3 type-body-md text-primary underline"
-      >
+      <Button variant="secondary" onClick={onDismiss} className="mt-3">
         Dismiss
-      </button>
+      </Button>
     </AiPanel>
   );
 }

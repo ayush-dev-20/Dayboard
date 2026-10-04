@@ -1,5 +1,6 @@
 "use client";
 
+import { UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
@@ -122,6 +123,7 @@ export function SignUpForm({ next, providers }: { next: string; providers: OAuth
         </Field>
 
         <Button type="submit" className="mt-2 w-full" disabled={pending}>
+          <UserPlus strokeWidth={1.5} aria-hidden />
           {pending ? "Creating account…" : "Create account"}
         </Button>
       </form>

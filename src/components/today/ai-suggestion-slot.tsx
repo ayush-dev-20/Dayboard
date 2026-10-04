@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { getAI } from "@/components/ai/ai-client";
 import { AiLabel } from "@/components/ai/ai-ui";
+import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { OverdueCleanup } from "./overdue-cleanup";
 
@@ -49,17 +51,17 @@ export function AiSuggestionSlot({ overdueCount }: { overdueCount: number }) {
       <div className="min-w-0 flex-1">
         <AiLabel />
         <p className="mt-1.5 type-body-md text-foreground">{daily.text}</p>
-        <p className="mt-1.5 flex flex-wrap items-center gap-x-3 type-body-sm text-muted-foreground">
+        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 type-body-sm text-muted-foreground">
           {daily.canRefresh ? (
             <>
-              <button
-                type="button"
-                disabled={refreshing}
-                onClick={() => void refresh()}
-                className="inline-flex h-11 cursor-pointer items-center text-primary underline underline-offset-2 disabled:opacity-60 md:h-auto"
-              >
+              <Button variant="secondary" disabled={refreshing} onClick={() => void refresh()}>
+                <RefreshCw
+                  strokeWidth={1.5}
+                  aria-hidden
+                  className={refreshing ? "motion-safe:animate-spin" : undefined}
+                />
                 Refresh
-              </button>
+              </Button>
               <span>One refresh per day</span>
             </>
           ) : (

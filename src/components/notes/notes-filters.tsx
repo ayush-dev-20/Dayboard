@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import {
@@ -84,7 +85,7 @@ export function NotesFilters({ params, view = "list" }: { params: NotesParams; v
       {hasNoteFilters(params) ? (
         <Link
           href={`/notes${buildNotesQuery({ view })}`}
-          className="px-2 type-body-md text-primary underline underline-offset-2"
+          className={buttonVariants({ variant: "secondary" })}
         >
           Clear filters
         </Link>

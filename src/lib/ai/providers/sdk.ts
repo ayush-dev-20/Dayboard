@@ -60,6 +60,7 @@ export function createSdkProvider(): AIProvider {
           prompt: options.prompt,
           output: Output.object({ schema }),
           abortSignal: options.signal,
+          maxOutputTokens: options.maxOutputTokens,
           maxRetries: 0,
         });
         return { output: result.output, usage: usageOf(result.usage) };
@@ -81,6 +82,7 @@ export function createSdkProvider(): AIProvider {
         system: options.system,
         prompt: options.prompt,
         abortSignal: options.signal,
+        maxOutputTokens: options.maxOutputTokens,
         maxRetries: 0,
         onError: () => {
           // Surfaces through the iterator below.

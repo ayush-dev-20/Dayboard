@@ -46,6 +46,9 @@ export const aiFeatureEnum = pgEnum("ai_feature", [
   "OVERDUE_CLEANUP",
   "TASK_ASSIST",
   "CLASSIFY_INBOX",
+  "GENERATE_CONTENT",
+  "PLAN_DAY",
+  "EDIT_SELECTION",
 ]);
 
 export const aiUsageStatusEnum = pgEnum("ai_usage_status", [

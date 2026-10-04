@@ -179,6 +179,15 @@ export async function insertNote(
   return row!.id;
 }
 
+/** A note with an exact document, for tests that need specific formatting (a bold list item, a link). */
+export async function insertNoteDoc(userId: string, title: string, doc: unknown, text: string) {
+  const [row] = await sql<{ id: string }[]>`
+    insert into notes (id, user_id, title, content_json, content_text)
+    values (gen_random_uuid(), ${userId}, ${title}, ${sql.json(doc as never)}, ${text})
+    returning id`;
+  return row!.id;
+}
+
 export async function noteByTitle(userId: string, title: string) {
   const [row] = await sql<
     {
@@ -370,4 +379,9 @@ export async function taskDescriptionText(taskId: string) {
 
 export async function clearDailySuggestions(userId: string) {
   await sql`delete from ai_daily_suggestions where user_id = ${userId}`;
+}
+
+/** Switches the person's AI preference without going through Settings. */
+export async function setAiEnabled(userId: string, enabled: boolean) {
+  await sql`update user_preferences set ai_enabled = ${enabled} where user_id = ${userId}`;
 }

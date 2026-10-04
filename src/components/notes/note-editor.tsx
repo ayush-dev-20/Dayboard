@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { Editor } from "@tiptap/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,21 +12,31 @@ import {
   Folder,
   Info,
   SmilePlus,
+  Sparkles,
   Tag,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { archiveNote, deleteNote, restoreNote, updateNoteMeta } from "@/actions/notes";
+import { archiveNote, createNote, deleteNote, restoreNote, updateNoteMeta } from "@/actions/notes";
 import { assignToProject } from "@/actions/projects";
 import { setNoteTags } from "@/actions/tags";
 import { createTasksBatch } from "@/actions/tasks";
+import { GeneratePanel, type GenerateResult } from "@/components/ai/generate-panel";
 import { TasksPreviewDialog } from "@/components/ai/tasks-preview-dialog";
 import { useAICall, useAIStream } from "@/components/ai/use-ai";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { insertSummary, parseSummary } from "@/lib/ai/summary";
 import type { PreviewTask } from "@/lib/ai/tasks-output";
 import { EmojiButton } from "@/components/emoji/emoji-picker";
+import {
+  appendDoc,
+  insertDocAtCursor,
+  replaceAll,
+  type ApplyResult,
+} from "@/components/editor/ai-apply";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { Button } from "@/components/ui/button";
+import { PageContainer } from "@/components/layout/page-container";
 import { SaveState } from "@/components/tasks/description-editor";
 import {
   DropdownMenu,
@@ -38,6 +49,7 @@ import { ProjectPicker } from "@/components/workspace/project-picker";
 import { TagPicker } from "@/components/workspace/tag-picker";
 import { useIsClient } from "@/hooks/use-browser";
 import type { SaveStatus } from "@/hooks/use-autosave";
+import { isEmptyDoc } from "@/lib/editor/projection";
 import type { TiptapDoc } from "@/lib/editor/types";
 import { clearDraft, readDraft } from "@/lib/notes/draft";
 import type { NoteDTO, LinkedTaskDTO } from "@/lib/notes/dto";
@@ -53,7 +65,7 @@ type Props = {
   /** The saved note, or null for `/notes/new` (nothing exists until the first keystroke). */
   note: NoteDTO | null;
   /** For a new note: the project it starts in and the task it is linked to. */
-  start?: { project: ProjectRef | null; linkTaskId: string | null };
+  start?: { project: ProjectRef | null; linkTaskId: string | null; ai?: boolean };
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -89,8 +101,6 @@ function Banner({
     </div>
   );
 }
-
-const bannerButton = "type-label-md underline underline-offset-2";
 
 function saveStatus(state: NoteSaveState): SaveStatus {
   switch (state.phase) {
@@ -151,6 +161,14 @@ export function NoteEditor({ note, start }: Props) {
   // The latest document, kept for "Insert into note" (read in a click handler, never in render).
   const liveDoc = useRef<TiptapDoc | null>(note?.contentJson ?? null);
 
+  // Generate with AI (feature 08): the panel streams a draft; this component applies it with editor
+  // transactions (one undo) or creates a new note from it. The editor instance is kept in a ref and
+  // read only inside handlers.
+  const [generateOpen, setGenerateOpen] = useState(Boolean(start?.ai) && aiEnabled);
+  const [hasText, setHasText] = useState(!isEmptyDoc(note?.contentJson ?? { type: "doc" }));
+  const editorRef = useRef<Editor | null>(null);
+  const generateFocus = useRef(false);
+
   async function startAi(kind: "summary" | "extract") {
     if (!noteId) return;
     // The server reads the saved note, so make sure it has the latest text first.
@@ -160,6 +178,48 @@ export function NoteEditor({ note, start }: Props) {
       extract.run({ noteId });
       setExtractOpen(true);
     }
+  }
+
+  async function applyGenerated(result: GenerateResult): Promise<ApplyResult> {
+    if (!noteId) {
+      const created = await createNote({
+        title: result.title ?? undefined,
+        contentJson: result.doc,
+        projectId: project?.id ?? null,
+        linkTaskId: start?.linkTaskId ?? null,
+      });
+      if (!created.ok)
+        return { ok: false, reason: "Couldn’t create the note. Nothing was changed." };
+      router.replace(`/notes/${created.data.id}`);
+      return { ok: true };
+    }
+    const editor = editorRef.current;
+    if (!editor) return { ok: false, reason: "The note changed. Regenerate or copy the text." };
+    const applied =
+      result.placement === "replace"
+        ? replaceAll(editor, result.doc)
+        : result.placement === "cursor"
+          ? insertDocAtCursor(editor, result.doc)
+          : appendDoc(editor, result.doc);
+    if (!applied.ok) return applied;
+    if (result.title) {
+      setTitle(result.title);
+      sync.onTitleChange(result.title);
+    }
+    void sync.flush();
+    if (result.placement === "replace") {
+      toast("Note replaced.", {
+        duration: 8000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            editorRef.current?.chain().focus().undo().run();
+            void sync.flush();
+          },
+        },
+      });
+    }
+    return applied;
   }
 
   function insertSummaryIntoNote() {
@@ -319,7 +379,7 @@ export function NoteEditor({ note, start }: Props) {
         placeholder="Untitled"
         aria-label="Note title"
         maxLength={300}
-        autoFocus={!note}
+        autoFocus={!note && !start?.ai}
         onChange={(e) => {
           setTitle(e.target.value);
           sync.onTitleChange(e.target.value);
@@ -337,7 +397,7 @@ export function NoteEditor({ note, start }: Props) {
   );
 
   return (
-    <div className="max-w-[760px] pb-28 md:pb-16">
+    <PageContainer className="pb-28 md:pb-16">
       <header className="mb-4 flex items-center gap-2">
         <Link
           href={project && !note ? `/projects/${project.id}` : "/notes"}
@@ -423,6 +483,16 @@ export function NoteEditor({ note, start }: Props) {
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
+                    onSelect={() => {
+                      afterMenu.current = () => {
+                        generateFocus.current = true;
+                        setGenerateOpen(true);
+                      };
+                    }}
+                  >
+                    Generate with AI
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     disabled={!noteId}
                     title={noteId ? undefined : needsNote}
                     onSelect={() => {
@@ -483,6 +553,19 @@ export function NoteEditor({ note, start }: Props) {
         </div>
       </header>
 
+      {aiEnabled && generateOpen ? (
+        <GeneratePanel
+          target={noteId ? { kind: "note", id: noteId } : { kind: "new" }}
+          hasContext={hasText || title.trim() !== ""}
+          title={!noteId || !title.trim() || title.trim() === "Untitled" ? "on" : "off"}
+          variant="document"
+          autoFocus={generateFocus.current || Boolean(start?.ai)}
+          beforeGenerate={sync.flush}
+          onApply={applyGenerated}
+          onClose={() => setGenerateOpen(false)}
+        />
+      ) : null}
+
       {aiEnabled ? (
         <SummaryPanel
           state={summary.state}
@@ -497,12 +580,12 @@ export function NoteEditor({ note, start }: Props) {
           tone="warning"
           actions={
             <>
-              <button type="button" className={bannerButton} onClick={() => void loadLatest()}>
+              <Button variant="secondary" onClick={() => void loadLatest()}>
                 Load latest
-              </button>
-              <button type="button" className={bannerButton} onClick={() => sync.keepMine()}>
+              </Button>
+              <Button variant="secondary" onClick={() => sync.keepMine()}>
                 Keep mine
-              </button>
+              </Button>
             </>
           }
         >
@@ -514,12 +597,12 @@ export function NoteEditor({ note, start }: Props) {
           tone="info"
           actions={
             <>
-              <button type="button" className={bannerButton} onClick={recoverDraft}>
+              <Button variant="secondary" onClick={recoverDraft}>
                 Recover
-              </button>
-              <button type="button" className={bannerButton} onClick={discardDraft}>
+              </Button>
+              <Button variant="secondary" onClick={discardDraft}>
                 Discard
-              </button>
+              </Button>
             </>
           }
         >
@@ -535,13 +618,9 @@ export function NoteEditor({ note, start }: Props) {
         <Banner
           tone="info"
           actions={
-            <button
-              type="button"
-              className={bannerButton}
-              onClick={() => void toggleArchive(false)}
-            >
+            <Button variant="secondary" onClick={() => void toggleArchive(false)}>
               Unarchive
-            </button>
+            </Button>
           }
         >
           This note is archived.
@@ -552,15 +631,38 @@ export function NoteEditor({ note, start }: Props) {
         key={seed.key}
         initialContent={seed.doc}
         variant="document"
+        writingHelp={aiEnabled}
         label="Note content"
         placeholder="Start writing. The note is created when you type."
         onChange={(doc) => {
           liveDoc.current = doc;
+          setHasText(!isEmptyDoc(doc));
           sync.onDocChange(doc);
+        }}
+        onEditorReady={(editor) => {
+          editorRef.current = editor;
+        }}
+        onEditorDestroy={() => {
+          editorRef.current = null;
         }}
         onBlur={() => void sync.flush()}
         beforeContent={titleField}
       />
+
+      {aiEnabled && !noteId && !generateOpen ? (
+        <p className="mt-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              generateFocus.current = true;
+              setGenerateOpen(true);
+            }}
+          >
+            <Sparkles strokeWidth={1.5} aria-hidden />
+            Write with AI
+          </Button>
+        </p>
+      ) : null}
 
       {aiEnabled ? (
         <TasksPreviewDialog
@@ -580,6 +682,6 @@ export function NoteEditor({ note, start }: Props) {
           onConfirm={createExtractedTasks}
         />
       ) : null}
-    </div>
+    </PageContainer>
   );
 }

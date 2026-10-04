@@ -247,6 +247,127 @@ function classify(fixture: Obj) {
   return { type: "TASK", title: cap(first), confidence: "high" };
 }
 
+// ---- Writing and planning (feature 08) ---------------------------------------------------------
+
+const MARKERS = /\[mock:\w+\]/g;
+const GENERATE_PARAGRAPHS = { SHORT: 1, STANDARD: 3, DETAILED: 6 } as const;
+
+/** A body that uses every block the editor holds, plus a table to prove it is converted. */
+function generateText(fixture: Obj): string {
+  const prompt = clean(str(fixture.prompt).replaceAll(MARKERS, "")) || "Untitled";
+  const length = str(fixture.length) as keyof typeof GENERATE_PARAGRAPHS;
+  const paragraphs = GENERATE_PARAGRAPHS[length] ?? 3;
+  const topic = prompt.slice(0, 80);
+  const extra = Array.from(
+    { length: paragraphs },
+    (_, i) => `Paragraph ${i + 1} of the draft on ${topic}. It stays close to what was asked.`,
+  );
+  return [
+    ...(fixture.withTitle ? [`TITLE: ${cap(topic)}`, ""] : []),
+    `# ${cap(topic)}`,
+    "",
+    "A short overview with **bold**, *italic* and a [link](https://example.com).",
+    "",
+    ...extra.flatMap((p) => [p, ""]),
+    "## Key points",
+    "",
+    "- First point",
+    "  - A nested point",
+    "- Second point",
+    "",
+    "1. Do the first step",
+    "2. Do the second step",
+    "",
+    "## Next steps",
+    "",
+    "- [ ] Confirm the plan",
+    "- [x] Write the draft",
+    "",
+    "> A quote worth keeping.",
+    "",
+    "```ts",
+    "const ready = true;",
+    "```",
+    "",
+    "---",
+    "",
+    "| Item | Owner |",
+    "| --- | --- |",
+    "| Draft | Me |",
+    "",
+  ].join("\n");
+}
+
+function planText(fixture: Obj): string {
+  const candidates = Array.isArray(fixture.candidates) ? (fixture.candidates as Obj[]) : [];
+  const today = str(fixture.today);
+  const chosen = candidates.slice(0, 5);
+  const reason = (t: Obj) => {
+    const due = str(t.dueDate);
+    if (due && today && due < today) return "Overdue, so it goes first.";
+    if (due && due === today) return "Due today.";
+    return "High priority, worth moving today.";
+  };
+  const lines = [
+    JSON.stringify({ summary: "A short list, oldest first, then what is due today." }),
+  ];
+  chosen.forEach((t, i) => {
+    lines.push(JSON.stringify({ taskId: t.id, reason: reason(t) }));
+    if (i === 0) {
+      // Lines a careless model would write: an id we never sent, and a broken line.
+      lines.push(
+        JSON.stringify({ taskId: "00000000-0000-4000-8000-000000000000", reason: "Not yours." }),
+        '{"taskId": ',
+      );
+    }
+  });
+  return lines.join("\n");
+}
+
+const TYPOS: [RegExp, string][] = [
+  [/\bteh\b/gi, "the"],
+  [/\brecieve\b/gi, "receive"],
+  [/\bdefinately\b/gi, "definitely"],
+  [/\bseperate\b/gi, "separate"],
+  [/\bbecuase\b/gi, "because"],
+  [/\badress\b/gi, "address"],
+];
+
+function editText(fixture: Obj): string {
+  const mode = str(fixture.mode);
+  const text = str(fixture.text).replaceAll(MARKERS, "");
+  const paragraphs = text
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (mode === "IMPROVE") return paragraphs.map((p) => `${p} (improved)`).join("\n\n");
+  if (mode === "SHORTEN") return paragraphs.map((p) => sentences(p)[0] ?? p).join("\n\n");
+  if (mode === "FIX_GRAMMAR") {
+    return paragraphs
+      .map((p) => TYPOS.reduce((acc, [re, to]) => acc.replace(re, to), p))
+      .join("\n\n");
+  }
+  return [
+    "And so the next part follows from what came before it.",
+    "It carries on in the same voice, with one more thought to finish.",
+  ].join("\n\n");
+}
+
+function streamBody(feature: AIFeature, fixture: Obj): string {
+  switch (feature) {
+    case "ASK":
+      return ask(fixture);
+    case "GENERATE_CONTENT":
+      return generateText(fixture);
+    case "PLAN_DAY":
+      return planText(fixture);
+    case "EDIT_SELECTION":
+      return editText(fixture);
+    default:
+      return summarize(fixture);
+  }
+}
+
 function structured(feature: AIFeature, fixture: Obj): unknown {
   switch (feature) {
     case "EXTRACT_TASKS":
@@ -294,7 +415,7 @@ export function createMockProvider(): AIProvider {
 
     streamText(options): TextStream {
       const fixture = (options.fixture ?? {}) as Obj;
-      const text = options.feature === "ASK" ? ask(fixture) : summarize(fixture);
+      const text = streamBody(options.feature, fixture);
       let outputTokens = 0;
       let finish: (u: { inputTokens: number; outputTokens: number }) => void = () => {};
       const usage = new Promise<{ inputTokens: number; outputTokens: number }>((resolve) => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { Inbox } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { saveToInbox } from "@/components/command/capture";
@@ -50,6 +51,7 @@ export function InboxCapture() {
           <Kbd>⌘↵</Kbd> to save
         </span>
         <Button onClick={() => void save()} disabled={saving || !text.trim()}>
+          <Inbox strokeWidth={1.5} aria-hidden />
           Capture
         </Button>
       </div>

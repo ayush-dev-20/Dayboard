@@ -544,7 +544,7 @@ components:
     backgroundColor: "{colors.background}"
     textColor: "{colors.foreground}"
     typography: "{typography.note-body}"
-    width: "{spacing.editor-measure}"
+    width: "{spacing.content}"
   command-menu:
     backgroundColor: "{colors.card}"
     textColor: "{colors.foreground}"
@@ -788,7 +788,7 @@ Mobile rules: all form inputs are **16px** (so iOS does not zoom), and body-lg r
 **The inverted L.** At ≥ 1024px the sidebar sits on the ground color and the **main content is an inset panel**: `background`, a 12px radius on its top-left corner, a 1px border, and an 8px gap from the window's top and right edges. The panel scrolls; the sidebar does not. Chrome is quiet, content stands out. Below 1024px there is no inset panel: the sidebar becomes a sheet (768–1023px) and a bottom nav replaces it on phones.
 
 - **Sidebar 240px**, collapsible to a **56px icon rail** (button and `⌘\`; remembered in a cookie so the server renders the right width with no jump; 150ms tooltips name each icon on the rail). Grouped in product-spec order: _Plan_ (Today, Inbox, Tasks), _Library_ (Notes, Projects, with up to five active projects and "All projects" beneath), then Search, Trash, Settings. The account block (avatar, name, theme) sits at the bottom. Icons and text are muted until hovered or active.
-- **Widths.** `content` 960px (Tasks, Inbox, Search, Trash, Settings), `wide` 1200px (Today, the Projects grid, the Notes grid), `editor-measure` 760px (the note editor). The column is **centered in the panel**; text inside stays left-aligned. When the task sheet is open the column left-aligns so the list stays put.
+- **Widths.** `content` 960px (Tasks, Inbox, Search, Trash, Settings), `wide` 1200px (Today, the Projects grid, the Notes grid), `editor-measure` 760px (only the legal pages' reading column; the note editor uses `content`, like every other page). The column is **centered in the panel**; text inside stays left-aligned. When the task sheet is open the column left-aligns so the list stays put.
 - **Today at ≥ 1280px** has two columns: main (≤ 720px) and a 320px right rail. Below that the rail stacks under the main column.
 - **Page header.** Every page uses the one shared `PageHeader`: title (`headline-lg`), a meta line (a count), right-aligned actions. It is **sticky** on an opaque `background` (≥ 90%), and a hairline appears under it only once the page has scrolled. Pages never hand-roll a header.
 - **Top bar 48px:** the search/command trigger with its `⌘K` kbd, Quick capture, account. A rule and a row, not a filled bar.
@@ -882,7 +882,7 @@ Keyboard is a design surface. Shortcuts are visible where they apply as `kbd` ch
 
 **Projects.** A card grid (one column on phones, two at ≥ 768px, three at ≥ 1280px), grouped by status (Archived collapsed). Project detail keeps its editable name, description, progress and lists.
 
-**Notes.** A **list / grid** toggle (list by default; `?view=grid` in the URL). The note editor keeps its 760px column: back or project breadcrumb, save state, linked tasks, overflow; title in `note-title`; body in `note-body`. Save state is text only ("Saving…", "Saved", "Not saved, retrying").
+**Notes.** A **list / grid** toggle (list by default; `?view=grid` in the URL). The note editor uses the same centered 960px `content` column as the other pages: back or project breadcrumb, save state, linked tasks, overflow; title in `note-title`; body in `note-body`. Save state is text only ("Saving…", "Saved", "Not saved, retrying").
 
 **Inbox.** A prominent capture box, then open items newest first as rows with a quiet AI suggestion line beneath when there is one. Converted items collapse under "Recently converted".
 

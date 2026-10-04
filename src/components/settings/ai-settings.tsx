@@ -70,6 +70,11 @@ export function AiSettings({ initialEnabled, available, provider, used, limit }:
           and the daily suggestion. Nothing is created or changed until you confirm it. Deleted
           accounts may remain in backups until they rotate out.
         </p>
+        <p className="mt-3 max-w-xl type-body-md text-foreground">
+          Generating content also sends your prompt and, if you allow it, the note or task you’re
+          working in. Planning sends the titles of your overdue and due tasks. Writing help sends
+          only the text you select.
+        </p>
         {provider === "gemini" ? (
           <p className="mt-3 max-w-xl type-body-md text-foreground">
             This server uses Google’s free Gemini tier. Google may use content sent on the free tier

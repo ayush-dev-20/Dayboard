@@ -1,5 +1,6 @@
 "use client";
 
+import { LogIn } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
@@ -138,6 +139,7 @@ export function SignInForm({ next, providers, notice }: Props) {
         </div>
 
         <Button type="submit" className="w-full" disabled={pending}>
+          <LogIn strokeWidth={1.5} aria-hidden />
           {pending ? "Signing in…" : "Sign in"}
         </Button>
       </form>

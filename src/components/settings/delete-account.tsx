@@ -1,5 +1,6 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteAccount } from "@/actions/settings";
@@ -66,6 +67,7 @@ export function DeleteAccount({ email, hasPassword, linkedProviders, defaultOpen
         description="Removes your account and all tasks, todos, notes, projects and tags. This can’t be undone."
       >
         <Button variant="destructive" onClick={() => setStep("confirm")}>
+          <Trash2 strokeWidth={1.5} aria-hidden />
           Delete account
         </Button>
       </SettingsRow>

@@ -14,6 +14,14 @@ Build them in order. Each feature leaves the app runnable and depends only on fe
 | 06 | [Production & DevOps](06-production-devops.md) | Docker, Compose, Caddy, CI/CD, migrations, backups, rollback, logging | 01 (starts early, see note) |
 | 07 | [UI Modernization](07-ui-modernization.md) | DESIGN.md update, new tokens and depth, inset layout, Today and screen rebuilds, motion, inline AI styling, landing page, auth, onboarding, empty states, visual and accessibility tests | 01–05 (independent of 06) |
 
+### Miscellaneous (after 05)
+
+Self-contained additions that extend a finished feature. Each lives in [miscellaneous/](miscellaneous/) and uses the same structure.
+
+| Feature | Covers | Depends on |
+| --- | --- | --- |
+| [AI Writing and Planning](miscellaneous/ai-writing-and-planning.md) | Generate with AI (notes and task descriptions), Plan my day, Writing help in notes; all streamed | 01–05 (uses 07's design system) |
+
 **Note on 06:** Deployment is a learning goal, so don't leave it to the end. Start the Dockerfile and local Compose during 01, and add CI once 02 lands. Finish CD, backups and rollback after 05. See the milestones in [06-production-devops.md](06-production-devops.md).
 
 ## How to use these docs

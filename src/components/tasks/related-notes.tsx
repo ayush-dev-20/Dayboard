@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { FileText, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { findNotesToLink, linkTaskNote, unlinkTaskNote } from "@/actions/notes";
@@ -15,8 +16,7 @@ type Props = {
   onChange: (notes: NoteRefDTO[]) => void;
 };
 
-const linkButton =
-  "type-body-md text-primary underline underline-offset-2 hover:text-primary-strong";
+const linkButton = buttonVariants({ variant: "secondary" });
 
 /** Notes linked to this task: chips that open the note, plus "Link note" and "New linked note". */
 export function RelatedNotes({ taskId, notes, onChange }: Props) {
@@ -100,7 +100,7 @@ export function RelatedNotes({ taskId, notes, onChange }: Props) {
         ))}
 
         <Popover open={open} onOpenChange={onOpenChange}>
-          <PopoverTrigger className={`${linkButton} min-h-11 md:min-h-8`}>Link note</PopoverTrigger>
+          <PopoverTrigger className={linkButton}>Link note</PopoverTrigger>
           <PopoverContent className="w-72 p-1" onKeyDown={handlePickerKeys}>
             <label className="relative block p-1">
               <span className="sr-only">Search your notes</span>
@@ -137,10 +137,7 @@ export function RelatedNotes({ taskId, notes, onChange }: Props) {
           </PopoverContent>
         </Popover>
 
-        <Link
-          href={`/notes/new?task=${taskId}`}
-          className={`${linkButton} inline-flex min-h-11 items-center md:min-h-8`}
-        >
+        <Link href={`/notes/new?task=${taskId}`} className={linkButton}>
           New linked note
         </Link>
       </div>

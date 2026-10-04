@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import {
@@ -74,13 +75,13 @@ export function TaskFilters({ params }: { params: TasksParams }) {
             Show archived
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={() => go({ statuses: [...OPEN_STATUSES], archived: false })}
-            className="px-8 py-2 text-left type-body-md text-primary underline underline-offset-2"
+            className="mx-2 my-1 w-[calc(100%-1rem)]"
           >
             Clear status filter
-          </button>
+          </Button>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -148,13 +149,9 @@ export function TaskFilters({ params }: { params: TasksParams }) {
       </DropdownMenu>
 
       {params.projectId || params.tagId ? (
-        <button
-          type="button"
-          onClick={() => go({ projectId: null, tagId: null })}
-          className="px-2 type-body-md text-primary underline underline-offset-2"
-        >
+        <Button variant="secondary" onClick={() => go({ projectId: null, tagId: null })}>
           Clear filters
-        </button>
+        </Button>
       ) : null}
 
       <span className="ml-auto type-body-sm text-muted-foreground">Sorted by your order</span>

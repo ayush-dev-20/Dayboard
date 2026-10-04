@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CircleAlert } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { saveToInbox } from "./capture";
 import { Button } from "@/components/ui/button";
@@ -70,13 +70,9 @@ export function CaptureBox({
         >
           <CircleAlert className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
           <p className="flex-1">Could not save. Your text is still here.</p>
-          <button
-            type="button"
-            onClick={() => void save()}
-            className="type-label-md underline underline-offset-2"
-          >
+          <Button variant="secondary" onClick={() => void save()}>
             Retry
-          </button>
+          </Button>
         </div>
       ) : null}
       <div className="mt-3 flex items-center justify-between">
@@ -88,6 +84,7 @@ export function CaptureBox({
           <Kbd>Esc</Kbd> close
         </button>
         <Button onClick={() => void save()} disabled={saving || !text.trim()}>
+          <Check strokeWidth={1.5} aria-hidden />
           Save{" "}
           <span className="max-md:hidden">
             <Kbd className="bg-primary-strong text-primary-foreground">⌘↵</Kbd>

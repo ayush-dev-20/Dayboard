@@ -306,7 +306,7 @@ export function RepeatPicker({ rule, dueDate, onChange }: RepeatPickerProps) {
                   disabled={disabled && row.preset !== "never"}
                   onClick={() => choose(row.preset)}
                   className={cn(
-                    "flex h-11 w-full items-center justify-between gap-3 rounded-md px-3 text-left type-body-md md:h-8",
+                    "flex min-h-11 w-full items-center justify-between gap-3 rounded-md px-3 py-1 text-left type-body-md md:min-h-8",
                     "hover:bg-accent disabled:opacity-60",
                     selected && "bg-primary-subtle",
                   )}

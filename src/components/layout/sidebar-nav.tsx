@@ -35,14 +35,22 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
   const pathname = usePathname();
   const command = useCommandMenu();
   const { counts, projects } = useWorkspace();
-  const { collapsed: collapsedState, toggle } = useSidebar();
+  const { collapsed: collapsedState, toggle, toggled } = useSidebar();
   const collapsed = collapsible && collapsedState;
   const countFor: Record<string, number> = { "/today": counts.today, "/inbox": counts.inbox };
   const active = projects.filter((p) => p.status === "ACTIVE");
   const shown = active.slice(0, SIDEBAR_PROJECTS);
+  // Labels fade in as the sidebar opens (never on first load), while the width eases open.
+  const fade =
+    toggled && !collapsed ? "animate-in fade-in-0 duration-200 motion-reduce:animate-none" : "";
 
   return (
-    <div className={cn("flex h-full flex-col py-4", collapsed ? "items-center px-2" : "px-3")}>
+    <div
+      className={cn(
+        "flex h-full flex-col py-4 whitespace-nowrap",
+        collapsed ? "items-center px-2" : "px-3",
+      )}
+    >
       <div className={cn("mb-4 flex items-center", collapsed ? "flex-col gap-2" : "gap-2 px-2")}>
         <Link
           href="/today"
@@ -52,7 +60,12 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
         >
           <BrandMark className="size-6 shrink-0" />
           {collapsed ? null : (
-            <span className="truncate text-[17px] font-semibold tracking-tight text-foreground">
+            <span
+              className={cn(
+                "truncate text-[17px] font-semibold tracking-tight text-foreground",
+                fade,
+              )}
+            >
               Dayboard
             </span>
           )}
@@ -108,7 +121,7 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
               )}
             >
               <Plus className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-              {collapsed ? null : action.label}
+              {collapsed ? null : <span className={fade}>{action.label}</span>}
             </button>
           </Tooltip>
         ))}
@@ -121,7 +134,9 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
         {NAV_GROUPS.map((group, index) => (
           <div key={group.label ?? "more"} className={cn(index > 0 && "mt-4")}>
             {group.label && !collapsed ? (
-              <p className="mb-1 px-2 type-label-caps text-muted-foreground">{group.label}</p>
+              <p className={cn("mb-1 px-2 type-label-caps text-muted-foreground", fade)}>
+                {group.label}
+              </p>
             ) : index > 0 && collapsed ? (
               <div aria-hidden className="mx-auto mb-4 h-px w-6 bg-border" />
             ) : null}
@@ -156,9 +171,11 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                           ) : null
                         ) : (
                           <>
-                            {label}
+                            <span className={fade}>{label}</span>
                             {count ? (
-                              <span className="ml-auto type-data-sm text-muted-foreground">
+                              <span
+                                className={cn("ml-auto type-data-sm text-muted-foreground", fade)}
+                              >
                                 <span className="sr-only">, </span>
                                 <Counter value={count} />
                               </span>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Mail } from "lucide-react";
 import { useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ export function ForgotPasswordForm() {
           )}
         </Field>
         <Button type="submit" className="w-full" disabled={pending}>
+          <Mail strokeWidth={1.5} aria-hidden />
           {pending ? "Sending…" : "Send reset link"}
         </Button>
       </form>

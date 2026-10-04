@@ -116,13 +116,13 @@ function TagRow({
                     onChange={(color) => void changeColor(color)}
                   />
                   {tag.color ? (
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
                       onClick={() => void changeColor(null)}
-                      className="mt-2 type-body-sm text-primary underline underline-offset-2"
+                      className="mt-2"
                     >
                       Remove colour
-                    </button>
+                    </Button>
                   ) : null}
                 </PopoverContent>
               </Popover>

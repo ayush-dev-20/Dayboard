@@ -13,7 +13,7 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 /**
  * Nothing is saved here until the first keystroke. `?project=<id>` starts the note inside a
  * project, `?task=<id>` links it to a task as it is created. An id that isn't the person's own is
- * simply ignored.
+ * simply ignored. `?ai=1` opens Generate with AI on the page (still nothing saved until Create note).
  */
 export default async function NewNotePage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser({ redirect: true });
@@ -31,5 +31,5 @@ export default async function NewNotePage({ searchParams }: { searchParams: Sear
       ? taskParam
       : null;
 
-  return <NoteEditor note={null} start={{ project, linkTaskId }} />;
+  return <NoteEditor note={null} start={{ project, linkTaskId, ai: first(raw.ai) === "1" }} />;
 }

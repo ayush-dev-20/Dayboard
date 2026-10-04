@@ -84,20 +84,12 @@ export function InboxAi({
           <span className="type-body-md">
             Looks like {LOOKS_LIKE[suggestion.type]}: “{suggestion.title}”
           </span>
-          <button
-            type="button"
-            onClick={() => setConverting(suggestion)}
-            className="type-body-md text-primary underline"
-          >
+          <Button variant="secondary" onClick={() => setConverting(suggestion)}>
             {CREATE_LABEL[suggestion.type]}
-          </button>
-          <button
-            type="button"
-            onClick={() => void dismiss()}
-            className="type-body-md text-primary underline"
-          >
+          </Button>
+          <Button variant="secondary" onClick={() => void dismiss()}>
             Dismiss
-          </button>
+          </Button>
         </div>
       ) : classify.state.status === "generating" ? (
         <p role="status" className="type-label-caps text-muted-foreground">

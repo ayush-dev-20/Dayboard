@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/layout/empty-state";
 import { SearchResult } from "@/components/search/search-result";
 import { SearchBox, SearchFilters } from "@/components/search/search-controls";
@@ -70,7 +71,7 @@ export default async function SearchPage({ searchParams }: { searchParams: NextS
             {filtered ? (
               <Link
                 href={buildSearchUrl({ q: params.q, tab: params.tab })}
-                className="type-body-md text-primary underline underline-offset-2"
+                className={buttonVariants({ variant: "secondary" })}
               >
                 Clear filters
               </Link>

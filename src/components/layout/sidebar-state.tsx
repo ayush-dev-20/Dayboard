@@ -8,9 +8,18 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 export const SIDEBAR_COOKIE = "sidebar_collapsed";
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-type SidebarState = { collapsed: boolean; toggle: () => void };
+type SidebarState = {
+  collapsed: boolean;
+  toggle: () => void;
+  /** True once the person has toggled the sidebar, so labels fade in only then (not on page load). */
+  toggled: boolean;
+};
 
-const SidebarContext = createContext<SidebarState>({ collapsed: false, toggle: () => {} });
+const SidebarContext = createContext<SidebarState>({
+  collapsed: false,
+  toggle: () => {},
+  toggled: false,
+});
 
 export function SidebarProvider({
   initialCollapsed,
@@ -20,8 +29,10 @@ export function SidebarProvider({
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [toggled, setToggled] = useState(false);
 
   const toggle = useCallback(() => {
+    setToggled(true);
     setCollapsed((was) => {
       const next = !was;
       document.cookie = `${SIDEBAR_COOKIE}=${next ? "1" : "0"}; path=/; max-age=${ONE_YEAR}; samesite=lax`;
@@ -29,7 +40,7 @@ export function SidebarProvider({
     });
   }, []);
 
-  const value = useMemo(() => ({ collapsed, toggle }), [collapsed, toggle]);
+  const value = useMemo(() => ({ collapsed, toggle, toggled }), [collapsed, toggle, toggled]);
   return <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>;
 }
 

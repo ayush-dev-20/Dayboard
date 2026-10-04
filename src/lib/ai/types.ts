@@ -10,6 +10,9 @@ export const AI_FEATURES = [
   "OVERDUE_CLEANUP",
   "TASK_ASSIST",
   "CLASSIFY_INBOX",
+  "GENERATE_CONTENT",
+  "PLAN_DAY",
+  "EDIT_SELECTION",
 ] as const;
 export type AIFeature = (typeof AI_FEATURES)[number];
 
@@ -26,10 +29,33 @@ export const TASK_ASSIST_MODES = [
 ] as const;
 export type TaskAssistMode = (typeof TASK_ASSIST_MODES)[number];
 
-/** Events on the streamed routes (summarize and ask), one JSON object per line. */
+export const GENERATE_LENGTHS = ["SHORT", "STANDARD", "DETAILED"] as const;
+export type GenerateLength = (typeof GENERATE_LENGTHS)[number];
+
+export const EDIT_MODES = ["IMPROVE", "SHORTEN", "FIX_GRAMMAR", "CONTINUE"] as const;
+export type EditMode = (typeof EDIT_MODES)[number];
+
+/** One task in a streamed day plan. Everything but `reason` comes from our own data, not the model. */
+export type PlanProposal = {
+  taskId: string;
+  title: string;
+  emoji: string | null;
+  /** "YYYY-MM-DD" or null. */
+  dueDate: string | null;
+  priority: "NONE" | "LOW" | "MEDIUM" | "HIGH";
+  project: string | null;
+  reason: string;
+};
+
+/** Events on the streamed routes, one JSON object per line. */
 export type StreamEvent =
   | { type: "text"; delta: string }
   | { type: "sources"; sources: AskSource[]; quotes: string[] }
+  /** Generate: the suggested note title, sent once, before the body. */
+  | { type: "title"; text: string }
+  /** Plan my day: the one-sentence summary, then one proposal per valid task. */
+  | { type: "summary"; text: string }
+  | { type: "proposal"; item: PlanProposal }
   | { type: "error"; message: string; code: string }
   | { type: "done" };
 

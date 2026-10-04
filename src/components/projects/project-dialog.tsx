@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, FolderPlus } from "lucide-react";
 import { useState } from "react";
 import { createProject, updateProject } from "@/actions/projects";
 import { Alert } from "@/components/ui/alert";
@@ -142,6 +143,11 @@ function ProjectForm({
           <Button variant="secondary">Cancel</Button>
         </DialogClose>
         <Button type="submit" disabled={pending}>
+          {project ? (
+            <Check strokeWidth={1.5} aria-hidden />
+          ) : (
+            <FolderPlus strokeWidth={1.5} aria-hidden />
+          )}
           {pending ? "Saving…" : project ? "Save" : "Create project"}
         </Button>
       </DialogFooter>

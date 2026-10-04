@@ -89,9 +89,9 @@ export function useAutosave<T>({ save, delayMs = 800 }: Options<T>) {
   );
 
   /** Save right now (for example when the editor loses focus or the sheet closes). */
-  const flush = useCallback(() => {
+  const flush = useCallback((): Promise<void> => {
     if (timer.current) clearTimeout(timer.current);
-    if (latest.current) void run();
+    return latest.current ? run() : Promise.resolve();
   }, [run]);
 
   useEffect(() => {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronDown, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -247,7 +247,7 @@ export function SearchFilters({ params, today }: { params: SearchParams; today: 
       {filtered ? (
         <Link
           href={buildSearchUrl({ q: params.q, tab: params.tab })}
-          className="px-2 type-body-md text-primary underline underline-offset-2"
+          className={buttonVariants({ variant: "secondary" })}
         >
           Clear filters
         </Link>

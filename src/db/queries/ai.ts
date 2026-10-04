@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { searchWorkspace } from "@/db/queries/search";
 import { aiDailySuggestions, inboxItems, notes, projects, tags, tasks, todos } from "@/db/schema";
@@ -12,6 +12,7 @@ import {
   type RankedCandidate,
 } from "@/lib/ai/context";
 import type { DailyStats } from "@/lib/ai/prompts";
+import type { PlanProposal } from "@/lib/ai/types";
 import { bucketToday } from "@/lib/today/buckets";
 import { OPEN_STATUSES } from "@/lib/tasks/status";
 
@@ -318,4 +319,101 @@ export async function loadContextItems(
       },
     ];
   });
+}
+
+/** Most tasks of each kind that Plan my day looks at, and in all (feature 08 §6.1). */
+export const PLAN_LIMITS = { overdue: 15, dueToday: 15, high: 10, total: 40 } as const;
+
+export type PlanCandidateRow = Omit<PlanProposal, "reason"> & {
+  status: string;
+  subtasksDone: number;
+  subtasksTotal: number;
+};
+
+/**
+ * The tasks Plan my day may choose from: open, top-level, not archived, and either overdue (oldest
+ * first), due today, or high priority with no date or a later one. Owner-scoped. The titles are
+ * sent to the model and shown back from here, so the model can never change one.
+ */
+export async function loadPlanCandidates(
+  userId: string,
+  prefs: DayPrefs,
+): Promise<PlanCandidateRow[]> {
+  const today = getUserToday(prefs);
+  const base = and(
+    eq(tasks.userId, userId),
+    isNull(tasks.deletedAt),
+    isNull(tasks.archivedAt),
+    isNull(tasks.parentTaskId),
+    open,
+  );
+  const columns = {
+    id: tasks.id,
+    title: tasks.title,
+    emoji: tasks.emoji,
+    status: tasks.status,
+    priority: tasks.priority,
+    dueDate: tasks.dueDate,
+    dueTime: tasks.dueTime,
+    project: projects.name,
+  };
+
+  const [dated, high] = await Promise.all([
+    db
+      .select(columns)
+      .from(tasks)
+      .leftJoin(projects, eq(projects.id, tasks.projectId))
+      .where(and(base, isNotNull(tasks.dueDate), lte(tasks.dueDate, today)))
+      .orderBy(asc(tasks.dueDate), asc(tasks.sortOrder))
+      .limit(200),
+    db
+      .select(columns)
+      .from(tasks)
+      .leftJoin(projects, eq(projects.id, tasks.projectId))
+      .where(
+        and(base, eq(tasks.priority, "HIGH"), or(isNull(tasks.dueDate), gt(tasks.dueDate, today))),
+      )
+      .orderBy(sql`${tasks.dueDate} asc nulls last`, asc(tasks.sortOrder))
+      .limit(PLAN_LIMITS.high),
+  ]);
+
+  const buckets = bucketToday(dated, prefs);
+  const picked = [
+    ...buckets.overdue.slice(0, PLAN_LIMITS.overdue),
+    ...[...buckets.today, ...buckets.later].slice(0, PLAN_LIMITS.dueToday),
+    ...high,
+  ].slice(0, PLAN_LIMITS.total);
+  if (picked.length === 0) return [];
+
+  const subs = await db
+    .select({
+      parent: tasks.parentTaskId,
+      total: sql<number>`count(*)::int`,
+      done: sql<number>`(count(*) filter (where ${tasks.status} = 'DONE'))::int`,
+    })
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        isNull(tasks.deletedAt),
+        inArray(
+          tasks.parentTaskId,
+          picked.map((t) => t.id),
+        ),
+      ),
+    )
+    .groupBy(tasks.parentTaskId);
+  const counts = new Map(subs.map((r) => [r.parent, r]));
+
+  return picked.map((t) => ({
+    taskId: t.id,
+    title: t.title,
+    emoji: t.emoji,
+    status: t.status,
+    priority: t.priority,
+    dueDate: t.dueDate,
+    project: t.project,
+    subtasksDone: counts.get(t.id)?.done ?? 0,
+    subtasksTotal: counts.get(t.id)?.total ?? 0,
+  }));
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { completeOnboarding } from "@/actions/onboarding";
@@ -247,6 +247,7 @@ export function OnboardingForm({ initialName, initialTheme, initialStartOfDay, n
         {step < STEPS.length - 1 ? (
           <Button type="submit" className="w-full" disabled={pending}>
             Next
+            <ArrowRight strokeWidth={1.5} aria-hidden />
           </Button>
         ) : null}
         <Button
