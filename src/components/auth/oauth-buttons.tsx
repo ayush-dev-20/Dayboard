@@ -8,13 +8,40 @@ export type OAuthProvider = "google" | "github";
 
 const LABELS: Record<OAuthProvider, string> = { google: "Google", github: "GitHub" };
 
-// Official marks from Simple Icons 16.33.0 (CC0), drawn in the button's own text color.
-const MARKS: Record<OAuthProvider, string> = {
-  google:
-    "M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z",
-  github:
-    "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12",
-};
+// Official marks. Google's "G" keeps its four brand colors (Google's sign-in guidelines ask for it);
+// GitHub's mark is Simple Icons 16.33.0 (CC0), drawn in the button's own text color.
+const GOOGLE_PATHS = [
+  {
+    fill: "#4285F4",
+    d: "M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z",
+  },
+  {
+    fill: "#34A853",
+    d: "M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z",
+  },
+  {
+    fill: "#FBBC05",
+    d: "M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z",
+  },
+  {
+    fill: "#EA4335",
+    d: "M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z",
+  },
+];
+const GITHUB_PATH =
+  "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12";
+
+function ProviderMark({ provider }: { provider: OAuthProvider }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="size-5 shrink-0 fill-current">
+      {provider === "google" ? (
+        GOOGLE_PATHS.map((p) => <path key={p.fill} fill={p.fill} d={p.d} />)
+      ) : (
+        <path d={GITHUB_PATH} />
+      )}
+    </svg>
+  );
+}
 
 type Props = {
   providers: OAuthProvider[];
@@ -50,7 +77,7 @@ export function OAuthButtons({ providers, callbackURL, onError }: Props) {
           <Button
             key={provider}
             variant="secondary"
-            className="h-11 w-full gap-2.5 border border-border"
+            className="h-11 w-full gap-3 border border-border px-5 [&_svg]:size-5"
             disabled={pending !== null}
             aria-busy={pending === provider}
             onClick={() => start(provider)}
@@ -61,9 +88,7 @@ export function OAuthButtons({ providers, callbackURL, onError }: Props) {
                 className="size-4 animate-spin rounded-full border-2 border-current border-r-transparent"
               />
             ) : (
-              <svg viewBox="0 0 24 24" aria-hidden className="size-4 fill-current">
-                <path d={MARKS[provider]} />
-              </svg>
+              <ProviderMark provider={provider} />
             )}
             {pending === provider ? "Redirecting…" : `Continue with ${LABELS[provider]}`}
           </Button>
