@@ -1,33 +1,17 @@
 import { cn } from "@/lib/utils";
 
 /**
- * The Dayboard mark: a sun rising over a ruled line, on an ink square. In-house SVG, one accent,
- * readable at 16px. The same drawing is in public/brand/ and src/app/icon.svg.
+ * The Dayboard mark (concept "Sunrise", designs/v2/logo-concepts/a-sunrise.svg): a solid sun
+ * rising over a ruled line, on an ink square. The same drawing is in public/brand/ and
+ * src/app/icon.svg. It keeps its own colours in both themes, so it never changes with the theme.
  */
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className={cn("size-6", className)}>
-      <rect x="1" y="1" width="22" height="22" rx="6" fill="var(--primary)" />
-      <path
-        d="M7.25 14.5a4.75 4.75 0 0 1 9.5 0"
-        fill="none"
-        stroke="var(--primary-foreground)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 14.5h14"
-        stroke="var(--primary-foreground)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M8 18.25h8"
-        stroke="var(--primary-foreground)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        opacity="0.7"
-      />
+    <svg viewBox="0 0 64 64" aria-hidden className={cn("size-6", className)}>
+      <rect x="2" y="2" width="60" height="60" rx="15" fill="#1c5687" />
+      <path d="M17 38a15 15 0 0 1 30 0z" fill="#faf8f2" />
+      <path d="M11 41.5H53" stroke="#faf8f2" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M21 50H43" stroke="#faf8f2" strokeWidth="2.75" strokeLinecap="round" opacity="0.7" />
     </svg>
   );
 }
