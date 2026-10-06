@@ -1,3 +1,4 @@
+import { TABLE_MAX_COLUMNS, TABLE_MAX_ROWS } from "./limits";
 import { isAllowedLink, MAX_DOC_BYTES, sanitizeDoc } from "./schema";
 import type { TiptapDoc, TiptapMark, TiptapNode } from "./types";
 
@@ -352,26 +353,27 @@ function splitRow(line: string): string[] {
     .map((cell) => cell.trim());
 }
 
-/** A table has no node in the editor: a bold header line, then one list item per row. */
+/**
+ * A pipe table becomes a real table (V2 feature 01): the first row is the header. Rows are made the
+ * same width, and a table over the limits keeps its first columns and rows.
+ */
 function convertTable(rows: string[]): TiptapNode[] {
-  const [header, ...body] = rows.map(splitRow);
-  const out: TiptapNode[] = [];
-  const head = (header ?? []).filter(Boolean).join(" · ");
-  if (head) {
-    out.push({
-      type: "paragraph",
-      content: [{ type: "text", text: head, marks: [{ type: "bold" }] }],
-    });
-  }
-  const items = body
-    .map((cells) => cells.filter(Boolean).join(" · "))
-    .filter(Boolean)
-    .map((text) => ({
-      type: "listItem",
-      content: [{ type: "paragraph", content: parseInline(text) }],
-    }));
-  if (items.length > 0) out.push({ type: "bulletList", content: items });
-  return out;
+  const parsed = rows.map(splitRow).slice(0, TABLE_MAX_ROWS);
+  const width = Math.min(Math.max(...parsed.map((cells) => cells.length), 1), TABLE_MAX_COLUMNS);
+  const cell = (type: "tableHeader" | "tableCell", text: string): TiptapNode => ({
+    type,
+    content: [{ type: "paragraph", ...(text ? { content: parseInline(text) } : {}) }],
+  });
+  const table: TiptapNode = {
+    type: "table",
+    content: parsed.map((cells, index) => ({
+      type: "tableRow",
+      content: Array.from({ length: width }, (_, column) =>
+        cell(index === 0 ? "tableHeader" : "tableCell", cells[column] ?? ""),
+      ),
+    })),
+  };
+  return [table];
 }
 
 function parseBlocks(lines: string[], partialLast: boolean, quoteDepth = 0): TiptapNode[] {

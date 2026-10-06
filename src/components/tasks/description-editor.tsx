@@ -117,6 +117,8 @@ export function DescriptionEditor({
         onEditorDestroy={() => {
           editorRef.current = null;
         }}
+        surface="task"
+        ownerId={taskId}
         label="Task description"
         placeholder="Add details…"
       />

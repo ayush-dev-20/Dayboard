@@ -33,6 +33,24 @@ function blockLines(node: TiptapNode, listPrefix = ""): string[] {
     }
     case "listItem":
       return flattenItem(node, listPrefix);
+    // V2 feature 01. Words only: no emoji, no pipes, closed toggles included, no contents list.
+    case "callout":
+    case "toggle":
+    case "toggleContent":
+      return (node.content ?? []).flatMap((child) => blockLines(child));
+    case "toggleSummary": {
+      const text = inlineText(node);
+      return text.split("\n").map((line) => line.trim());
+    }
+    case "table":
+      return (node.content ?? [])
+        .map((row) =>
+          (row.content ?? [])
+            .map((cell) => inlineText(cell).replace(/\s+/g, " ").trim())
+            .filter(Boolean)
+            .join(" "),
+        )
+        .filter(Boolean);
     default:
       return [];
   }

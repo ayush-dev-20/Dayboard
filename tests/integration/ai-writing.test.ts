@@ -147,7 +147,7 @@ describe("the new routes' pipeline", () => {
     const rows = (await usageRows(person.id)).sort((a, b) => a.feature.localeCompare(b.feature));
     expect(rows.map((r) => [r.feature, r.status, r.promptVersion])).toEqual([
       ["EDIT_SELECTION", "SUCCESS", "EDIT_SELECTION_V1"],
-      ["GENERATE_CONTENT", "SUCCESS", "GENERATE_CONTENT_V1"],
+      ["GENERATE_CONTENT", "SUCCESS", "GENERATE_CONTENT_V2"],
     ]);
     expect(JSON.stringify(rows)).not.toContain("secret");
   });

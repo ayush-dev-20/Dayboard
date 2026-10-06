@@ -51,8 +51,8 @@ test.describe("Generate with AI", () => {
 
     await generate(page, "Acme rebrand brief");
 
-    // Formatted like the editor: heading, lists, checklist, quote, code, divider. A table is
-    // converted, never shown.
+    // Formatted like the editor: heading, lists, checklist, quote, code, divider. A pipe table
+    // becomes a real table.
     const preview = draft(page);
     await expect(
       preview.getByRole("heading", { name: "Acme rebrand brief", level: 1 }),
@@ -63,7 +63,7 @@ test.describe("Generate with AI", () => {
     await expect(preview.locator("blockquote")).toBeVisible();
     await expect(preview.locator("pre code")).toContainText("const ready = true;");
     await expect(preview.locator("hr")).toBeVisible();
-    await expect(preview.locator("table")).toHaveCount(0);
+    await expect(preview.locator("table")).toHaveCount(1);
     await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Acme rebrand brief");
     await expect(page.getByText("TITLE:")).toHaveCount(0);
 
@@ -552,7 +552,7 @@ test.describe("failures, limits, stopping and switching AI off", () => {
     expect(notes).toHaveLength(1);
     expect(notes[0]!.content_text).toContain("Quarterly goals");
     // Stopped before the end: the last block of the full draft isn't there.
-    expect(notes[0]!.content_text).not.toContain("Draft · Me");
+    expect(notes[0]!.content_text).not.toContain("Draft Me");
     await expect
       .poll(async () =>
         (await aiUsageOf(user.id))

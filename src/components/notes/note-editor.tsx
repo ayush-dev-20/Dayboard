@@ -632,6 +632,8 @@ export function NoteEditor({ note, start }: Props) {
         initialContent={seed.doc}
         variant="document"
         writingHelp={aiEnabled}
+        surface="note"
+        ownerId={noteId}
         label="Note content"
         placeholder="Start writing. The note is created when you type."
         onChange={(doc) => {

@@ -84,6 +84,7 @@ const TINTS: Record<Mode, Record<string, Tint>> = {
     warning: { l: 0.481, c: 0.1, hue: 72 },
     "warning-subtle": { l: 0.941, c: 0.045, hue: 86 },
     success: { l: 0.461, c: 0.09, hue: 150 },
+    "success-subtle": { l: 0.94, c: 0.04, hue: 150 },
     "ai-surface": { l: 0.965, c: 0.12, hue: "accent", dh: -6 },
     "ai-border": { l: 0.885, c: 0.3, hue: "accent", dh: -6 },
     "landing-wash": { l: 0.935, c: 0.3, hue: "accent", dh: -8 },
@@ -97,6 +98,7 @@ const TINTS: Record<Mode, Record<string, Tint>> = {
     warning: { l: 0.781, c: 0.1, hue: 78 },
     "warning-subtle": { l: 0.301, c: 0.05, hue: 80 },
     success: { l: 0.759, c: 0.1, hue: 150 },
+    "success-subtle": { l: 0.28, c: 0.045, hue: 150 },
     // Low chroma on purpose: a hint of ink over charcoal, never navy.
     "ai-surface": { l: 0.24, c: 0.1, hue: "accent", dh: -4 },
     "ai-border": { l: 0.36, c: 0.22, hue: "accent", dh: -4 },
@@ -194,7 +196,14 @@ export function contrastPairs(mode: Mode): Pair[] {
   };
   add(
     "foreground",
-    [...surfaces, "primary-subtle", "destructive-subtle", "warning-subtle", "accent-float"],
+    [
+      ...surfaces,
+      "primary-subtle",
+      "destructive-subtle",
+      "warning-subtle",
+      "success-subtle",
+      "accent-float",
+    ],
     TEXT,
     "body text",
   );

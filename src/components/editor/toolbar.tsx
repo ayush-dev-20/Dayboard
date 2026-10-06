@@ -7,12 +7,15 @@ import {
   Bold,
   ChevronDown,
   Code,
+  IndentDecrease,
+  IndentIncrease,
   Italic,
   Link as LinkIcon,
   List,
   ListOrdered,
   ListTodo,
   Minus,
+  Plus,
   Quote,
   Redo2,
   Strikethrough,
@@ -30,6 +33,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { openSlashMenu } from "./blocks/slash-menu";
 import type { EditMode } from "@/lib/ai/types";
 import { WritingHelpMenu } from "./ai-selection-menu";
 import { isAllowedLink } from "@/lib/editor/schema";
@@ -259,9 +264,14 @@ export function FormatToolbar({
       block: currentBlock(e),
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
+      inList: e.isActive("bulletList") || e.isActive("orderedList") || e.isActive("taskList"),
+      canIndent: e.can().sinkListItem("listItem"),
+      canOutdent: e.can().liftListItem("listItem") || e.can().liftListItem("taskItem"),
     }),
   });
   const keyboardInset = useKeyboardInset();
+  // On touch there is no Tab key, so the list indent buttons are always there.
+  const touch = useMediaQuery("(pointer: coarse)");
   const doc = variant === "document";
 
   return (
@@ -280,6 +290,9 @@ export function FormatToolbar({
           : "-mx-1 mb-2 px-1",
       )}
     >
+      <ToolButton label="Insert block" onClick={() => openSlashMenu(editor)}>
+        <Plus className={icon} strokeWidth={1.5} aria-hidden />
+      </ToolButton>
       {doc ? <BlockMenu editor={editor} value={state.block} /> : null}
       <ToolButton
         label="Bold"
@@ -332,6 +345,28 @@ export function FormatToolbar({
       >
         <ListTodo className={icon} strokeWidth={1.5} aria-hidden />
       </ToolButton>
+      {state.inList || touch ? (
+        <>
+          <ToolButton
+            label="Indent"
+            disabled={!state.canIndent}
+            onClick={() => editor.chain().focus().sinkListItem("listItem").run()}
+          >
+            <IndentIncrease className={icon} strokeWidth={1.5} aria-hidden />
+          </ToolButton>
+          <ToolButton
+            label="Outdent"
+            disabled={!state.canOutdent}
+            onClick={() =>
+              editor.can().liftListItem("taskItem")
+                ? editor.chain().focus().liftListItem("taskItem").run()
+                : editor.chain().focus().liftListItem("listItem").run()
+            }
+          >
+            <IndentDecrease className={icon} strokeWidth={1.5} aria-hidden />
+          </ToolButton>
+        </>
+      ) : null}
       {doc ? (
         <ToolButton
           label="Quote"

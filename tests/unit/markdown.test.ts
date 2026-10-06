@@ -125,11 +125,34 @@ describe("inline marks", () => {
 });
 
 describe("things the editor cannot hold are converted, never passed through", () => {
-  it("a table becomes a bold header line and a list of rows", () => {
+  it("a pipe table becomes a real table with a header row", () => {
     const out = blocks("| Name | Role |\n| --- | --- |\n| Meera | Design |\n| Ravi | Eng |");
-    expect(out.map((b) => b.type)).toEqual(["paragraph", "bulletList"]);
-    expect(out[0]!.content![0]!.marks).toEqual([{ type: "bold" }]);
-    expect(toPlainText({ type: "doc", content: out })).toContain("Meera · Design");
+    expect(out.map((b) => b.type)).toEqual(["table"]);
+    const rows = out[0]!.content!;
+    expect(rows).toHaveLength(3);
+    expect(rows[0]!.content!.map((c) => c.type)).toEqual(["tableHeader", "tableHeader"]);
+    expect(rows[1]!.content!.map((c) => c.type)).toEqual(["tableCell", "tableCell"]);
+    expect(toPlainText({ type: "doc", content: out })).toContain("Meera Design");
+  });
+
+  it("table rows are made the same width, and cells keep inline marks", () => {
+    const out = blocks("| A | B | C |\n| --- | --- | --- |\n| **x** | y |");
+    const rows = out[0]!.content!;
+    expect(rows.map((r) => r.content!.length)).toEqual([3, 3]);
+    expect(rows[1]!.content![0]!.content![0]!.content![0]!.marks).toEqual([{ type: "bold" }]);
+  });
+
+  it("a table over the limits keeps its first columns and rows", () => {
+    const header = `| ${Array.from({ length: 12 }, (_, i) => `c${i}`).join(" | ")} |`;
+    const rule = `| ${Array.from({ length: 12 }, () => "---").join(" | ")} |`;
+    const body = Array.from(
+      { length: 120 },
+      (_, r) => `| ${Array.from({ length: 12 }, (_, i) => `${r}-${i}`).join(" | ")} |`,
+    );
+    const out = blocks([header, rule, ...body].join("\n"));
+    const rows = out[0]!.content!;
+    expect(rows).toHaveLength(100);
+    expect(rows[0]!.content).toHaveLength(10);
   });
 
   it("an image becomes its alt text", () => {

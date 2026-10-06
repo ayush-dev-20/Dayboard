@@ -17,6 +17,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | AI assistant | V1 | Done | [ai-assistant_v1.md](ai-assistant_v1.md) |
 | UI modernization | V1 | Done | [ui-modernization_v1.md](ui-modernization_v1.md) |
 | AI writing and planning | V1 | Done | [ai-writing-and-planning_v1.md](ai-writing-and-planning_v1.md) |
+| Editor blocks and lists | V2 | Done | [editor-blocks-and-lists_v2.md](editor-blocks-and-lists_v2.md) |
 
 Status is `Done` or `In progress`.
 

@@ -218,7 +218,7 @@ describe("writing help: replacement planning", () => {
 
 describe("prompts", () => {
   it("each feature has its own version id", () => {
-    expect(PROMPT_VERSIONS.GENERATE_CONTENT).toBe("GENERATE_CONTENT_V1");
+    expect(PROMPT_VERSIONS.GENERATE_CONTENT).toBe("GENERATE_CONTENT_V2");
     expect(PROMPT_VERSIONS.PLAN_DAY).toBe("PLAN_DAY_V1");
     expect(PROMPT_VERSIONS.EDIT_SELECTION).toBe("EDIT_SELECTION_V1");
   });
@@ -238,7 +238,7 @@ describe("prompts", () => {
     expect(withTitle).toContain("TITLE:");
     expect(without).not.toContain('"TITLE: "');
     for (const system of [withTitle, without]) {
-      expect(system).toMatch(/Never use tables, images, HTML/);
+      expect(system).toMatch(/Never use images, HTML/);
       expect(system).toMatch(/language/i);
     }
   });

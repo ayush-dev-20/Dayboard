@@ -15,7 +15,7 @@ export const PROMPT_VERSIONS = {
   OVERDUE_CLEANUP: "OVERDUE_CLEANUP_V1",
   TASK_ASSIST: "TASK_ASSIST_V1",
   CLASSIFY_INBOX: "CLASSIFY_INBOX_V1",
-  GENERATE_CONTENT: "GENERATE_CONTENT_V1",
+  GENERATE_CONTENT: "GENERATE_CONTENT_V2",
   PLAN_DAY: "PLAN_DAY_V1",
   EDIT_SELECTION: "EDIT_SELECTION_V1",
 } as const satisfies Record<AIFeature, string>;
@@ -129,7 +129,7 @@ export function repairHint(problem: string): string {
 
 /** The formatting the editor can hold. Anything else is converted or lost, so the model is told. */
 const ALLOWED_FORMATTING =
-  "Write Markdown using only: # ## ### headings, paragraphs, - bullet lists, 1. numbered lists, - [ ] checklists, > quotes, fenced code blocks, ---, and **bold**, *italic*, `code` and [links](https://…) inline. Never use tables, images, HTML, footnotes or emoji.";
+  "Write Markdown using only: # ## ### headings, paragraphs, - bullet lists, 1. numbered lists, - [ ] checklists, > quotes, fenced code blocks, ---, and **bold**, *italic*, `code` and [links](https://…) inline. Tables are allowed as Markdown pipe tables with a header row (at most 10 columns). Never use images, HTML, footnotes or emoji.";
 
 export const generateSystem = (opts: { length: GenerateLength; withTitle: boolean }) =>
   [

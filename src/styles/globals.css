@@ -33,6 +33,7 @@
   --warning: #805308;
   --warning-subtle: #f9eaca;
   --success: #2e663c;
+  --success-subtle: #d9f3dd;
   --ai-surface: #edf5fb;
   --ai-border: #c9dcec;
   --landing-wash: #d8edfc;
@@ -95,6 +96,7 @@
   --warning: #dbb06c;
   --warning-subtle: #3b2b0d;
   --success: #81c38f;
+  --success-subtle: #172f1d;
   --ai-surface: #1b2024;
   --ai-border: #333f48;
   --landing-wash: #19232b;
@@ -151,6 +153,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
   --color-warning-subtle: var(--warning-subtle);
+  --color-success-subtle: var(--success-subtle);
   --color-success: var(--success);
   --color-info: var(--info);
   --color-scrim: var(--scrim);
@@ -487,6 +490,33 @@
 .rich-text .ProseMirror ol {
   list-style: decimal;
 }
+/* Nested lists: the marker follows the depth (set as data-list-depth by the editor), and the
+   pattern repeats every three levels. 1. a. i. for numbers; dot, circle, square for bullets.
+   Nothing is saved: indenting or pasting always shows the right marker (V2 feature 01 §6). */
+.rich-text .ProseMirror ol[data-list-depth="1"],
+.rich-text .ProseMirror ol[data-list-depth="4"] {
+  list-style-type: decimal;
+}
+.rich-text .ProseMirror ol[data-list-depth="2"],
+.rich-text .ProseMirror ol[data-list-depth="5"] {
+  list-style-type: lower-alpha;
+}
+.rich-text .ProseMirror ol[data-list-depth="3"],
+.rich-text .ProseMirror ol[data-list-depth="6"] {
+  list-style-type: lower-roman;
+}
+.rich-text .ProseMirror ul[data-list-depth="1"]:not([data-type="taskList"]),
+.rich-text .ProseMirror ul[data-list-depth="4"]:not([data-type="taskList"]) {
+  list-style-type: disc;
+}
+.rich-text .ProseMirror ul[data-list-depth="2"]:not([data-type="taskList"]),
+.rich-text .ProseMirror ul[data-list-depth="5"]:not([data-type="taskList"]) {
+  list-style-type: circle;
+}
+.rich-text .ProseMirror ul[data-list-depth="3"]:not([data-type="taskList"]),
+.rich-text .ProseMirror ul[data-list-depth="6"]:not([data-type="taskList"]) {
+  list-style-type: square;
+}
 .rich-text .ProseMirror li > p {
   margin: 0;
 }
@@ -580,4 +610,217 @@
   font-size: 18px;
   line-height: 1.65;
   min-height: 40vh;
+}
+
+/* ---- Structural blocks (V2 feature 01) -------------------------------------------------------- */
+
+/* Callout: a quiet tinted box. The emoji and the words carry the meaning, never the colour alone. */
+.rich-text .callout {
+  display: flex;
+  gap: 0.25rem;
+  align-items: flex-start;
+  border-radius: 8px;
+  background: var(--secondary);
+  padding: 0.5rem 0.75rem 0.5rem 0.375rem;
+}
+.rich-text .callout[data-tone="info"] {
+  background: var(--primary-subtle);
+}
+.rich-text .callout[data-tone="success"] {
+  background: var(--success-subtle);
+}
+.rich-text .callout[data-tone="warning"] {
+  background: var(--warning-subtle);
+}
+.rich-text .callout-chrome {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  user-select: none;
+}
+.rich-text .callout-body {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.2rem;
+}
+.rich-text .callout-body > * + * {
+  margin-top: 0.5em;
+}
+
+/* Toggle: a chevron, a summary line, and a body that shows or hides. */
+.rich-text .toggle-inner {
+  position: relative;
+  padding-left: 1.5rem;
+}
+.rich-text .toggle-arrow {
+  position: absolute;
+  top: 0.1em;
+  left: -0.125rem;
+  display: inline-flex;
+  width: 1.5rem;
+  height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.rich-text .toggle-arrow:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.rich-text .toggle-arrow svg {
+  width: 1rem;
+  height: 1rem;
+  transition: transform 120ms var(--ease-enter);
+}
+.rich-text .toggle[data-open="true"] > .toggle-inner > .toggle-arrow svg {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rich-text .toggle-arrow svg {
+    transition: none;
+  }
+}
+@media (pointer: coarse) {
+  .rich-text .toggle-arrow {
+    top: -0.25rem;
+    left: -0.5rem;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  .rich-text .toggle-inner {
+    padding-left: 2.25rem;
+  }
+}
+.rich-text [data-type="toggleSummary"] {
+  min-height: 1.55em;
+}
+.rich-text [data-type="toggleSummary"]:has(> br.ProseMirror-trailingBreak:only-child)::before {
+  content: "Toggle";
+  color: var(--muted-foreground);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+.rich-text [data-type="toggleSummary"][data-level="1"] {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.rich-text [data-type="toggleSummary"][data-level="2"] {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.rich-text [data-type="toggleSummary"][data-level="3"] {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.rich-text [data-type="toggleContent"] {
+  margin-top: 0.25em;
+}
+.rich-text [data-type="toggleContent"] > * + * {
+  margin-top: 0.5em;
+}
+
+/* Table: scrolls sideways inside its own wrapper; cells hold one paragraph. */
+.rich-text .tableWrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+.rich-text .ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  min-width: 100%;
+  margin: 0;
+}
+.rich-text .ProseMirror td,
+.rich-text .ProseMirror th {
+  position: relative;
+  min-width: 80px;
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  vertical-align: top;
+  text-align: left;
+  font-size: 0.9em;
+  line-height: 1.45;
+}
+.rich-text .ProseMirror th {
+  background: var(--secondary);
+  font-weight: 600;
+}
+.rich-text .ProseMirror td > p,
+.rich-text .ProseMirror th > p {
+  margin: 0;
+}
+.rich-text .ProseMirror .selectedCell::after {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  content: "";
+  background: var(--primary-subtle);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.rich-text .ProseMirror .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  z-index: 3;
+  width: 4px;
+  background: var(--primary);
+  pointer-events: none;
+}
+.rich-text .ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+/* Table of contents. */
+.rich-text .toc {
+  border-radius: 8px;
+  background: var(--secondary);
+  padding: 0.5rem 0.75rem;
+}
+.rich-text .toc ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rich-text .toc-link {
+  display: block;
+  width: 100%;
+  min-height: 1.75rem;
+  padding: 0.125rem 0;
+  text-align: left;
+  font-size: 0.9em;
+  color: var(--primary);
+  cursor: pointer;
+}
+.rich-text .toc-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rich-text .toc-empty {
+  margin: 0;
+  font-size: 0.9em;
+  color: var(--muted-foreground);
+}
+@media (pointer: coarse) {
+  .rich-text .toc-link {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+  }
+}
+.rich-text .ProseMirror .ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
