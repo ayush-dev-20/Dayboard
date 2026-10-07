@@ -14,6 +14,7 @@ import {
 } from "@/lib/email";
 import { env } from "@/lib/env";
 import { uuidv7 } from "@/lib/ids";
+import { ensureDefaultViews } from "@/db/mutations/views";
 import { createDefaultPreferences } from "@/lib/preferences";
 
 // A session older than this is "not fresh": sensitive actions (delete account) ask the user to
@@ -111,6 +112,9 @@ export const auth = betterAuth({
         }),
         after: async (user) => {
           await createDefaultPreferences(user.id);
+          // One List view per collection (V2 feature 06 §2). Reads make them on demand too, so a
+          // failure here never blocks sign-up.
+          await ensureDefaultViews(user.id).catch(() => undefined);
         },
       },
     },

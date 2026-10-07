@@ -4,6 +4,8 @@ export type NotesParams = {
   /** A project id, "none" for notes without one, or null for any. */
   projectId: string | null;
   tagId: string | null;
+  /** A saved view chosen in the URL (`?view=<id>`); the old `?view=grid` is read by `parseNotesView`. */
+  viewId?: string | null;
 };
 
 type RawParams = Record<string, string | string[] | undefined>;
@@ -14,9 +16,11 @@ const first = (value: string | string[] | undefined) => (Array.isArray(value) ? 
 export function parseNotesParams(raw: RawParams): NotesParams {
   const project = first(raw.project);
   const tag = first(raw.tag);
+  const view = first(raw.view);
   return {
     projectId: project === "none" ? "none" : project && UUID.test(project) ? project : null,
     tagId: tag && UUID.test(tag) ? tag : null,
+    viewId: view && UUID.test(view) ? view.toLowerCase() : null,
   };
 }
 
@@ -29,9 +33,10 @@ export function parseNotesView(raw: RawParams): NotesView {
 
 export function buildNotesQuery(params: Partial<NotesParams> & { view?: NotesView }): string {
   const q = new URLSearchParams();
+  if (params.viewId) q.set("view", params.viewId);
+  else if (params.view === "grid") q.set("view", "grid");
   if (params.projectId) q.set("project", params.projectId);
   if (params.tagId) q.set("tag", params.tagId);
-  if (params.view === "grid") q.set("view", "grid");
   const text = q.toString();
   return text ? `?${text}` : "";
 }

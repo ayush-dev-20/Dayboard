@@ -1,11 +1,12 @@
 import "server-only";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inTransaction, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject, assertOwnedTask } from "@/db/mutations/guards";
 import { notes, taskNotes } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { toPlainText } from "@/lib/editor/projection";
+import { orderAtTop, orderBetween, renumber } from "@/lib/tasks/ordering";
 import type { TiptapDoc } from "@/lib/editor/types";
 import type { CreateNoteInput } from "@/lib/validations/notes";
 
@@ -32,10 +33,16 @@ export async function createNote(
     if (input.linkTaskId) await assertOwnedTask(tx, userId, input.linkTaskId);
 
     const doc = input.contentJson ?? EMPTY_DOC;
+    // A new note goes to the top of the manual order (boards, the future tree).
+    const [top] = await tx
+      .select({ min: sql<number | null>`min(${notes.sortOrder})` })
+      .from(notes)
+      .where(and(eq(notes.userId, userId), isNull(notes.deletedAt)));
     const [created] = await tx
       .insert(notes)
       .values({
         userId,
+        sortOrder: orderAtTop(top?.min ?? null),
         projectId: input.projectId ?? null,
         title: input.title ?? "",
         emoji: input.emoji ?? null,
@@ -177,4 +184,66 @@ export async function unlinkTaskNote(
     .where(
       and(eq(taskNotes.taskId, taskId), eq(taskNotes.noteId, noteId), eq(taskNotes.userId, userId)),
     );
+}
+
+/**
+ * Manual order of notes (V2 feature 06 §2): `beforeId` is the note that will sit just above the
+ * moved one, `afterId` just below. Does not touch `updated_at`: arranging notes on a board is not
+ * editing them.
+ */
+export async function reorderNote(
+  userId: string,
+  input: { id: string; beforeId?: string | null; afterId?: string | null },
+): Promise<{ sortOrder: number }> {
+  return db.transaction(async (tx) => {
+    await assertOwnedNote(tx, userId, input.id);
+    const siblings = and(eq(notes.userId, userId), isNull(notes.deletedAt));
+
+    async function neighbour(neighbourId: string | null | undefined) {
+      if (!neighbourId) return null;
+      if (neighbourId === input.id) {
+        throw new AppError("VALIDATION_ERROR", "A note can't go next to itself.");
+      }
+      const [row] = await tx
+        .select({ id: notes.id, sortOrder: notes.sortOrder })
+        .from(notes)
+        .where(and(siblings, eq(notes.id, neighbourId)))
+        .limit(1);
+      if (!row) throw new AppError("NOT_FOUND");
+      return row;
+    }
+
+    const above = await neighbour(input.beforeId);
+    const below = await neighbour(input.afterId);
+    const { order, needsRenumber } = orderBetween(
+      above?.sortOrder ?? null,
+      below?.sortOrder ?? null,
+    );
+    const keepUpdatedAt = { updatedAt: sql`${notes.updatedAt}` };
+
+    if (!needsRenumber) {
+      await tx
+        .update(notes)
+        .set({ sortOrder: order, ...keepUpdatedAt })
+        .where(owned(userId, input.id));
+      return { sortOrder: order };
+    }
+
+    const others = await tx
+      .select({ id: notes.id })
+      .from(notes)
+      .where(and(siblings, ne(notes.id, input.id)))
+      .orderBy(asc(notes.sortOrder), asc(notes.createdAt));
+    const ids = others.map((r) => r.id);
+    const at = above ? ids.indexOf(above.id) + 1 : below ? ids.indexOf(below.id) : ids.length;
+    ids.splice(at, 0, input.id);
+    const fresh = renumber(ids);
+    for (const [noteId, sortOrder] of fresh) {
+      await tx
+        .update(notes)
+        .set({ sortOrder, ...keepUpdatedAt })
+        .where(owned(userId, noteId));
+    }
+    return { sortOrder: fresh.get(input.id) as number };
+  });
 }

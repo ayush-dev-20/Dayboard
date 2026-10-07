@@ -220,19 +220,36 @@ Rules: a user can only read or write their own views; `project` and `tag` filter
 
 ## 9. Definition of done
 
-- [ ] Board, Table, List, Calendar (tasks and todos) and Gallery (notes) exist as saved views with their own filters, sorts, grouping and visible properties
-- [ ] Dragging a card changes the item with Undo, using the same logic as everywhere else; impossible drops are refused clearly
-- [ ] Table edits cells in place and supports bulk actions with one Undo
-- [ ] Views work offline, instantly, and sync as ordinary data
-- [ ] Project pages offer the same views limited to the project
-- [ ] Legacy URLs and existing users' lists keep working (backfill)
-- [ ] Every drag has a keyboard and touch alternative; usable at 360px
-- [ ] ADR 0008 (drag and drop) written before building; no new dependency beyond it
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass
-- [ ] `agent_docs/multiple-views_v2.md` written and indexed
+- [x] Board, Table, List, Calendar (tasks and todos) and Gallery (notes) exist as saved views with their own filters, sorts, grouping and visible properties
+- [x] Dragging a card changes the item with Undo, using the same logic as everywhere else; impossible drops are refused clearly
+- [x] Table edits cells in place and supports bulk actions with one Undo
+- [ ] Views work offline, instantly, and sync as ordinary data (waits for features 04 and 05; see As built)
+- [x] Project pages offer the same views limited to the project
+- [x] Legacy URLs and existing users' lists keep working (backfill)
+- [x] Every drag has a keyboard and touch alternative; usable at 360px
+- [x] ADR 0008 (drag and drop) written before building; no new dependency beyond it
+- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass (all pass except 4 stale visual baselines for empty states, unrelated to views; see As built)
+- [x] `agent_docs/multiple-views_v2.md` written and indexed
 
 ---
 
 ## 10. Out of scope (V2)
 
 Timeline and chart views; user-defined properties, formulas, relations and rollups; shared or public views; OR filter groups and sub-grouping; "save this search as a view"; per-project saved views; calendar write-back to Google (12); inline databases inside notes.
+
+---
+
+## 11. As built (2026-10-07)
+
+What differs from the sections above. The agent hand-off is `agent_docs/multiple-views_v2.md`.
+
+- **Server-side only.** Features 03 to 05 (PWA, local persistence, sync) were skipped on purpose, so views are not in Dexie and do not travel as operations. `collection_views` carries `version`, `last_modified_by_device_id` and `deleted_at` (soft delete) so 05 can adopt it. Not done: "views work offline", `groupId` on bulk operations, the offline E2E case (§8, case 6). The save is a Server Action (`updateView`), coalesced after 500 ms.
+- **View settings** cover filters, sorts, group by, hide empty groups, visible properties and column order (menus), card size, calendar options, and `openIn` (tasks only). The quick filter chips (status, due, project, tag, archived) stay in the URL as in V1 and are merged over the view's filters for display; they do not edit the view.
+- **Moves by menu, not by drag, for columns:** table columns and board columns (project and tag boards) move with Move left / Move right. Cards and calendar items drag, with the menus as the keyboard and touch way.
+- **Table** is `role="table"` with sortable `th`s, not a grid. Resize handles are focusable separators (arrow keys).
+- **List** renders through the engine with the V1 components and the V1 due groups (`dueList`, hidden from the group-by menu).
+- **Open items cap at 2,000 and finished or archived at 500** per view, read only when the view can show them (`scope.ts`). No message when the cap is hit.
+- **Notes:** `sort_order` added; a new note goes on top; the List default sorts by `updated` (descending); `reorderNote` leaves `updated_at` alone.
+- **Refusals:** a drop on a column that cannot take it (Overdue, a finished column) shows the reason as a toast and changes nothing.
+- **Dependency:** `@dnd-kit/core` and `@dnd-kit/sortable` only (ADR 0008).
+- **Found by the E2E run and fixed:** settings edits snapped back to the old value after saving (the local copy was reset by the stale version prop); the Calendar crashed on any undated item ("Not a calendar date: none"); table resize handles had no `aria-valuenow`.

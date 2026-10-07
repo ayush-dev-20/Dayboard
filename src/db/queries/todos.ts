@@ -70,3 +70,19 @@ export async function listCompletedTodosSince(userId: string, since: Date): Prom
     .limit(200);
   return withProjects(userId, rows);
 }
+
+/** How many open todos there are (the number on the Todos page), not narrowed by any view. */
+export async function countOpenTodos(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(todos)
+    .where(
+      and(
+        eq(todos.userId, userId),
+        isNull(todos.deletedAt),
+        isNull(todos.archivedAt),
+        eq(todos.isComplete, false),
+      ),
+    );
+  return row?.n ?? 0;
+}

@@ -5,6 +5,8 @@ export type TasksView = "tasks" | "todos";
 
 export type TasksParams = {
   view: TasksView;
+  /** A saved view chosen in the URL (`?view=<id>`); `view` above is only V1's `?view=todos`. */
+  viewId: string | null;
   statuses: TaskStatus[];
   due: DueFilter;
   archived: boolean;
@@ -29,7 +31,9 @@ function sameSet(a: readonly string[], b: readonly string[]): boolean {
 
 /** Reads the /tasks URL. Anything unrecognised falls back to the default instead of failing. */
 export function parseTasksParams(raw: RawParams): TasksParams {
-  const view: TasksView = first(raw.view) === "todos" ? "todos" : "tasks";
+  const viewRaw = first(raw.view);
+  const view: TasksView = viewRaw === "todos" ? "todos" : "tasks";
+  const viewId = viewRaw && UUID.test(viewRaw) ? viewRaw.toLowerCase() : null;
 
   const wanted = (first(raw.status) ?? "")
     .split(",")
@@ -49,7 +53,16 @@ export function parseTasksParams(raw: RawParams): TasksParams {
   const tagRaw = first(raw.tag);
   const tagId = tagRaw && UUID.test(tagRaw) ? tagRaw : null;
 
-  return { view, statuses, due, archived: first(raw.archived) === "1", projectId, tagId, taskId };
+  return {
+    view,
+    viewId,
+    statuses,
+    due,
+    archived: first(raw.archived) === "1",
+    projectId,
+    tagId,
+    taskId,
+  };
 }
 
 export function isDefaultStatuses(statuses: readonly TaskStatus[]): boolean {
@@ -59,7 +72,8 @@ export function isDefaultStatuses(statuses: readonly TaskStatus[]): boolean {
 /** The query string for the current choices ("" when everything is at its default). */
 export function buildTasksQuery(params: Partial<TasksParams>): string {
   const q = new URLSearchParams();
-  if (params.view === "todos") q.set("view", "todos");
+  if (params.viewId) q.set("view", params.viewId);
+  else if (params.view === "todos") q.set("view", "todos");
   if (params.statuses && !isDefaultStatuses(params.statuses)) {
     q.set("status", params.statuses.map((s) => s.toLowerCase()).join(","));
   }

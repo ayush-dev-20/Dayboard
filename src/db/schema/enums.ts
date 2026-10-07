@@ -57,3 +57,14 @@ export const aiUsageStatusEnum = pgEnum("ai_usage_status", [
   "VALIDATION_ERROR",
   "RATE_LIMITED",
 ]);
+
+// Saved views (V2 feature 06): which collection a view looks at, and how it shows it.
+export const viewCollectionEnum = pgEnum("view_collection", ["TASKS", "TODOS", "NOTES"]);
+export const viewTypeEnum = pgEnum("view_type", [
+  "LIST",
+  "TABLE",
+  "BOARD",
+  "CALENDAR",
+  "GALLERY",
+  "TREE",
+]);

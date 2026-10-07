@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -34,6 +35,8 @@ export const notes = pgTable(
     contentText: text("content_text").notNull().default(""),
     // Bumped on every content or title save; a stale save is refused (see feature doc §4).
     version: integer("version").notNull().default(1),
+    // Manual order for boards and the sidebar tree (V2 feature 06 §2). New notes go to the top.
+    sortOrder: doublePrecision("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -47,6 +50,7 @@ export const notes = pgTable(
     index("notes_user_updated_at_idx").on(t.userId, t.updatedAt.desc()),
     index("notes_user_deleted_at_idx").on(t.userId, t.deletedAt),
     index("notes_user_project_idx").on(t.userId, t.projectId),
+    index("notes_user_sort_order_idx").on(t.userId, t.sortOrder),
   ],
 );
 

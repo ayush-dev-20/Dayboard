@@ -8,3 +8,4 @@ export * from "./projects";
 export * from "./tags";
 export * from "./tasks";
 export * from "./todos";
+export * from "./views";

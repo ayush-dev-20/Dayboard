@@ -10,9 +10,12 @@ import { useSheetMode, useSheetWidth } from "./sheet-state";
  */
 export function TaskListShell({
   sheetOpen,
+  wide = false,
   children,
 }: {
   sheetOpen: boolean;
+  /** Boards, tables and calendars use the wide column; lists the reading column. */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   const width = useSheetWidth();
@@ -33,7 +36,15 @@ export function TaskListShell({
           : undefined
       }
     >
-      <div className={cn("w-full max-w-content", reserve ? "lg:mx-0" : "mx-auto")}>{children}</div>
+      <div
+        className={cn(
+          "w-full",
+          wide ? "max-w-wide" : "max-w-content",
+          reserve ? "lg:mx-0" : "mx-auto",
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }

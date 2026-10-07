@@ -1,113 +1,113 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { EmptyState } from "@/components/layout/empty-state";
-import { buttonVariants } from "@/components/ui/button";
+import { cookies } from "next/headers";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { NewItemButton } from "@/components/tasks/new-item-button";
-import { TaskAddRow } from "@/components/tasks/task-add-row";
 import { TaskContextProvider } from "@/components/tasks/task-context";
 import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
-import { TaskFilters } from "@/components/tasks/task-filters";
-import { TaskList, type TaskGroupData } from "@/components/tasks/task-list";
 import { TaskListShell } from "@/components/tasks/task-list-shell";
 import { ViewTabs } from "@/components/tasks/view-tabs";
-import { countTasksByGroup, getTaskDetail, listClosedTasks, listTasks } from "@/db/queries/tasks";
+import { TasksCollection, TodosCollection } from "@/components/views/collections";
+import { countTasksByGroup, getTaskDetail } from "@/db/queries/tasks";
+import { countOpenTodos } from "@/db/queries/todos";
+import { getViews, loadViewItems } from "@/db/queries/views";
 import type { SearchParams } from "@/lib/oauth-providers";
 import { requireUser } from "@/lib/session";
 import { loadTaskContext } from "@/lib/tasks/context";
-import { applyDueFilter, GROUP_LABELS, groupTasks } from "@/lib/tasks/grouping";
-import { hasActiveFilters, parseTasksParams } from "@/lib/tasks/params";
-import { isOpenStatus } from "@/lib/tasks/status";
-import { TodosView } from "./todos-view";
-import { PageHeader } from "@/components/layout/page-header";
+import { parseTasksParams } from "@/lib/tasks/params";
+import type { ViewTask, ViewTodo } from "@/lib/views/items";
+import { lastViewCookie, pickView } from "@/lib/views/legacy";
+import { quickFilters } from "@/lib/views/quick";
 
 export const metadata: Metadata = { title: "Tasks" };
 
 export default async function TasksPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser({ redirect: true });
   const params = parseTasksParams(await searchParams);
-  const { dayPrefs, now, context } = await loadTaskContext(user.id);
+  const { dayPrefs, now, weekStart, context } = await loadTaskContext(user.id);
+  const [taskViews, todoViews] = await Promise.all([
+    getViews(user.id, "TASKS"),
+    getViews(user.id, "TODOS"),
+  ]);
+  const jar = await cookies();
+  const engine = { nowMs: now.getTime(), weekStart, prefs: dayPrefs };
 
-  if (params.view === "todos") {
+  // `?view=todos` is V1's switch; a saved view id says which collection it belongs to.
+  const isTodos =
+    params.view === "todos" ||
+    (params.viewId !== null && todoViews.some((v) => v.id === params.viewId));
+
+  if (isTodos) {
+    const param = params.viewId
+      ? ({ kind: "id", id: params.viewId } as const)
+      : ({ kind: "none" } as const);
+    const { view } = pickView(todoViews, param, jar.get(lastViewCookie("TODOS"))?.value ?? null);
+    const [items, openCount] = await Promise.all([
+      loadViewItems(user.id, "TODOS", view, [], null),
+      countOpenTodos(user.id),
+    ]);
     return (
       <TaskContextProvider value={context}>
-        <TodosView userId={user.id} dayPrefs={dayPrefs} now={now} />
+        <PageContainer width={view.type === "LIST" ? "content" : "wide"}>
+          <PageHeader
+            title="Tasks"
+            description={`${openCount} open ${openCount === 1 ? "todo" : "todos"}`}
+          >
+            <NewItemButton label="New todo" />
+          </PageHeader>
+          <ViewTabs active="todos" />
+          <TodosCollection
+            views={todoViews}
+            activeViewId={view.id}
+            items={items as ViewTodo[]}
+            quick={[]}
+            engine={engine}
+            basePath="/tasks"
+          />
+        </PageContainer>
       </TaskContextProvider>
     );
   }
 
-  const openStatuses = params.statuses.filter(isOpenStatus);
-  const closedStatuses = params.statuses.filter((s) => !isOpenStatus(s));
-  const showingClosed = closedStatuses.length > 0;
-
+  const param = params.viewId
+    ? ({ kind: "id", id: params.viewId } as const)
+    : ({ kind: "none" } as const);
+  const { view } = pickView(taskViews, param, jar.get(lastViewCookie("TASKS"))?.value ?? null);
+  const quick = quickFilters({
+    statuses: params.statuses,
+    due: params.due,
+    archived: params.archived,
+    projectId: params.projectId,
+    tagId: params.tagId,
+  });
   const scope = { projectId: params.projectId ?? undefined, tagId: params.tagId ?? undefined };
-  const [open, closed, counts, detail] = await Promise.all([
-    listTasks(user.id, { statuses: openStatuses, archived: params.archived, ...scope }),
-    params.due === "any"
-      ? listClosedTasks(user.id, {
-          statuses: showingClosed ? closedStatuses : ["DONE"],
-          archived: params.archived,
-          ...scope,
-        })
-      : Promise.resolve([]),
+  const [items, counts, detail] = await Promise.all([
+    loadViewItems(user.id, "TASKS", view, quick, null),
     countTasksByGroup(user.id, { archived: params.archived, ...scope }),
     params.taskId ? getTaskDetail(user.id, params.taskId) : Promise.resolve(null),
   ]);
 
-  const grouped = groupTasks(open, dayPrefs, now);
-  const groups: TaskGroupData[] = applyDueFilter(grouped, params.due).map((key) => ({
-    key,
-    label: GROUP_LABELS[key],
-    tasks: grouped[key],
-  }));
-
-  const nothingAtAll = counts.open === 0 && counts.done === 0 && !hasActiveFilters(params);
-  const noMatches = groups.length === 0 && closed.length === 0 && hasActiveFilters(params);
-  const sheetOpen = Boolean(detail);
-
   return (
     <TaskContextProvider value={context}>
-      <TaskListShell sheetOpen={sheetOpen}>
+      <TaskListShell sheetOpen={Boolean(detail)} wide={view.type !== "LIST"}>
         <PageHeader
           title="Tasks"
           description={`${counts.open} open${params.archived ? " (archived)" : ""}`}
         >
           <NewItemButton label="New task" />
         </PageHeader>
-
         <ViewTabs active="tasks" />
-        <TaskFilters params={params} />
-        <TaskAddRow />
-
-        <div className="mt-8">
-          {nothingAtAll ? (
-            <EmptyState
-              illustration="tasks-empty"
-              title="No tasks yet."
-              description="Add one above, or press N."
-            >
-              <Link href="/inbox" className={buttonVariants({ variant: "secondary" })}>
-                Go to Inbox
-              </Link>
-            </EmptyState>
-          ) : noMatches ? (
-            <EmptyState
-              title="No tasks match these filters."
-              description="Nothing is hidden or deleted."
-            >
-              <Link href="/tasks" className={buttonVariants({ variant: "secondary" })}>
-                Clear filters
-              </Link>
-            </EmptyState>
-          ) : (
-            <TaskList
-              groups={groups}
-              closed={closed}
-              doneCount={params.due === "any" ? counts.done : 0}
-              selectedId={detail?.id ?? null}
-              completedOpenByDefault={showingClosed}
-            />
-          )}
-        </div>
+        <TasksCollection
+          views={taskViews}
+          activeViewId={view.id}
+          items={items as ViewTask[]}
+          params={params}
+          quick={quick}
+          counts={counts}
+          selectedId={detail?.id ?? null}
+          engine={engine}
+          basePath="/tasks"
+        />
       </TaskListShell>
       {detail ? <TaskDetailSheet detail={detail} /> : null}
     </TaskContextProvider>

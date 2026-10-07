@@ -22,7 +22,17 @@ const triggerClasses =
   "type-body-md inline-flex h-11 items-center gap-1.5 rounded-md px-3 text-muted-foreground hover:bg-accent hover:text-foreground md:h-8";
 
 /** Filters live in the URL, so a filtered list can be refreshed, linked and sent back with the Back button. */
-export function TaskFilters({ params }: { params: TasksParams }) {
+export function TaskFilters({
+  params,
+  trailing,
+  sortLabel = "Sorted by your order",
+}: {
+  params: TasksParams;
+  /** What goes at the end of the row (the view's settings button). */
+  trailing?: React.ReactNode;
+  /** The line shown before it, describing the view's sort. */
+  sortLabel?: string;
+}) {
   const router = useRouter();
   const search = useSearchParams();
   const { projects, tags } = useWorkspace();
@@ -154,7 +164,12 @@ export function TaskFilters({ params }: { params: TasksParams }) {
         </Button>
       ) : null}
 
-      <span className="ml-auto type-body-sm text-muted-foreground">Sorted by your order</span>
+      <span className="ml-auto hidden type-body-sm text-muted-foreground sm:inline">
+        {sortLabel}
+      </span>
+      {trailing ? (
+        <span className={trailing ? "ml-2 max-sm:ml-auto" : undefined}>{trailing}</span>
+      ) : null}
     </div>
   );
 }

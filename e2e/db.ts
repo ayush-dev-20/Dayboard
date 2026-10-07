@@ -385,3 +385,44 @@ export async function clearDailySuggestions(userId: string) {
 export async function setAiEnabled(userId: string, enabled: boolean) {
   await sql`update user_preferences set ai_enabled = ${enabled} where user_id = ${userId}`;
 }
+
+// ---- Views (feature 06) ----------------------------------------------------------------------
+
+/** The person's live views of a collection, in tab order, with their saved config. */
+export async function viewsOf(userId: string, collection: "TASKS" | "TODOS" | "NOTES") {
+  return sql<
+    {
+      id: string;
+      name: string;
+      type: string;
+      emoji: string | null;
+      config: Record<string, unknown>;
+    }[]
+  >`select id, name, type::text, emoji, config from collection_views
+    where user_id = ${userId} and collection = ${collection}::view_collection and deleted_at is null
+    order by position`;
+}
+
+/** Many tasks at once, for tests of how a long list behaves. */
+export async function insertManyTasks(userId: string, count: number, prefix = "Bulk") {
+  await sql`
+    insert into tasks (id, user_id, title, status, priority, sort_order, due_date)
+    select gen_random_uuid(), ${userId}, ${prefix} || ' ' || g, (array['INBOX','PLANNED','IN_PROGRESS','WAITING'])[1 + g % 4]::task_status,
+           (array['NONE','LOW','MEDIUM','HIGH'])[1 + g % 4]::task_priority, g * 1024,
+           case when g % 3 = 0 then null else current_date + (g % 20) end
+    from generate_series(1, ${count}) g`;
+}
+
+export async function todoDueDate(todoId: string) {
+  const [row] = await sql<
+    { d: string | null }[]
+  >`select to_char(due_date, 'YYYY-MM-DD') d from todos where id = ${todoId}`;
+  return row?.d ?? null;
+}
+
+export async function taskDueDate(taskId: string) {
+  const [row] = await sql<
+    { d: string | null }[]
+  >`select to_char(due_date, 'YYYY-MM-DD') d from tasks where id = ${taskId}`;
+  return row?.d ?? null;
+}

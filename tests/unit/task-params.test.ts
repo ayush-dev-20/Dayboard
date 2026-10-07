@@ -12,6 +12,7 @@ describe("parseTasksParams", () => {
   it("uses the defaults for an empty URL", () => {
     expect(parseTasksParams({})).toEqual({
       view: "tasks",
+      viewId: null,
       statuses: ["INBOX", "PLANNED", "IN_PROGRESS", "WAITING"],
       due: "any",
       archived: false,
@@ -19,6 +20,16 @@ describe("parseTasksParams", () => {
       tagId: null,
       taskId: null,
     });
+  });
+
+  it("reads a saved view id (V2 feature 06), keeps it in the URL, and ignores anything else", () => {
+    const id = "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+    expect(parseTasksParams({ view: id }).viewId).toBe(id);
+    expect(parseTasksParams({ view: id }).view).toBe("tasks");
+    expect(parseTasksParams({ view: "nonsense" }).viewId).toBeNull();
+    expect(buildTasksQuery({ viewId: id })).toBe(`?view=${id}`);
+    expect(buildTasksQuery({ viewId: id, view: "todos" })).toBe(`?view=${id}`);
+    expect(buildTasksQuery({ view: "todos" })).toBe("?view=todos");
   });
 
   it("reads each choice", () => {

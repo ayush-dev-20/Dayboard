@@ -264,9 +264,21 @@ describe("snippets and compact times", () => {
 describe("notes URL filters", () => {
   const id = "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
   it("reads project, none and tag, ignores nonsense, and round-trips", () => {
-    expect(parseNotesParams({ project: id, tag: id })).toEqual({ projectId: id, tagId: id });
+    expect(parseNotesParams({ project: id, tag: id })).toEqual({
+      projectId: id,
+      tagId: id,
+      viewId: null,
+    });
     expect(parseNotesParams({ project: "none" }).projectId).toBe("none");
-    expect(parseNotesParams({ project: "x", tag: "y" })).toEqual({ projectId: null, tagId: null });
+    expect(parseNotesParams({ project: "x", tag: "y" })).toEqual({
+      projectId: null,
+      tagId: null,
+      viewId: null,
+    });
+    // A saved view id is kept in the URL; the old ?view=grid is not an id.
+    expect(parseNotesParams({ view: id }).viewId).toBe(id);
+    expect(parseNotesParams({ view: "grid" }).viewId).toBeNull();
+    expect(buildNotesQuery({ viewId: id, projectId: id })).toBe(`?view=${id}&project=${id}`);
     expect(buildNotesQuery({})).toBe("");
     const original = parseNotesParams({ project: "none", tag: id });
     expect(

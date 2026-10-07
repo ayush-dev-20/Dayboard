@@ -9,8 +9,8 @@ import { OPEN_STATUSES, type TaskStatus } from "@/lib/tasks/status";
 // Subtask counts come from correlated subqueries, so the whole list is one query (no N+1).
 // The outer table is written as "tasks"."id" on purpose: in a single-table query Drizzle prints
 // `${tasks.id}` as a bare "id", which inside the subquery would silently mean the subtask's own id.
-const subtaskTotal = sql<number>`(select count(*)::int from tasks s where s.parent_task_id = "tasks"."id" and s.deleted_at is null)`;
-const subtaskDone = sql<number>`(select count(*)::int from tasks s where s.parent_task_id = "tasks"."id" and s.deleted_at is null and s.status = 'DONE')`;
+export const subtaskTotal = sql<number>`(select count(*)::int from tasks s where s.parent_task_id = "tasks"."id" and s.deleted_at is null)`;
+export const subtaskDone = sql<number>`(select count(*)::int from tasks s where s.parent_task_id = "tasks"."id" and s.deleted_at is null and s.status = 'DONE')`;
 
 const LIST_LIMIT = 1000;
 

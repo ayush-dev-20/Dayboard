@@ -14,7 +14,7 @@ import {
   saveNoteTitleSchema,
   updateNoteMetaSchema,
 } from "@/lib/validations/notes";
-import { idOnlySchema } from "@/lib/validations/tasks";
+import { idOnlySchema, reorderSchema } from "@/lib/validations/tasks";
 import { z } from "zod";
 
 function refreshNotes() {
@@ -155,5 +155,13 @@ export async function loadNote(input: unknown): Promise<ActionResult<NoteDTO>> {
     const note = await getNote(user.id, id);
     if (!note) throw new AppError("NOT_FOUND");
     return note;
+  });
+}
+
+/** Manual order on a board. Nothing refreshes: the card is already where it was dropped. */
+export async function reorderNote(input: unknown): Promise<ActionResult<{ sortOrder: number }>> {
+  return runAction("notes.reorder", async () => {
+    const user = await requireUser();
+    return mutations.reorderNote(user.id, reorderSchema.parse(input));
   });
 }

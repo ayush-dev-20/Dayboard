@@ -68,6 +68,15 @@ export async function archiveTodo(input: unknown): Promise<ActionResult<TodoDTO>
   });
 }
 
+export async function unarchiveTodo(input: unknown): Promise<ActionResult<TodoDTO>> {
+  return runAction("todos.unarchive", async () => {
+    const user = await requireUser();
+    const todo = await mutations.archiveTodo(user.id, idOnlySchema.parse(input).id, false);
+    refreshTodos();
+    return todo;
+  });
+}
+
 export async function deleteTodo(input: unknown): Promise<ActionResult<{ deletedAt: string }>> {
   return runAction("todos.delete", async () => {
     const user = await requireUser();

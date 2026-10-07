@@ -345,10 +345,9 @@ test.describe("archive, trash and the list", () => {
     await insertNote(user.id, { title: "Shelved", text: "old", archived: true });
     await page.goto("/notes");
 
-    const names = await page
-      .getByRole("list", { name: "Notes", exact: true })
-      .getByRole("link")
-      .allTextContents();
+    const list = page.getByRole("list", { name: "Notes", exact: true });
+    await expect(list.getByRole("link")).toHaveCount(2);
+    const names = await list.getByRole("link").allTextContents();
     expect(names[0]).toContain("Newer"); // most recently updated first
     await expect(page.getByText("2 notes")).toBeVisible();
     await expect(page.getByRole("link", { name: /Shelved/ })).toBeHidden();

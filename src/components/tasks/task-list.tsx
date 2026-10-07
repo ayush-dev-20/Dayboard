@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { reorderTask } from "@/actions/tasks";
-import type { GroupKey } from "@/lib/tasks/grouping";
 import type { TaskDTO } from "@/lib/tasks/dto";
 import { cn } from "@/lib/utils";
 import { handleRowKeys } from "./row-keys";
@@ -16,7 +15,8 @@ import { useOpenTask } from "./use-open-task";
 import { useTaskContext } from "./task-context";
 import { oldestOverdueId } from "@/lib/tasks/overdue";
 
-export type TaskGroupData = { key: GroupKey; label: string; tasks: TaskDTO[] };
+/** A section of the list. `key` is the group's own key ("overdue" gets the alarm count). */
+export type TaskGroupData = { key: string; label: string; tasks: TaskDTO[] };
 
 type Props = {
   groups: TaskGroupData[];
