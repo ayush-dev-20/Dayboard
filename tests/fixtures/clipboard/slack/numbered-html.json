@@ -1,0 +1,66 @@
+{
+  "tool": "slack",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><ol data-stringify-type=\"ordered-list\" class=\"p-rich_text_list p-rich_text_list__ordered\" data-indent=\"0\" data-border=\"0\"><li data-stringify-indent=\"0\" data-stringify-border=\"0\">First</li></ol><ol data-stringify-type=\"ordered-list\" class=\"p-rich_text_list p-rich_text_list__ordered\" data-indent=\"1\" data-border=\"0\"><li data-stringify-indent=\"1\" data-stringify-border=\"0\">Inner</li></ol><ol data-stringify-type=\"ordered-list\" class=\"p-rich_text_list p-rich_text_list__ordered\" data-indent=\"0\" data-border=\"0\"><li data-stringify-indent=\"0\" data-stringify-border=\"0\">Second</li></ol>",
+  "text": "1. First\n    a. Inner\n2. Second",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "orderedList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "First"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Inner"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Second"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

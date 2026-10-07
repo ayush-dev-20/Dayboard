@@ -1,0 +1,62 @@
+{
+  "tool": "vscode",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "VS Code with a Markdown file open: the HTML is code, but the person means the Markdown.",
+  "types": ["text/plain", "text/html", "vscode-editor-data"],
+  "html": "<meta charset='utf-8'><div style=\"color: #d4d4d4;background-color: #1e1e1e;font-family: Menlo, Monaco, 'Courier New', monospace;font-weight: normal;font-size: 12px;line-height: 18px;white-space: pre;\"><div><span># Title</span></div><div><span>- one</span></div><div><span>- two</span></div></div>",
+  "text": "# Title\n\n- one\n- two",
+  "extras": {
+    "vscode-editor-data": "{\"version\":1,\"mode\":\"markdown\"}"
+  },
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Title"
+          }
+        ]
+      },
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "one"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "two"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

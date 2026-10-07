@@ -27,7 +27,7 @@ export class EditorDocError extends Error {
   }
 }
 
-const NODE_TYPES = new Set([
+export const NODE_TYPES = new Set([
   "paragraph",
   "heading",
   "bulletList",
@@ -110,7 +110,7 @@ export function isAllowedLink(href: string): boolean {
   }
 }
 
-function sanitizeMarks(raw: unknown): TiptapMark[] | undefined {
+export function sanitizeMarks(raw: unknown): TiptapMark[] | undefined {
   if (raw === undefined) return undefined;
   if (!Array.isArray(raw)) throw new EditorDocError("Marks must be a list.");
 
@@ -132,7 +132,7 @@ function sanitizeMarks(raw: unknown): TiptapMark[] | undefined {
   return marks.length > 0 ? marks : undefined;
 }
 
-function sanitizeAttrs(type: string, raw: unknown): Record<string, unknown> | undefined {
+export function sanitizeAttrs(type: string, raw: unknown): Record<string, unknown> | undefined {
   const attrs = isRecord(raw) ? raw : {};
   switch (type) {
     case "heading": {

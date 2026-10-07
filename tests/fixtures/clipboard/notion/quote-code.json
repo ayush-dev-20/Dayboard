@@ -1,0 +1,59 @@
+{
+  "tool": "notion",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><blockquote class=\"block-color-default\">Quoted words</blockquote><pre class=\"code\"><code>const x = 1;\nconsole.log(x);</code></pre><p class=\"\">Inline <code>code</code> here</p>",
+  "text": "Quoted words\nconst x = 1;\nconsole.log(x);\nInline code here",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Quoted words"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "codeBlock",
+        "content": [
+          {
+            "type": "text",
+            "text": "const x = 1;\nconsole.log(x);"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Inline "
+          },
+          {
+            "type": "text",
+            "text": "code",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " here"
+          }
+        ]
+      }
+    ]
+  }
+}

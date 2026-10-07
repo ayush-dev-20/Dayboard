@@ -1,0 +1,151 @@
+{
+  "tool": "notion",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><ul class=\"bulleted-list\"><li style=\"list-style-type:disc\">Fruit<ul class=\"bulleted-list\"><li style=\"list-style-type:circle\">Apple</li><li style=\"list-style-type:circle\">Pear</li></ul></li><li style=\"list-style-type:disc\">Veg</li></ul><ol type=\"1\" class=\"numbered-list\" start=\"1\"><li>First<ol type=\"a\" class=\"numbered-list\" start=\"1\"><li>Inner<ol type=\"i\" class=\"numbered-list\" start=\"1\"><li>Deep</li></ol></li></ol></li><li>Second</li></ol>",
+  "text": "Fruit\nApple\nPear\nVeg\n\n1. First\n    a. Inner\n        i. Deep\n2. Second",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Fruit"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Apple"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Pear"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Veg"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "orderedList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "First"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Inner"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "orderedList",
+                        "content": [
+                          {
+                            "type": "listItem",
+                            "content": [
+                              {
+                                "type": "paragraph",
+                                "content": [
+                                  {
+                                    "type": "text",
+                                    "text": "Deep"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Second"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

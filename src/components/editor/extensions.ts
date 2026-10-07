@@ -14,10 +14,11 @@ import {
   createToggle,
   createToggleContent,
 } from "./blocks/nodes";
-import type { EditorContextValue } from "./blocks/context";
+import { DEFAULT_EDITOR_CONTEXT, type EditorContextValue } from "./blocks/context";
 import { BlockLimits, HeadingAnchors, ListDepthAnchors, type LimitHandler } from "./blocks/guards";
 import { BlockKeys } from "./blocks/keys";
 import { SlashMenu } from "./blocks/slash-menu";
+import { ClipboardFidelity } from "./clipboard-extension";
 
 export type ExtensionOptions = {
   /** The live editor: node views, the slash menu, keyboard rules and limits. The read-only AI preview leaves this off. */
@@ -67,6 +68,10 @@ export function createExtensions(placeholder = "", options: ExtensionOptions = {
           BlockLimits.configure({ onLimit: options.onLimit ?? (() => {}) }),
           BlockKeys.configure({ getOwnerId: () => options.getContext?.().ownerId ?? null }),
           SlashMenu.configure({ getContext: options.getContext }),
+          ClipboardFidelity.configure({
+            getContext: options.getContext ?? (() => DEFAULT_EDITOR_CONTEXT),
+            onNotice: options.onLimit ?? (() => {}),
+          }),
         ]
       : []),
   ];

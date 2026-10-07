@@ -1,0 +1,63 @@
+{
+  "tool": "notion",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><ul class=\"toggle\"><li><details open=\"\"><summary>Toggle title</summary><p class=\"\">Hidden body</p></details></li></ul><figure class=\"callout\" style=\"white-space:pre-wrap;display:flex\" id=\"9a1b\"><div style=\"font-size:1.5em\"><span class=\"icon\">💡</span></div><div style=\"width:100%\">Callout text</div></figure>",
+  "text": "Toggle title\nHidden body\n💡 Callout text",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "content": [
+          {
+            "type": "toggleSummary",
+            "attrs": {
+              "level": 0
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Toggle title"
+              }
+            ]
+          },
+          {
+            "type": "toggleContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Hidden body"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "attrs": {
+          "emoji": "💡",
+          "tone": "neutral"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Callout text"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

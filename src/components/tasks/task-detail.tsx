@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Ellipsis, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { pasteSingleLine } from "@/components/editor/single-line-paste";
 import { setTaskStatus, updateTask, updateTaskDescription } from "@/actions/tasks";
 import { EmojiButton } from "@/components/emoji/emoji-picker";
 import {
@@ -172,6 +173,7 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
           value={titleDraft}
           onChange={(e) => setTitleDraft(e.target.value)}
           onBlur={() => void commitTitle()}
+          onPaste={pasteSingleLine}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();

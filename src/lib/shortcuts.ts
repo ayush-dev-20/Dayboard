@@ -9,3 +9,6 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export const FOCUS_ADD_EVENT = "dayboard:focus-add";
+
+/** Sent by the command menu; the open note's editor copies the note (`detail.kind`: "note" or "markdown"). */
+export const COPY_NOTE_EVENT = "dayboard:copy-note";

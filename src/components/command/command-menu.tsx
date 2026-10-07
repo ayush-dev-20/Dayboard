@@ -2,12 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import {
   CheckSquare,
   CircleCheck,
+  Copy,
   FileText,
   Folder,
   History,
@@ -22,6 +23,7 @@ import { useAIStream } from "@/components/ai/use-ai";
 import { Kbd } from "@/components/ui/kbd";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { ProjectToken } from "@/components/workspace/tokens";
+import { COPY_NOTE_EVENT } from "@/lib/shortcuts";
 import { forgetSearches, readRecentSearches, rememberSearch } from "@/lib/search/recent";
 import { looksLikeQuestion, parseQuery } from "@/lib/search/query";
 import {
@@ -106,6 +108,7 @@ function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) 
  */
 export function CommandMenu({ mode, onModeChange, onClose }: Props) {
   const router = useRouter();
+  const onNote = /^\/notes\/(?!new$)[^/]+$/.test(usePathname());
   const { aiEnabled } = useWorkspace();
   const ask = useAIStream("/api/ai/ask");
   const [query, setQuery] = useState("");
@@ -171,6 +174,11 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
     setQuery("");
     setResults(null);
     onClose();
+  }
+
+  function copyNote(kind: "note" | "markdown") {
+    close();
+    window.dispatchEvent(new CustomEvent(COPY_NOTE_EVENT, { detail: { kind } }));
   }
 
   function go(href: string) {
@@ -377,6 +385,34 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                       Capture to Inbox
                       <Kbd className="ml-auto max-md:hidden">C</Kbd>
                     </Command.Item>
+                    {onNote ? (
+                      <>
+                        <Command.Item
+                          value="copy-note"
+                          onSelect={() => copyNote("note")}
+                          className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 type-body-md data-[selected=true]:bg-primary-subtle md:min-h-9"
+                        >
+                          <Copy
+                            className="size-4 text-muted-foreground"
+                            strokeWidth={1.5}
+                            aria-hidden
+                          />{" "}
+                          Copy note
+                        </Command.Item>
+                        <Command.Item
+                          value="copy-note-markdown"
+                          onSelect={() => copyNote("markdown")}
+                          className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 type-body-md data-[selected=true]:bg-primary-subtle md:min-h-9"
+                        >
+                          <Copy
+                            className="size-4 text-muted-foreground"
+                            strokeWidth={1.5}
+                            aria-hidden
+                          />{" "}
+                          Copy as Markdown
+                        </Command.Item>
+                      </>
+                    ) : null}
                   </Command.Group>
                 ) : null}
 

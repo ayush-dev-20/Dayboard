@@ -1,0 +1,102 @@
+{
+  "tool": "gmail",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><div dir=\"ltr\"><div class=\"gmail_default\" style=\"font-family:arial,helvetica,sans-serif\">Hello <b>team</b>,</div><div class=\"gmail_default\" style=\"font-family:arial,helvetica,sans-serif\"><br></div><ul style=\"margin-left:15px\"><li style=\"margin-left:15px\">Ship it<ul style=\"margin-left:15px\"><li style=\"margin-left:15px\">Carefully</li></ul></li><li style=\"margin-left:15px\">Celebrate</li></ul><blockquote class=\"gmail_quote\" style=\"margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex\">Earlier text</blockquote></div>",
+  "text": "Hello team,\n\n   - Ship it\n      - Carefully\n   - Celebrate\n\n> Earlier text",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello "
+          },
+          {
+            "type": "text",
+            "text": "team",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ","
+          }
+        ]
+      },
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Ship it"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Carefully"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Celebrate"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Earlier text"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

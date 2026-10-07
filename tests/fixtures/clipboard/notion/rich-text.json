@@ -1,0 +1,103 @@
+{
+  "tool": "notion",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><h1 class=\"notion-header-block\" style=\"white-space:pre-wrap;word-break:break-word\">Heading</h1><p class=\"\">A paragraph with <strong>bold</strong>, <em>italic</em>, <del>strike</del>, <code>code</code> and <a href=\"https://example.com\">a link</a>.</p>",
+  "text": "Heading\nA paragraph with bold, italic, strike, code and a link.",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Heading"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "A paragraph with "
+          },
+          {
+            "type": "text",
+            "text": "bold",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "italic",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "strike",
+            "marks": [
+              {
+                "type": "strike"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "code",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "a link",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      }
+    ]
+  }
+}

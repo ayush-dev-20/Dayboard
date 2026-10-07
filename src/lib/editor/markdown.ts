@@ -13,11 +13,21 @@ import type { TiptapDoc, TiptapMark, TiptapNode } from "./types";
 export type MarkdownOptions = {
   /** The text is complete. Without it, the last line may still be growing. */
   final?: boolean;
+  /** How many list levels to keep; deeper items join the last level. AI text keeps three; a paste keeps what the editor allows. */
+  maxListDepth?: number;
 };
 
-export type MarkdownResult = { doc: TiptapDoc; truncated: boolean };
+export type MarkdownResult = {
+  doc: TiptapDoc;
+  truncated: boolean;
+  /** A table had more columns or rows than the editor allows and was cut. */
+  tableCut: boolean;
+};
 
-const MAX_LIST_DEPTH = 3;
+const DEFAULT_LIST_DEPTH = 3;
+// Set for the duration of one `convertMarkdown` call (it is synchronous), so the recursive block
+// parser does not need the options threaded through every call.
+const run = { maxListDepth: DEFAULT_LIST_DEPTH, tableCut: false };
 const MAX_QUOTE_DEPTH = 3;
 
 // ---- Inline -----------------------------------------------------------------------------------
@@ -25,7 +35,7 @@ const MAX_QUOTE_DEPTH = 3;
 type Mark = TiptapMark;
 
 const TAG = /^<\/?[a-zA-Z][^<>]*>/;
-const ESCAPABLE = /[\\`*_{}[\]()#+\-.!~>|]/;
+const ESCAPABLE = /[\\`*_{}[\]()#+\-.!~<>|]/;
 
 function withMark(marks: Mark[], mark: Mark): Mark[] {
   return marks.some((m) => m.type === mark.type) ? marks : [...marks, mark];
@@ -301,7 +311,7 @@ function buildList(items: Item[], partialLast: boolean): TiptapNode[] {
       // editor's rules (no lists inside checklist items, at most three levels deep).
       const parent = top?.node.content?.at(-1);
       const depth = (top?.depth ?? 0) + 1;
-      if (top && parent && top.kind !== "task" && depth <= MAX_LIST_DEPTH) {
+      if (top && parent && top.kind !== "task" && depth <= run.maxListDepth) {
         const list = newList(item);
         parent.content = [...(parent.content ?? []), list];
         stack.push({ indent: item.indent, kind: item.kind, node: list, depth });
@@ -359,7 +369,9 @@ function splitRow(line: string): string[] {
  */
 function convertTable(rows: string[]): TiptapNode[] {
   const parsed = rows.map(splitRow).slice(0, TABLE_MAX_ROWS);
-  const width = Math.min(Math.max(...parsed.map((cells) => cells.length), 1), TABLE_MAX_COLUMNS);
+  const widest = Math.max(...parsed.map((cells) => cells.length), 1);
+  const width = Math.min(widest, TABLE_MAX_COLUMNS);
+  if (rows.length > TABLE_MAX_ROWS || widest > TABLE_MAX_COLUMNS) run.tableCut = true;
   const cell = (type: "tableHeader" | "tableCell", text: string): TiptapNode => ({
     type,
     content: [{ type: "paragraph", ...(text ? { content: parseInline(text) } : {}) }],
@@ -528,15 +540,19 @@ function plainFallback(markdown: string): TiptapDoc {
 }
 
 export function convertMarkdown(markdown: string, options: MarkdownOptions = {}): MarkdownResult {
+  run.maxListDepth = options.maxListDepth ?? DEFAULT_LIST_DEPTH;
+  run.tableCut = false;
   try {
     const normalized = markdown.replace(/\r\n?/g, "\n");
     const lines = normalized.split("\n");
     // Without a final newline the last line may still be growing.
     const partialLast = !options.final && !normalized.endsWith("\n") && lines.length > 0;
     const { kept, truncated } = withinLimit(parseBlocks(lines, partialLast));
-    return { doc: sanitizeDoc({ type: "doc", content: kept }), truncated };
+    return { doc: sanitizeDoc({ type: "doc", content: kept }), truncated, tableCut: run.tableCut };
   } catch {
-    return { doc: plainFallback(markdown), truncated: false };
+    return { doc: plainFallback(markdown), truncated: false, tableCut: false };
+  } finally {
+    run.maxListDepth = DEFAULT_LIST_DEPTH;
   }
 }
 

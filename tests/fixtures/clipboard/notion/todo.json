@@ -1,0 +1,53 @@
+{
+  "tool": "notion",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><ul class=\"to-do-list\"><li><div class=\"checkbox checkbox-on\"></div> <span class=\"to-do-children-checked\" style=\"text-decoration:line-through;opacity:0.375\">Done</span></li><li><div class=\"checkbox checkbox-off\"></div> <span class=\"to-do-children-unchecked\">Todo</span></li></ul>",
+  "text": "Done\nTodo",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "taskList",
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": true
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Done"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Todo"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

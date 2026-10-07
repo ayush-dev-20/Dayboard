@@ -1,0 +1,110 @@
+{
+  "tool": "slack",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><span style=\"color:rgb(29,28,29);font-family:Slack-Lato,sans-serif;font-size:15px\">Plain <b data-stringify-type=\"bold\" style=\"box-sizing:inherit\">bold</b>, <i data-stringify-type=\"italic\">italic</i>, <strike data-stringify-type=\"strike\">struck</strike>, <code data-stringify-type=\"code\" class=\"c-mrkdwn__code\">code</code> and <a target=\"_blank\" class=\"c-link\" data-stringify-link=\"https://example.com\" delay=\"150\" data-sk=\"tooltip_parent\" href=\"https://example.com\" rel=\"noopener noreferrer\">a link</a></span><blockquote data-stringify-type=\"quote\" class=\"c-mrkdwn__quote\">Quoted</blockquote><pre class=\"c-mrkdwn__pre\" data-stringify-type=\"pre\">let a = 1;\nlet b = 2;</pre>",
+  "text": "Plain bold, italic, struck, code and a link\n> Quoted\n```let a = 1;\nlet b = 2;```",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Plain "
+          },
+          {
+            "type": "text",
+            "text": "bold",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "italic",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "struck",
+            "marks": [
+              {
+                "type": "strike"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "code",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "a link",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Quoted"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "codeBlock",
+        "content": [
+          {
+            "type": "text",
+            "text": "let a = 1;\nlet b = 2;"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "tool": "slack",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><ul data-stringify-type=\"unordered-list\" class=\"p-rich_text_list p-rich_text_list__bullet\" data-indent=\"0\" data-border=\"0\"><li data-stringify-indent=\"0\" data-stringify-border=\"0\">Fruit</li></ul><ul data-stringify-type=\"unordered-list\" class=\"p-rich_text_list p-rich_text_list__bullet\" data-indent=\"1\" data-border=\"0\"><li data-stringify-indent=\"1\" data-stringify-border=\"0\">Apple</li><li data-stringify-indent=\"1\" data-stringify-border=\"0\">Pear</li></ul><ul data-stringify-type=\"unordered-list\" class=\"p-rich_text_list p-rich_text_list__bullet\" data-indent=\"0\" data-border=\"0\"><li data-stringify-indent=\"0\" data-stringify-border=\"0\">Veg</li></ul>",
+  "text": "• Fruit\n    ◦ Apple\n    ◦ Pear\n• Veg",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Fruit"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Apple"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Pear"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Veg"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

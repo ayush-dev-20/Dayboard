@@ -49,3 +49,5 @@ Notes and projects are what turn a task list into a workspace, and the spec want
 
 - **Since feature 08** (`ai-writing-and-planning_v1.md`): `RichTextEditor` accepts `onEditorReady` / `onEditorDestroy` and `writingHelp`; its extensions live in `components/editor/extensions.ts` (shared with the read-only AI preview). The note menu has "Generate with AI", and `/notes/new?ai=1` opens the panel without creating a note.
 - **Since V2 feature 01** (`editor-blocks-and-lists_v2.md`): the editor also has a slash menu, callouts, toggles, tables, a table of contents and depth-based list markers; the same schema is used for task descriptions.
+- **Since V2 feature 02** (`clipboard-fidelity_v2.md`): copy, cut and paste in the editor are Dayboard's own (clean HTML, Markdown and a lossless flavour out; Slack, Notion, Google Docs, Word and others read in), the note menu has Copy note and Copy as Markdown, and the note title joins pasted lines into one.
+

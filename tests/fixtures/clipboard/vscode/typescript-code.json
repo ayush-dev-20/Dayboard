@@ -1,0 +1,29 @@
+{
+  "tool": "vscode",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/plain", "text/html", "vscode-editor-data"],
+  "html": "<meta charset='utf-8'><div style=\"color: #d4d4d4;background-color: #1e1e1e;font-family: Menlo, Monaco, 'Courier New', monospace;font-weight: normal;font-size: 12px;line-height: 18px;white-space: pre;\"><div><span style=\"color: #569cd6;\">const</span><span style=\"color: #d4d4d4;\"> </span><span style=\"color: #4fc1ff;\">answer</span><span style=\"color: #d4d4d4;\"> = </span><span style=\"color: #b5cea8;\">42</span><span style=\"color: #d4d4d4;\">;</span></div><div><span style=\"color: #4ec9b0;\">console</span><span style=\"color: #d4d4d4;\">.</span><span style=\"color: #dcdcaa;\">log</span><span style=\"color: #d4d4d4;\">(answer);</span></div></div>",
+  "text": "const answer = 42;\nconsole.log(answer);",
+  "extras": {
+    "vscode-editor-data": "{\"version\":1,\"isFromEmptySelection\":false,\"multicursorText\":null,\"mode\":\"typescript\"}"
+  },
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "typescript"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "const answer = 42;\nconsole.log(answer);"
+          }
+        ]
+      }
+    ]
+  }
+}

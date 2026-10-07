@@ -1,0 +1,86 @@
+{
+  "tool": "web-page",
+  "version": "",
+  "captured": "reconstructed",
+  "note": "Written from the tool's documented clipboard markup, not captured from the real tool. Replace with a capture from /dev/clipboard.",
+  "types": ["text/html", "text/plain"],
+  "html": "<meta charset='utf-8'><article><h1 class=\"title\">Great article</h1><h4>Small head</h4><script>alert(1)</script><style>.x{color:red}</style><div class=\"byline\"><span>By </span><a href=\"/authors/ada\">Ada</a><span> and </span><a href=\"https://example.com/bob\">Bob</a></div><p>Intro with <a href=\"javascript:alert(1)\">bad link</a> and <img src=\"x.png\" alt=\"a diagram\"> image.</p><iframe src=\"https://evil.example\"></iframe><p style=\"color:red;font-size:30px;font-family:Comic Sans MS\">Styled</p><p>Zero​width and nbsp</p></article>",
+  "text": "Great article\nSmall head\nBy Ada and Bob\nIntro with bad link and image.\nStyled",
+  "expected": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Great article"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 3
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Small head"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "By Ada and "
+          },
+          {
+            "type": "text",
+            "text": "Bob",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com/bob"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Intro with bad link and a diagram image."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Styled"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Zerowidth and nbsp"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -191,16 +191,39 @@ The exact clipboard contents of each tool (above all **Slack's list copying**) m
 - [ ] Compatibility matrix (product spec §15.7) completed on real tools and written to `docs/research/`; no case shows raw HTML or stray symbols
 - [ ] A bulleted list copied from Slack and from Notion pastes as a bulleted list; a nested list keeps its nesting
 - [ ] Copying a note section (heading, nested list, bold, link, code, table) into Notion and Google Docs arrives with the same structure; Slack shows what Slack can hold
-- [ ] Dayboard to Dayboard is identical, including tables, toggles and callouts
-- [ ] Plain paste, paste-in-list, paste-in-code and one-undo-step work
+- [x] Dayboard to Dayboard is identical, including tables, toggles and callouts
+- [x] Plain paste, paste-in-list, paste-in-code and one-undo-step work
 - [ ] Fixtures for every listed tool are committed and tested
-- [ ] Pasted documents always pass document validation; oversized pastes are cut with a message
-- [ ] The paste rule registry exists and is empty of behaviour changes beyond URL-over-selection
+- [x] Pasted documents always pass document validation; oversized pastes are cut with a message
+- [x] The paste rule registry exists and is empty of behaviour changes beyond URL-over-selection
 - [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass
-- [ ] `agent_docs/clipboard-fidelity_v2.md` written and indexed
+- [x] `agent_docs/clipboard-fidelity_v2.md` written and indexed
 
 ---
 
 ## 11. Out of scope (V2)
 
 Copying images to other tools (limited by those tools; see feature 09); importing or exporting whole notes as Markdown or Word files; automatic conversion of a pasted emoji quote into a callout; auto-linking pasted plain URLs to bookmarks (09); drag-and-drop of text between apps beyond what the browser provides; a setting to choose paste behaviour.
+
+---
+
+## 12. As built (2026-10-07)
+
+What differs from the sections above. The agent hand-off is `agent_docs/clipboard-fidelity_v2.md`.
+
+- **Not done: the real-tool part.** The matrix (§6, §10) has its file (`docs/research/2026-10-07-clipboard-matrix.md`) with every cell "not run", and the fixtures are **reconstructed** from the tools' known markup, not captured (`tests/fixtures/clipboard/README.md`). The capture page `/dev/clipboard` exists to replace them. The definition-of-done items that need Slack, Notion, Google Docs and the rest (the matrix, the Slack and Notion list checks, a section copied into Notion and Google Docs, fixtures captured from real tools) and the full `pnpm` check list stay unticked until then.
+- **Fixture format:** adds `note`, `extras` (other flavours, e.g. `vscode-editor-data`) and `case`; `captured` is `"reconstructed"` until replaced.
+- **Paste hook:** `handleDOMEvents.paste` (not `handlePaste`), so Tiptap's link-on-paste and paste rules never run on top. Copy and cut are `handleDOMEvents.copy` and `cut`.
+- **Plain-text flavour for an inline selection** is bare text, not Markdown (a bold word pasted into a search box has no asterisks). Code selections write raw text. Block selections are Markdown as specified.
+- **HTML copy:** `class="language-x"` on `code` is the one class (the code language survives other tools). Tables are `<table><tr>…` without `tbody`. A list item with several paragraphs joins them with `<br>`. An empty last paragraph is dropped.
+- **Paste, from HTML:** `td` stays a cell and `th` a header cell (Google Docs and Word write only `td`, so no header row comes from them). A Notion `figure.callout` becomes a callout; an emoji quote never does. A list item with several block paragraphs keeps them as paragraphs (flattening is only for a single one). A paragraph that starts with a bullet glyph, or one paragraph of glyph lines separated by `<br>`, becomes list items; "1. Intro" as a paragraph does not.
+- **Paste, plain text:** a lettered or roman marker (`a.`, `ii.`) is believed only in a run of two or more list lines or beside a clearer one. `☐ ☑` become a checklist. Text that is Markdown is first rewritten to markers the Markdown converter knows (`•` → `-`, `a.` → `1.`), outside code fences. `markdown.ts` gained `maxListDepth` (paste keeps six levels, AI text keeps three), `tableCut` on its result and `\<` as an escape.
+- **Where it lands:** adds "pasting blocks onto an empty line replaces that line", "a table, toggle or callout pasted into a list item or quote becomes lines of text" and "a pasted list at the end of an item nests under it". A multi-paragraph paste in a list item becomes items only when every pasted block is a paragraph.
+- **Dayboard flavour:** scrubbed on read (node, mark and attribute whitelist, size and depth caps); an unsafe or newer-version flavour falls back to the HTML.
+- **History:** pasting and cutting close the history group first, so one undo takes back exactly the paste or cut.
+- **Size:** parsing stops once the paste is over the document limit; a single text block larger than the limit is cut inside the block. Measured in Chromium: a 1 MB HTML paste takes about 80 ms; serialising 570 KB of document takes about 30 ms.
+- **Copy note:** tries a `copy` event through `document.execCommand("copy")` first (it carries every flavour, including the Dayboard one, in every browser), then `ClipboardItem`, then `writeText`. The title leads the HTML and Markdown; the Dayboard flavour carries the body only. In the command menu the two items show only on `/notes/<id>` (they send an event the open note listens for).
+- **Titles:** the note title and the task title join pasted lines with spaces (`pasteSingleLine`). Other single-line fields are unchanged.
+- **Not built:** the "Shortcuts" help line (no help screen exists to hold it).
+- **New dev dependency:** `jsdom` (and `@types/jsdom`), for the HTML reader's unit tests only.
+

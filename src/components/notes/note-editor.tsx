@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Editor } from "@tiptap/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,7 @@ import {
   Archive,
   ArrowLeft,
   CircleAlert,
+  Copy,
   Ellipsis,
   Folder,
   Info,
@@ -35,6 +36,8 @@ import {
   type ApplyResult,
 } from "@/components/editor/ai-apply";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { copyFlavours, copyToClipboard, type CopyKind } from "@/components/editor/copy-note";
+import { pasteSingleLine } from "@/components/editor/single-line-paste";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/layout/page-container";
 import { SaveState } from "@/components/tasks/description-editor";
@@ -50,6 +53,7 @@ import { TagPicker } from "@/components/workspace/tag-picker";
 import { useIsClient } from "@/hooks/use-browser";
 import type { SaveStatus } from "@/hooks/use-autosave";
 import { isEmptyDoc } from "@/lib/editor/projection";
+import { COPY_NOTE_EVENT } from "@/lib/shortcuts";
 import type { TiptapDoc } from "@/lib/editor/types";
 import { clearDraft, readDraft } from "@/lib/notes/draft";
 import type { NoteDTO, LinkedTaskDTO } from "@/lib/notes/dto";
@@ -363,6 +367,28 @@ export function NoteEditor({ note, start }: Props) {
   const afterMenu = useRef<(() => void) | null>(null);
   const needsNote = "Available once you start writing";
 
+  // Copy note / Copy as Markdown (V2 feature 02): the whole note, through the same serialisers as a
+  // selection. The command menu asks for it with an event.
+  async function copyNote(kind: CopyKind) {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const flavours = copyFlavours(editor.getJSON() as TiptapDoc, title);
+    if (await copyToClipboard(flavours, kind)) toast("Copied");
+    else toast.error("Couldn't copy. Select the text and copy it instead.");
+  }
+  const copyNoteRef = useRef(copyNote);
+  useEffect(() => {
+    copyNoteRef.current = copyNote;
+  });
+  useEffect(() => {
+    const onCopy = (event: Event) => {
+      const kind = (event as CustomEvent<{ kind?: CopyKind }>).detail?.kind ?? "note";
+      void copyNoteRef.current(kind);
+    };
+    window.addEventListener(COPY_NOTE_EVENT, onCopy);
+    return () => window.removeEventListener(COPY_NOTE_EVENT, onCopy);
+  }, []);
+
   const titleField = (
     <div className="mb-4 flex items-start gap-1">
       <span id="note-emoji">
@@ -385,6 +411,7 @@ export function NoteEditor({ note, start }: Props) {
           sync.onTitleChange(e.target.value);
         }}
         onBlur={() => void sync.flush()}
+        onPaste={pasteSingleLine}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -478,6 +505,13 @@ export function NoteEditor({ note, start }: Props) {
                 }}
               >
                 <SmilePlus strokeWidth={1.5} aria-hidden /> Emoji
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => void copyNote("note")}>
+                <Copy strokeWidth={1.5} aria-hidden /> Copy note
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void copyNote("markdown")}>
+                <Copy strokeWidth={1.5} aria-hidden /> Copy as Markdown
               </DropdownMenuItem>
               {aiEnabled ? (
                 <>

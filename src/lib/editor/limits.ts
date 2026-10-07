@@ -19,4 +19,7 @@ export const MESSAGES = {
   tableColumns: `Tables can have up to ${TABLE_MAX_COLUMNS} columns.`,
   tableRows: `Tables can have up to ${TABLE_MAX_ROWS} rows.`,
   listDepth: "Lists can go six levels deep.",
+  // V2 feature 02: pasted content that had to be trimmed.
+  tableCut: `Table was cut to ${TABLE_MAX_COLUMNS} columns and ${TABLE_MAX_ROWS} rows.`,
+  pasteShortened: "Pasted content was shortened to fit.",
 } as const;
