@@ -40,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         tags,
         counts,
         aiEnabled: env.aiAvailable && preferences.aiEnabled,
+        filesEnabled: env.storageAvailable,
         noteTree,
       }}
     >

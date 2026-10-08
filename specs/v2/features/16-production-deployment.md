@@ -164,7 +164,7 @@ Everything above: Caddy, web, worker, pgvector Postgres, optional MinIO or R2/S3
 
 ### Profile B: serverless-lite (free hosting)
 
-For a personal deployment on a host such as **Vercel** with managed Postgres (Neon, pgvector enabled) and an S3-compatible bucket (for example Cloudflare R2). What is different:
+For a personal deployment on a host such as **Vercel** with managed Postgres (Neon, pgvector enabled) and an S3-compatible bucket (Backblaze B2 by default, see feature 09 §3; Cloudflare R2 also works). What is different:
 
 | Area | Behaviour |
 |---|---|

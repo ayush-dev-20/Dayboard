@@ -148,6 +148,10 @@ export async function listNotesForViews(
       updatedAt: notes.updatedAt,
       archivedAt: notes.archivedAt,
       head: sql<string>`left(${notes.contentText}, ${SNIPPET_LENGTH * 3})`,
+      // The first picture block at the top of the text: the gallery shows it as the cover.
+      cover: sql<
+        string | null
+      >`jsonb_path_query_first(${notes.contentJson}, '$.content[*] ? (@.type == "image").attrs.attachmentId') #>> '{}'`,
       taskCount: linkedTaskCount,
     })
     .from(notes)
@@ -182,6 +186,7 @@ export async function listNotesForViews(
     title: r.title,
     emoji: r.emoji,
     snippet: makeSnippet(r.head),
+    cover: r.cover,
     updatedAt: r.updatedAt.toISOString(),
     createdAt: r.createdAt.toISOString(),
     archived: r.archivedAt !== null,

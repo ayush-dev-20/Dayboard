@@ -15,6 +15,10 @@ export type PasteContext = {
   surface: "note" | "task";
   ownerId: string | null;
   offline: boolean;
+  /** File storage is set up (feature 09): image files can be pasted and dropped. */
+  filesEnabled?: boolean;
+  /** Creates a note that does not exist yet and returns its id. */
+  ensureOwner?: () => Promise<string | null>;
   /** How note links leave the editor and which addresses count as this app's own (feature 07). */
   noteRefs?: NoteRefReader & { origins: readonly string[] };
 };

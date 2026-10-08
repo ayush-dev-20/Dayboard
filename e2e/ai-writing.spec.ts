@@ -15,7 +15,15 @@ import {
   notesOf,
   taskDescriptionText,
 } from "./db";
-import { detailPanel, newDevice, openTask, signUp, today } from "./helpers";
+import {
+  detailPanel,
+  newDevice,
+  openTask,
+  pressLineEnd,
+  selectToLineStart,
+  signUp,
+  today,
+} from "./helpers";
 
 // Feature 08: Generate with AI, Plan my day and Writing help. Mock provider only: no network, no
 // key, no cost.
@@ -246,8 +254,8 @@ const helpPanel = (page: Page) => page.getByRole("dialog", { name: "Writing help
 /** Selects one line of text by keyboard (repeated triple clicks are unreliable in the browser). */
 async function selectLine(page: Page, text: Locator) {
   await text.click();
-  await page.keyboard.press("End");
-  await page.keyboard.press("Shift+Home");
+  await pressLineEnd(page);
+  await selectToLineStart(page);
 }
 
 async function chooseHelp(page: Page, mode: string) {

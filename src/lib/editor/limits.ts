@@ -23,3 +23,12 @@ export const MESSAGES = {
   tableCut: `Table was cut to ${TABLE_MAX_COLUMNS} columns and ${TABLE_MAX_ROWS} rows.`,
   pasteShortened: "Pasted content was shortened to fit.",
 } as const;
+
+// Files and bookmarks (V2 feature 09 §2).
+export const IMAGE_CAPTION_MAX = 500;
+export const IMAGE_WIDTH_MIN = 10;
+export const BOOKMARK_TITLE_MAX = 200;
+export const BOOKMARK_DESCRIPTION_MAX = 400;
+export const BOOKMARK_SITE_MAX = 100;
+/** A stored favicon is a small data: URI (8 KB of image is about 11,000 characters of base64). */
+export const BOOKMARK_FAVICON_MAX_CHARS = 12_000;

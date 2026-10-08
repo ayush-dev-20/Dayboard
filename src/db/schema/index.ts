@@ -1,4 +1,5 @@
 export * from "./ai";
+export * from "./attachments";
 export * from "./auth";
 export * from "./enums";
 export * from "./inbox";

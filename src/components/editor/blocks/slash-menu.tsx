@@ -7,12 +7,14 @@ import Suggestion from "@tiptap/suggestion";
 import { cn } from "@/lib/utils";
 import { DEFAULT_EDITOR_CONTEXT, type EditorContextValue } from "./context";
 import { registerCoreBlocks } from "./core-blocks";
+import { registerFileBlocks } from "./file-blocks";
 import { registerNoteBlocks } from "./note-blocks";
 import { BLOCK_GROUPS, filterBlocks, getBlocks, type BlockItem } from "./registry";
 import { createSuggestionRender, type ListHandle, type PopupListProps } from "./suggestion-popup";
 
 registerCoreBlocks();
 registerNoteBlocks();
+registerFileBlocks();
 
 type ListProps = PopupListProps<BlockItem>;
 

@@ -37,6 +37,24 @@ const rawSchema = z.object({
     blankToUndefined,
     z.coerce.number().int().min(1).max(100000).default(100),
   ),
+  // Files (V2 feature 09). Empty means the feature is hidden. `s3` is any S3-compatible service
+  // (Backblaze B2 in V2); `memory` is for tests; `disk` is for local development only.
+  STORAGE_DRIVER: z.preprocess(blankToUndefined, z.enum(["s3", "memory", "disk"]).optional()),
+  STORAGE_ENDPOINT: z.preprocess(blankToUndefined, z.url("must be a full URL").optional()),
+  STORAGE_REGION: optionalString,
+  STORAGE_BUCKET: optionalString,
+  STORAGE_ACCESS_KEY_ID: optionalString,
+  STORAGE_SECRET_ACCESS_KEY: optionalString,
+  STORAGE_FORCE_PATH_STYLE: z.preprocess(
+    blankToUndefined,
+    z.enum(["true", "false"]).default("false"),
+  ),
+  STORAGE_DISK_DIR: optionalString,
+  STORAGE_QUOTA_MB: z.preprocess(blankToUndefined, z.coerce.number().int().min(1).default(500)),
+  STORAGE_TOTAL_LIMIT_MB: z.preprocess(
+    blankToUndefined,
+    z.coerce.number().int().min(1).default(9000),
+  ),
 });
 
 export type ParseEnvOptions = {
@@ -83,6 +101,28 @@ export function parseEnv(
     problems.push("EMAIL_FROM: required when RESEND_API_KEY is set");
   }
 
+  // Files: with the S3 driver every connection value is needed. The disk driver writes to the local
+  // file system, which production hosts (Vercel) do not keep, so it is development only.
+  if (v.STORAGE_DRIVER === "s3") {
+    for (const name of [
+      "STORAGE_ENDPOINT",
+      "STORAGE_REGION",
+      "STORAGE_BUCKET",
+      "STORAGE_ACCESS_KEY_ID",
+      "STORAGE_SECRET_ACCESS_KEY",
+    ] as const) {
+      if (!v[name]) problems.push(`${name}: required when STORAGE_DRIVER is s3`);
+    }
+  }
+  if (
+    v.STORAGE_DRIVER === "disk" &&
+    v.NODE_ENV === "production" &&
+    !e2e &&
+    !options.skipProductionChecks
+  ) {
+    problems.push("STORAGE_DRIVER: disk is for local development only; use s3 in production");
+  }
+
   if (v.NODE_ENV === "production" && !e2e && !options.skipProductionChecks) {
     if (!v.RESEND_API_KEY) {
       problems.push(
@@ -97,6 +137,11 @@ export function parseEnv(
   if (problems.length > 0) throw new EnvError(problems);
 
   const emailProvider: "resend" | "console" = v.RESEND_API_KEY ? "resend" : "console";
+
+  // An E2E run never reaches a real bucket. No driver means no files anywhere in the app.
+  const storageDriver: "s3" | "memory" | "disk" | null = e2e
+    ? "memory"
+    : (v.STORAGE_DRIVER ?? null);
 
   // Real model calls never happen in tests: an E2E run is always the mock. Otherwise the mock is
   // the default everywhere except production, where a real provider is expected.
@@ -115,6 +160,11 @@ export function parseEnv(
     emailVerificationRequired: emailProvider === "resend" || e2e,
     aiProvider,
     aiAvailable,
+    storageDriver,
+    storageAvailable: storageDriver !== null,
+    storageForcePathStyle: v.STORAGE_FORCE_PATH_STYLE === "true",
+    storageQuotaBytes: v.STORAGE_QUOTA_MB * 1024 * 1024,
+    storageTotalLimitBytes: v.STORAGE_TOTAL_LIMIT_MB * 1024 * 1024,
     googleEnabled: Boolean(v.GOOGLE_CLIENT_ID && v.GOOGLE_CLIENT_SECRET),
     githubEnabled: Boolean(v.GITHUB_CLIENT_ID && v.GITHUB_CLIENT_SECRET),
   };

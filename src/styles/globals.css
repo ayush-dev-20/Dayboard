@@ -853,3 +853,20 @@
     min-height: 1.75rem;
   }
 }
+
+/* Images, files and bookmarks (V2 feature 09). Hairline boxes, no shadows; the selected-node
+   outline above shows on the wrapper. */
+.rich-text .image-block,
+.rich-text .file-block,
+.rich-text .bookmark-block {
+  margin: 0.5rem 0;
+}
+.rich-text .image-block img {
+  display: block;
+}
+.rich-text .file-block {
+  display: block;
+}
+.rich-text .bookmark-block a {
+  text-decoration: none;
+}

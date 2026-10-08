@@ -13,7 +13,7 @@ import {
   saveNoteElsewhere,
   tagNote,
 } from "./db";
-import { newDevice, signUp } from "./helpers";
+import { newDevice, pressLineEnd, signUp } from "./helpers";
 
 async function newUser(page: Page) {
   const account = await signUp(page);
@@ -98,7 +98,7 @@ test.describe("writing a note", () => {
     await expect(editor(page).locator("h2")).toHaveText("x");
     await page.getByRole("button", { name: "Quote" }).click();
     await expect(editor(page).locator("blockquote")).toHaveCount(1);
-    await page.keyboard.press("End");
+    await pressLineEnd(page);
     await page.getByRole("button", { name: "Divider" }).click();
     await expect(editor(page).locator("hr")).toHaveCount(1);
     await expect(page.getByText("Saved")).toBeVisible();

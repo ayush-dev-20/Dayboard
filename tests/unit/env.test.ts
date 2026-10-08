@@ -110,3 +110,67 @@ describe("parseEnv", () => {
     expect(problems({}).length).toBeGreaterThanOrEqual(4);
   });
 });
+
+describe("storage settings (V2 feature 09)", () => {
+  const s3 = {
+    STORAGE_DRIVER: "s3",
+    STORAGE_ENDPOINT: "https://s3.us-west-004.backblazeb2.com",
+    STORAGE_REGION: "us-west-004",
+    STORAGE_BUCKET: "dayboard-files-abc",
+    STORAGE_ACCESS_KEY_ID: "keyid",
+    STORAGE_SECRET_ACCESS_KEY: "secret",
+  };
+
+  it("an unset driver means the feature is off, in development and in production", () => {
+    expect(parseEnv(base).storageDriver).toBeNull();
+    expect(parseEnv(base).storageAvailable).toBe(false);
+    expect(problems(production)).toEqual([]);
+    expect(parseEnv(production).storageAvailable).toBe(false);
+  });
+
+  it("the s3 driver needs all five connection values", () => {
+    expect(problems({ ...base, ...s3 })).toEqual([]);
+    const env = parseEnv({ ...base, ...s3 });
+    expect(env.storageDriver).toBe("s3");
+    expect(env.storageAvailable).toBe(true);
+    for (const name of [
+      "STORAGE_ENDPOINT",
+      "STORAGE_REGION",
+      "STORAGE_BUCKET",
+      "STORAGE_ACCESS_KEY_ID",
+      "STORAGE_SECRET_ACCESS_KEY",
+    ]) {
+      const missing = { ...base, ...s3, [name]: "" };
+      expect(problems(missing).join("\n")).toContain(`${name}: required when STORAGE_DRIVER is s3`);
+    }
+  });
+
+  it("E2E forces the in-memory store, so a test never reaches a real bucket", () => {
+    const env = parseEnv({ ...base, ...s3, E2E: "true" });
+    expect(env.storageDriver).toBe("memory");
+    expect(parseEnv({ ...base, E2E: "true" }).storageDriver).toBe("memory");
+  });
+
+  it("the disk driver is for development only", () => {
+    expect(problems({ ...base, STORAGE_DRIVER: "disk" })).toEqual([]);
+    expect(problems({ ...production, STORAGE_DRIVER: "disk" }).join("\n")).toContain(
+      "disk is for local development only",
+    );
+  });
+
+  it("reads the quotas in megabytes, with defaults, and path style as a boolean", () => {
+    const env = parseEnv(base);
+    expect(env.storageQuotaBytes).toBe(500 * 1024 * 1024);
+    expect(env.storageTotalLimitBytes).toBe(9000 * 1024 * 1024);
+    expect(env.storageForcePathStyle).toBe(false);
+    const custom = parseEnv({
+      ...base,
+      STORAGE_QUOTA_MB: "50",
+      STORAGE_TOTAL_LIMIT_MB: "100",
+      STORAGE_FORCE_PATH_STYLE: "true",
+    });
+    expect(custom.storageQuotaBytes).toBe(50 * 1024 * 1024);
+    expect(custom.storageTotalLimitBytes).toBe(100 * 1024 * 1024);
+    expect(custom.storageForcePathStyle).toBe(true);
+  });
+});

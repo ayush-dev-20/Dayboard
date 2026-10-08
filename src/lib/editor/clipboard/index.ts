@@ -236,9 +236,6 @@ function onPaste(
   const data = readClipboard(transfer);
   const { $from } = view.state.selection;
 
-  // Files alone are for the features that take files; the editor has nothing to do with them yet.
-  if (data.files.length > 0 && !data.html && !data.text) return false;
-
   // 1. Plain paste: the text only, no detection.
   if (isPlainPaste(view)) {
     const text = data.text || htmlToText(data.html);
@@ -255,6 +252,9 @@ function onPaste(
     event.preventDefault();
     return true;
   }
+
+  // Files nobody claimed (a picture with file storage off) are not the editor's to paste.
+  if (data.files.length > 0 && !data.html && !data.text) return false;
 
   // Inside a code block it is always the text, never structure.
   if ($from.parent.type.spec.code) {

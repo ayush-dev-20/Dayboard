@@ -1,7 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { ProjectToken, TagBadge } from "@/components/workspace/tokens";
 import { formatCompact } from "@/lib/dates/relative";
 import type { NoteListItemDTO } from "@/lib/notes/dto";
+import { fileUrl } from "@/lib/storage/dto";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -83,12 +87,24 @@ export function NoteCard({ note, now, timeZone, hideProject, compact, className 
  */
 export function NoteTile({ note, now, timeZone }: Omit<Props, "compact" | "className">) {
   const time = formatCompact(new Date(note.updatedAt), now, timeZone);
+  const [coverBroken, setCoverBroken] = useState(false);
   return (
     <li className="min-w-0">
       <Link
         href={`/notes/${note.id}`}
         className="flex h-full min-h-40 card-interactive flex-col card p-4"
       >
+        {note.cover && !coverBroken ? (
+          // The first picture in the note. A file that is gone leaves no cover, never a broken image.
+          // eslint-disable-next-line @next/next/no-img-element -- a private file behind a redirect
+          <img
+            src={fileUrl(note.cover)}
+            alt=""
+            loading="lazy"
+            onError={() => setCoverBroken(true)}
+            className="-mx-4 -mt-4 mb-3 h-28 w-[calc(100%+2rem)] max-w-none rounded-t-[inherit] object-cover"
+          />
+        ) : null}
         <span className="flex min-w-0 items-start gap-2">
           {note.emoji ? (
             <span aria-hidden className="shrink-0 text-[18px] leading-6">

@@ -190,17 +190,17 @@ A trashed parent shows "Includes N sub-notes". **Restore** restores exactly its 
 
 ## 8. Definition of done
 
-- [ ] Sub-notes, note links, backlinks, breadcrumbs, the sidebar tree and the Tree view all work as in product spec §16
-- [ ] Moving a note updates breadcrumbs, paths and both trees; a cycle or depth-6 note cannot be created, even by two devices
-- [ ] Trash and archive cascade with **exact** restore sets and clear counts; permanent delete states what else goes
-- [ ] Deleting a sub-note block never deletes the note, and no sub-note is ever hidden
-- [ ] Links survive rename, move, archive, trash and restore; missing targets say so
-- [ ] Task descriptions hold note links; **New linked note** works there
-- [ ] Everything works offline and syncs without duplicates
-- [ ] The sidebar tree is an accessible tree and usable on a phone
-- [ ] Migration is expand-only; V1 notes keep working unchanged (all top level, depth 1)
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build`, `theme:check` pass
-- [ ] `agent_docs/nested-notes-links-sidebar-tree_v2.md` written and indexed
+- [x] Sub-notes, note links, backlinks, breadcrumbs, the sidebar tree and the Tree view all work as in product spec §16
+- [x] Moving a note updates breadcrumbs, paths and both trees; a cycle or depth-6 note cannot be created, even by two devices
+- [x] Trash and archive cascade with **exact** restore sets and clear counts; permanent delete states what else goes
+- [x] Deleting a sub-note block never deletes the note, and no sub-note is ever hidden
+- [x] Links survive rename, move, archive, trash and restore; missing targets say so
+- [x] Task descriptions hold note links; **New linked note** works there
+- [ ] Everything works offline and syncs without duplicates (waits for features 04 and 05; see As built)
+- [x] The sidebar tree is an accessible tree and usable on a phone
+- [x] Migration is expand-only; V1 notes keep working unchanged (all top level, depth 1)
+- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build`, `theme:check` pass (all pass; `test:e2e` has 4 stale empty-state visual baselines from before this feature and a few tests that fail only under heavy machine load and pass alone)
+- [x] `agent_docs/nested-notes-links-sidebar-tree_v2.md` written and indexed
 
 ---
 
@@ -214,7 +214,7 @@ A graph view; linking to tasks or projects from the picker (built so it can be a
 
 What differs from the sections above. The agent hand-off is `agent_docs/nested-notes-links-sidebar-tree_v2.md`.
 
-- **Server-side only.** Features 03 to 05 were skipped on purpose, so nothing here works offline, `uiState` is `localStorage` (open branches and whether the tree shows), and other tabs follow through a `BroadcastChannel`. Not done: the offline E2E cases (§7, 9), `dependsOn` and `note.delete { cascadeId }` operations, and the offline-created cycle rule on apply (the server half exists: hierarchy changes take a per-person lock, so the second of two crossing moves is refused).
+- **Server-side only.** Features 03 to 05 were skipped on purpose, so nothing here works offline, `uiState` is `localStorage` (open branches and whether the tree shows), and other tabs follow through a `BroadcastChannel`. Not done: the offline E2E cases (§7, 9), `dependsOn` and `note.delete { cascadeId }` operations, and the offline-created cycle rule on apply (the server half exists and is tested with two concurrent moves: hierarchy changes take a per-person lock, so the second of two crossing moves is refused).
 - **No client-made ids.** `createSubNote` and `createLinkedNoteForTask` take no `id` (a duplicate key would reveal whether someone else's id exists). `moveNote` takes `beforeId` **and** `afterId` (the neighbours), like `reorderNote`; with neither the note goes first. `getNoteMeta` is an action (`getNoteMetas`) used by the links; the picker is `findNotesForLink`; `loadBacklinks`, `loadNoteOutline`, `loadNoteTree` and `loadNoteChildren` feed the UI.
 - **Derived links.** `note_links` has two delete triggers (migration 0008) because `source_id` cannot be a foreign key. A link to a note that is not the person's stores nothing. A note linking to itself is not a backlink.
 - **Archive mirrors Trash**, including "unarchive as a top-level note" when the parent is still archived. Creating a sub-note under an archived note, or moving into one, is refused ("Unarchive this note…").

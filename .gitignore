@@ -29,3 +29,4 @@ public/emojibase
 # Claude Code local settings and skills
 .claude/
 .next-*
+.storage-dev

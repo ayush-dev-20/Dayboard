@@ -76,6 +76,7 @@ import type { NoteSaveState } from "@/lib/notes/save-state";
 import type { ProjectRef } from "@/lib/projects/dto";
 import type { TagDTO } from "@/lib/tags";
 import { cn } from "@/lib/utils";
+import { AttachmentsSection } from "@/components/files/attachments-section";
 import { BacklinksPanel } from "./backlinks-panel";
 import { LinkedTasks } from "./linked-tasks";
 import { NoteBreadcrumb } from "./note-breadcrumb";
@@ -471,6 +472,7 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
       surface: "note",
       ownerId: noteId,
       offline: !online,
+      filesEnabled: false,
       ensureOwner,
     });
     if (!made) return;
@@ -839,6 +841,7 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
       />
 
       <SubNotesSection notes={unplaced} />
+      <AttachmentsSection ownerType="NOTE" ownerId={noteId} />
 
       {aiEnabled && !noteId && !generateOpen ? (
         <p className="mt-2">

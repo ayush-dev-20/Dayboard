@@ -7,6 +7,11 @@ export const ERROR_CODES = [
   "RATE_LIMITED",
   "AI_DISABLED",
   "AI_PROVIDER_ERROR",
+  // Files (V2 feature 09).
+  "UNSUPPORTED_FILE_TYPE",
+  "FILE_TOO_LARGE",
+  "QUOTA_EXCEEDED",
+  "STORAGE_FULL",
   "DATABASE_ERROR",
   "INTERNAL_ERROR",
 ] as const;
@@ -22,6 +27,10 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   RATE_LIMITED: 429,
   AI_DISABLED: 403,
   AI_PROVIDER_ERROR: 502,
+  UNSUPPORTED_FILE_TYPE: 415,
+  FILE_TOO_LARGE: 413,
+  QUOTA_EXCEEDED: 413,
+  STORAGE_FULL: 507,
   DATABASE_ERROR: 500,
   INTERNAL_ERROR: 500,
 };
@@ -36,6 +45,10 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   RATE_LIMITED: "Too many attempts. Try again in a moment.",
   AI_DISABLED: "AI features are turned off.",
   AI_PROVIDER_ERROR: "The AI service didn't respond. Try again.",
+  UNSUPPORTED_FILE_TYPE: "This file type isn't supported.",
+  FILE_TOO_LARGE: "That file is too large.",
+  QUOTA_EXCEEDED: "You've used all your storage.",
+  STORAGE_FULL: "Uploads are paused because storage is full.",
   DATABASE_ERROR: "Something went wrong on our side. Try again.",
   INTERNAL_ERROR: "Something went wrong on our side. Try again.",
 };

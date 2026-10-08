@@ -17,6 +17,8 @@ import {
 import { DEFAULT_EDITOR_CONTEXT, type EditorContextValue } from "./blocks/context";
 import { BlockLimits, HeadingAnchors, ListDepthAnchors, type LimitHandler } from "./blocks/guards";
 import { BlockKeys } from "./blocks/keys";
+import { FileDrop } from "./blocks/file-blocks";
+import { createBookmark, createFile, createImage } from "./blocks/file-nodes";
 import { NoteLinkPicker } from "./blocks/note-link-picker";
 import { createNoteLink, createSubNote } from "./blocks/note-nodes";
 import { SlashMenu } from "./blocks/slash-menu";
@@ -63,6 +65,11 @@ export function createExtensions(placeholder = "", options: ExtensionOptions = {
     // Sub-notes belong under a note; a task description has the node (so pasted text parses) but no
     // way to insert one, and the server refuses a saved one (feature 07 §4).
     createSubNote(interactive),
+    // Files and bookmarks (feature 09): the blocks always exist so a saved note parses; inserting
+    // one is offered only when file storage is on (slash menu) or a link is pasted.
+    createImage(interactive),
+    createFile(interactive),
+    createBookmark(interactive),
     BlockTable,
     BlockTableRow,
     BlockTableHeader,
@@ -76,6 +83,7 @@ export function createExtensions(placeholder = "", options: ExtensionOptions = {
           BlockKeys.configure({ getOwnerId: () => options.getContext?.().ownerId ?? null }),
           SlashMenu.configure({ getContext: options.getContext }),
           NoteLinkPicker.configure({ getContext: options.getContext }),
+          FileDrop.configure({ getContext: options.getContext ?? (() => DEFAULT_EDITOR_CONTEXT) }),
           ClipboardFidelity.configure({
             getContext: () => ({
               ...(options.getContext?.() ?? DEFAULT_EDITOR_CONTEXT),

@@ -10,6 +10,8 @@ export type EditorContextValue = {
   ownerId: string | null;
   /** The browser has no connection. */
   offline: boolean;
+  /** File storage is set up: images and files can be added (feature 09). */
+  filesEnabled: boolean;
   /**
    * A note that is not created yet becomes real (its first save happens now) and its id comes
    * back, so a sub-note can be made under it. Absent where the owner always exists (task
@@ -22,6 +24,7 @@ export const DEFAULT_EDITOR_CONTEXT: EditorContextValue = {
   surface: "note",
   ownerId: null,
   offline: false,
+  filesEnabled: false,
 };
 
 const EditorSurfaceContext = createContext<EditorContextValue>(DEFAULT_EDITOR_CONTEXT);

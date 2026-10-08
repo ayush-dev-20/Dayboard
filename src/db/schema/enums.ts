@@ -68,3 +68,14 @@ export const viewTypeEnum = pgEnum("view_type", [
   "GALLERY",
   "TREE",
 ]);
+
+// Files (V2 feature 09): what an attachment belongs to, where it is in its life, and how a link
+// preview turned out.
+export const attachmentOwnerTypeEnum = pgEnum("attachment_owner_type", ["NOTE", "TASK", "PROJECT"]);
+export const attachmentStatusEnum = pgEnum("attachment_status", [
+  "PENDING",
+  "READY",
+  "REJECTED",
+  "DELETED",
+]);
+export const linkPreviewStatusEnum = pgEnum("link_preview_status", ["OK", "FAILED", "BLOCKED"]);

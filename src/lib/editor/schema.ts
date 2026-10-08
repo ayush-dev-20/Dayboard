@@ -1,8 +1,14 @@
 import { z } from "zod";
 import { isSingleEmoji } from "@/lib/emoji";
 import {
+  BOOKMARK_DESCRIPTION_MAX,
+  BOOKMARK_FAVICON_MAX_CHARS,
+  BOOKMARK_SITE_MAX,
+  BOOKMARK_TITLE_MAX,
   CALLOUT_TONES,
   DEFAULT_CALLOUT_EMOJI,
+  IMAGE_CAPTION_MAX,
+  IMAGE_WIDTH_MIN,
   LIST_MAX_DEPTH,
   MESSAGES,
   TABLE_MAX_COLUMNS,
@@ -52,6 +58,10 @@ export const NODE_TYPES = new Set([
   // V2 feature 07: a link to a note (inline) and a sub-note (block). Identity only.
   "noteLink",
   "subNote",
+  // V2 feature 09: an image and a file point at an attachment; a bookmark keeps a preview snapshot.
+  "image",
+  "file",
+  "bookmark",
 ]);
 const LEAF_TYPES = new Set([
   "horizontalRule",
@@ -59,10 +69,22 @@ const LEAF_TYPES = new Set([
   "tableOfContents",
   "noteLink",
   "subNote",
+  "image",
+  "file",
+  "bookmark",
 ]);
 
 /** Blocks that live only at the top of a document or inside a toggle (never in lists or quotes). */
-const TOP_BLOCKS = new Set(["callout", "toggle", "table", "tableOfContents", "subNote"]);
+const TOP_BLOCKS = new Set([
+  "callout",
+  "toggle",
+  "table",
+  "tableOfContents",
+  "subNote",
+  "image",
+  "file",
+  "bookmark",
+]);
 
 /** Where a note link may sit: in a line of text. */
 const INLINE_PARENTS = new Set(["paragraph", "heading", "toggleSummary"]);
@@ -109,6 +131,10 @@ const ONLY_IN: Record<string, string> = {
 const MARK_TYPES = new Set(["bold", "italic", "underline", "strike", "code", "link"]);
 const LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 
+/** A small raster image as a data: URI. SVG is not allowed (it can carry script). */
+const FAVICON =
+  /^data:image\/(png|jpeg|gif|webp|x-icon|vnd\.microsoft\.icon);base64,[A-Za-z0-9+/]+={0,2}$/;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -144,6 +170,19 @@ export function sanitizeMarks(raw: unknown): TiptapMark[] | undefined {
     }
   }
   return marks.length > 0 ? marks : undefined;
+}
+
+/** A web address a bookmark may point at: http or https, no credentials. */
+export function isWebAddress(href: string): boolean {
+  if (href.length > 2048) return false;
+  try {
+    const url = new URL(href);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") && !url.username && !url.password
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function sanitizeAttrs(type: string, raw: unknown): Record<string, unknown> | undefined {
@@ -194,6 +233,64 @@ export function sanitizeAttrs(type: string, raw: unknown): Record<string, unknow
         throw new EditorDocError("Toggle headings can be level 1, 2 or 3.");
       }
       return { level };
+    }
+    case "image": {
+      const attachmentId = attrs.attachmentId;
+      if (typeof attachmentId !== "string" || !UUID.test(attachmentId)) {
+        throw new EditorDocError("An image isn't valid.");
+      }
+      const out: Record<string, unknown> = { attachmentId: attachmentId.toLowerCase() };
+      if (typeof attrs.caption === "string" && attrs.caption.trim() !== "") {
+        out.caption = attrs.caption.replace(/\s+/g, " ").trim().slice(0, IMAGE_CAPTION_MAX);
+      }
+      const width = attrs.width;
+      if (
+        typeof width === "number" &&
+        Number.isInteger(width) &&
+        width >= IMAGE_WIDTH_MIN &&
+        width < 100
+      ) {
+        out.width = width;
+      }
+      return out;
+    }
+    case "file": {
+      const attachmentId = attrs.attachmentId;
+      if (typeof attachmentId !== "string" || !UUID.test(attachmentId)) {
+        throw new EditorDocError("A file isn't valid.");
+      }
+      return { attachmentId: attachmentId.toLowerCase() };
+    }
+    case "bookmark": {
+      const url = attrs.url;
+      if (typeof url !== "string" || !isWebAddress(url)) {
+        throw new EditorDocError(
+          "A bookmark needs a web address that starts with http:// or https://.",
+        );
+      }
+      const out: Record<string, unknown> = { url };
+      const text = (value: unknown, max: number) =>
+        typeof value === "string" && value.trim() !== ""
+          ? value.replace(/\s+/g, " ").trim().slice(0, max)
+          : undefined;
+      const title = text(attrs.title, BOOKMARK_TITLE_MAX);
+      const description = text(attrs.description, BOOKMARK_DESCRIPTION_MAX);
+      const siteName = text(attrs.siteName, BOOKMARK_SITE_MAX);
+      if (title) out.title = title;
+      if (description) out.description = description;
+      if (siteName) out.siteName = siteName;
+      const favicon = attrs.favicon;
+      if (typeof favicon === "string" && favicon !== "") {
+        if (!FAVICON.test(favicon) || favicon.length > BOOKMARK_FAVICON_MAX_CHARS) {
+          throw new EditorDocError("A bookmark's icon isn't valid.");
+        }
+        out.favicon = favicon;
+      }
+      const fetchedAt = attrs.fetchedAt;
+      if (typeof fetchedAt === "string" && !Number.isNaN(Date.parse(fetchedAt))) {
+        out.fetchedAt = new Date(fetchedAt).toISOString();
+      }
+      return out;
     }
     case "tableCell":
     case "tableHeader": {

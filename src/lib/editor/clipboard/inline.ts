@@ -79,6 +79,14 @@ export function inlineText(nodes: TiptapNode[] | undefined): string {
   return (nodes ?? []).map((n) => (n.type === "hardBreak" ? "\n" : (n.text ?? ""))).join("");
 }
 
+/** A bookmark as link text: its title (or address) linked to the page. Empty when the address is not a link. */
+export function bookmarkAsInline(node: TiptapNode): TiptapNode[] {
+  const url = typeof node.attrs?.url === "string" ? node.attrs.url : "";
+  const title = typeof node.attrs?.title === "string" && node.attrs.title ? node.attrs.title : url;
+  const text = url ? textNode(title, [{ type: "link", attrs: { href: url } }]) : null;
+  return text ? [text] : [];
+}
+
 export const paragraphOf = (inline: TiptapNode[]): TiptapNode =>
   inline.length > 0 ? { type: "paragraph", content: inline } : { type: "paragraph" };
 
@@ -122,8 +130,13 @@ export function blocksToInline(blocks: TiptapNode[]): TiptapNode[] {
         // A block that points at a note becomes the link where only a line of text fits.
         addLine([{ type: "noteLink", attrs: node.attrs }]);
         break;
+      case "bookmark":
+        addLine(bookmarkAsInline(node));
+        break;
       case "horizontalRule":
       case "tableOfContents":
+      case "image":
+      case "file":
         break;
       case "table":
         for (const row of node.content ?? []) {

@@ -25,6 +25,10 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "integration-tests-only-secret-0123456789abcdef",
       BETTER_AUTH_URL: "http://localhost:3000",
       NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      // Files (feature 09): the in-memory store, and a 1 MB allowance per person so a quota is easy
+      // to reach with small files.
+      STORAGE_DRIVER: "memory",
+      STORAGE_QUOTA_MB: "1",
     },
   },
 });

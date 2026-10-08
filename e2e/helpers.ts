@@ -152,3 +152,18 @@ export async function animationsDone(locator: Locator) {
     );
   });
 }
+
+// Home and End scroll the page on macOS Chrome whenever the page can scroll, and only move the
+// caret when it can't, so a test that relies on them breaks when a page gets a few pixels taller.
+// The Mac's own line keys (Cmd+Arrow) always move the caret.
+const MAC = process.platform === "darwin";
+
+/** Moves the caret to the end of the line, collapsing any selection. */
+export async function pressLineEnd(page: Page) {
+  await page.keyboard.press(MAC ? "Meta+ArrowRight" : "End");
+}
+
+/** Extends the selection back to the start of the line. */
+export async function selectToLineStart(page: Page) {
+  await page.keyboard.press(MAC ? "Meta+Shift+ArrowLeft" : "Shift+Home");
+}

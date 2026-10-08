@@ -14,6 +14,8 @@ export type WorkspaceValue = {
   counts: { today: number; inbox: number };
   /** AI is configured and the person has it switched on. When false, no AI surface renders. */
   aiEnabled: boolean;
+  /** File storage is configured: attachments, image and file blocks are shown (feature 09). */
+  filesEnabled: boolean;
   /** The notes under Notes in the sidebar: the first 50 top-level notes and what is under them. */
   noteTree: { rows: NoteTreeRow[]; rootTotal: number };
 };
@@ -23,6 +25,7 @@ const WorkspaceContext = createContext<WorkspaceValue>({
   tags: [],
   counts: { today: 0, inbox: 0 },
   aiEnabled: false,
+  filesEnabled: false,
   noteTree: { rows: [], rootTotal: 0 },
 });
 

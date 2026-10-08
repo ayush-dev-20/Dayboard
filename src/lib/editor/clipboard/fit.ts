@@ -1,6 +1,7 @@
 import type { TiptapNode } from "../types";
 import {
   blocksToInline,
+  bookmarkAsInline,
   inlineText,
   mergeInline,
   paragraphOf,
@@ -18,7 +19,10 @@ const isTop = (node: TiptapNode) =>
   node.type === "toggle" ||
   node.type === "table" ||
   node.type === "tableOfContents" ||
-  node.type === "subNote";
+  node.type === "subNote" ||
+  node.type === "image" ||
+  node.type === "file" ||
+  node.type === "bookmark";
 
 /** A sub-note block as a line holding a link to the same note. */
 const subNoteAsLink = (block: TiptapNode): TiptapNode =>
@@ -111,7 +115,17 @@ export function fitInner(blocks: TiptapNode[]): TiptapNode[] {
       case "subNote":
         out.push(subNoteAsLink(block));
         break;
+      case "bookmark": {
+        // A card where only text fits is a line with a link to the page.
+        const link = bookmarkAsInline(block);
+        if (link.length > 0) out.push(paragraphOf(link));
+        break;
+      }
       default:
+        // A picture or a file cannot sit inside a list or a quote; the caption is kept as text.
+        if (block.type === "image" && typeof block.attrs?.caption === "string") {
+          out.push(paragraphOf(plainInline(block.attrs.caption)));
+        }
         break;
     }
   }

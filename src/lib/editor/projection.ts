@@ -23,6 +23,18 @@ function blockLines(node: TiptapNode, titleOf?: TitleOf, listPrefix = ""): strin
       const title = titleOf?.(String(node.attrs?.noteId ?? ""))?.trim();
       return title ? [listPrefix + title] : [];
     }
+    // V2 feature 09. Words only: an image's caption, a bookmark's title and description. A file's
+    // name is not in the document (it is on the attachment), so it adds nothing here.
+    case "image": {
+      const caption = String(node.attrs?.caption ?? "").trim();
+      return caption ? [listPrefix + caption] : [];
+    }
+    case "bookmark": {
+      const lines = [node.attrs?.title, node.attrs?.description]
+        .map((v) => String(v ?? "").trim())
+        .filter(Boolean);
+      return lines.map((line, i) => (i === 0 ? listPrefix + line : line));
+    }
     case "paragraph":
     case "heading":
     case "codeBlock": {
@@ -94,7 +106,13 @@ export function isEmptyDoc(doc: TiptapDoc): boolean {
   return (
     toPlainText(doc) === "" &&
     !(doc.content ?? []).some(
-      (n) => n.type === "horizontalRule" || n.type === "subNote" || containsNoteLink(n),
+      (n) =>
+        n.type === "horizontalRule" ||
+        n.type === "subNote" ||
+        n.type === "image" ||
+        n.type === "file" ||
+        n.type === "bookmark" ||
+        containsNoteLink(n),
     )
   );
 }

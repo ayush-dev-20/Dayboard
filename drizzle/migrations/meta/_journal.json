@@ -64,6 +64,13 @@
       "when": 1791442864076,
       "tag": "0008_nested-notes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791459370238,
+      "tag": "0009_files-and-link-previews",
+      "breakpoints": true
     }
   ]
 }

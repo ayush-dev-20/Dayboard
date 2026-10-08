@@ -509,3 +509,42 @@ export async function insertBacklink(
 export async function restoreNoteElsewhere(noteId: string) {
   await sql`update notes set deleted_at = null, deleted_cascade_id = null where id = ${noteId}`;
 }
+
+// ---- Files (V2 feature 09) -------------------------------------------------------------------
+
+export async function attachmentsOf(ownerId: string) {
+  return sql<
+    {
+      id: string;
+      original_name: string;
+      mime_type: string;
+      size_bytes: number;
+      status: string;
+      storage_key: string;
+      width: number | null;
+      height: number | null;
+    }[]
+  >`select id, original_name, mime_type, size_bytes, status, storage_key, width, height
+    from attachments where owner_id = ${ownerId} order by created_at`;
+}
+
+export async function attachmentStatus(id: string) {
+  const [row] = await sql<{ status: string }[]>`select status from attachments where id = ${id}`;
+  return row?.status ?? null;
+}
+
+/** A ready file of this size, so a quota can be filled without uploading. */
+export async function insertReadyAttachment(
+  userId: string,
+  ownerId: string,
+  sizeBytes: number,
+  ownerType: "NOTE" | "TASK" | "PROJECT" = "NOTE",
+) {
+  const [row] = await sql<{ id: string }[]>`
+    insert into attachments (id, user_id, owner_type, owner_id, storage_key, original_name, mime_type,
+                             size_bytes, status, finalized_at)
+    values (gen_random_uuid(), ${userId}, ${ownerType}, ${ownerId}, 'e2e/' || gen_random_uuid()::text,
+            'filler.pdf', 'application/pdf', ${sizeBytes}, 'READY', now())
+    returning id`;
+  return row!.id;
+}

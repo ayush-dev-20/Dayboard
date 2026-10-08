@@ -188,7 +188,7 @@ Keep the provider-specific implementation isolated from domain logic.
 
 ## 9. File storage
 
-Recommended V2 default: Cloudflare R2 or another S3-compatible object store.
+Recommended V2 default: Backblaze B2 (always-free 10 GB, S3-compatible with presigned URLs), chosen in feature 09 and ADR 0010. Cloudflare R2 or any other S3-compatible object store works through the same adapter by changing environment values.
 
 Use presigned upload/download URLs where appropriate.
 

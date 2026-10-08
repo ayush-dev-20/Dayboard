@@ -3,18 +3,22 @@ import { AppError, ERROR_CODES, toErrorBody } from "@/lib/errors";
 import { redact } from "@/lib/logger";
 
 describe("AppError", () => {
-  it("covers every code from the technical spec", () => {
+  it("covers every code from the technical spec, and the file codes of feature 09", () => {
     expect([...ERROR_CODES].sort()).toEqual(
       [
         "AI_DISABLED",
         "AI_PROVIDER_ERROR",
         "CONFLICT",
         "DATABASE_ERROR",
+        "FILE_TOO_LARGE",
         "INTERNAL_ERROR",
         "NOT_FOUND",
+        "QUOTA_EXCEEDED",
         "RATE_LIMITED",
+        "STORAGE_FULL",
         "UNAUTHENTICATED",
         "UNAUTHORIZED",
+        "UNSUPPORTED_FILE_TYPE",
         "VALIDATION_ERROR",
       ].sort(),
     );
@@ -25,6 +29,10 @@ describe("AppError", () => {
     expect(new AppError("NOT_FOUND").httpStatus).toBe(404);
     expect(new AppError("RATE_LIMITED").httpStatus).toBe(429);
     expect(new AppError("INTERNAL_ERROR").httpStatus).toBe(500);
+    expect(new AppError("UNSUPPORTED_FILE_TYPE").httpStatus).toBe(415);
+    expect(new AppError("FILE_TOO_LARGE").httpStatus).toBe(413);
+    expect(new AppError("QUOTA_EXCEEDED").httpStatus).toBe(413);
+    expect(new AppError("STORAGE_FULL").httpStatus).toBe(507);
   });
 
   it("has a plain-language default for every code, with no jargon", () => {

@@ -139,8 +139,16 @@ function block(node: TiptapNode, ctx: Ctx): string {
       });
       return `<table>${rows.join("")}</table>`;
     }
+    case "bookmark": {
+      const url = typeof node.attrs?.url === "string" ? node.attrs.url : "";
+      if (!url || !isAllowedLink(url)) return "";
+      const title =
+        typeof node.attrs?.title === "string" && node.attrs.title ? node.attrs.title : url;
+      return `<p><a href="${escapeAttr(url)}">${escapeText(title)}</a></p>`;
+    }
     default:
-      // The table of contents, and anything unknown, add nothing to another tool.
+      // The table of contents, a picture or a file (they hold only an id, which means nothing to
+      // another tool), and anything unknown, add nothing.
       return "";
   }
 }

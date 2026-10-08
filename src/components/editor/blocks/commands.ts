@@ -1,6 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import { Fragment, type Node as PMNode } from "@tiptap/pm/model";
 import { NodeSelection, Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import {
   DEFAULT_CALLOUT_EMOJI,
   TABLE_MAX_COLUMNS,
@@ -134,7 +135,16 @@ export const toggleJSON = (level: 0 | 1 | 2 | 3 = 0) => ({
  * after the block the cursor is in. The cursor ends inside the new block.
  */
 export function insertBlock(editor: Editor, json: Record<string, unknown>): boolean {
-  const { state } = editor;
+  return insertBlockInView(editor.view, json);
+}
+
+/** The same, for code that has the view and not the editor (paste rules, drops). */
+export function insertBlockInView(
+  view: EditorView,
+  json: Record<string, unknown>,
+  options: { trailingParagraph?: boolean } = {},
+): boolean {
+  const { state } = view;
   const top = topBlockAtSelection(state);
   if (!top) return false;
   const node = state.schema.nodeFromJSON(json);
@@ -146,10 +156,15 @@ export function insertBlock(editor: Editor, json: Record<string, unknown>): bool
   const to = top.pos + top.node.nodeSize;
   const tr = replace ? state.tr.replaceWith(from, to, node) : state.tr.insert(to, node);
   const start = replace ? from : to;
+  // A picture or file at the very end would leave nowhere to type below it.
+  const after = start + node.nodeSize;
+  if (options.trailingParagraph && after >= tr.doc.resolve(after).end()) {
+    tr.insert(after, state.schema.nodes.paragraph!.create());
+  }
   tr.setSelection(
     node.isAtom ? NodeSelection.create(tr.doc, start) : Selection.near(tr.doc.resolve(start + 1)),
   );
-  editor.view.dispatch(tr.scrollIntoView());
+  view.dispatch(tr.scrollIntoView());
   return true;
 }
 

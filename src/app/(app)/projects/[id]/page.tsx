@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageContainer } from "@/components/layout/page-container";
+import { AttachmentsSection } from "@/components/files/attachments-section";
 import { ProjectHeader } from "@/components/projects/project-header";
 import { ProjectQuickAdd } from "@/components/projects/project-quick-add";
 import { TaskContextProvider } from "@/components/tasks/task-context";
@@ -150,6 +151,7 @@ export default async function ProjectPage({
             ) : null}
           </div>
         )}
+        <AttachmentsSection ownerType="PROJECT" ownerId={project.id} className="mt-10" />
       </PageContainer>
     </TaskContextProvider>
   );

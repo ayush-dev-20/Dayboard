@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { storageUsage } from "@/db/queries/attachments";
+import { StorageSection } from "@/components/settings/storage-section";
 import { listUserSessions } from "@/db/queries/sessions";
 import { DeleteAccount } from "@/components/settings/delete-account";
 import { ProfileSection } from "@/components/settings/profile-section";
@@ -23,9 +25,10 @@ export default async function AccountSettingsPage({
   const requestHeaders = await headers();
   const reopenDelete = firstParam((await searchParams).delete) === "1";
 
-  const [accounts, rawSessions] = await Promise.all([
+  const [accounts, rawSessions, usage] = await Promise.all([
     auth.api.listUserAccounts({ headers: requestHeaders }),
     listUserSessions(user.id),
+    storageUsage(user.id),
   ]);
 
   const now = new Date();
@@ -71,6 +74,12 @@ export default async function AccountSettingsPage({
           available={enabledOAuthProviders()}
         />
       </SettingsSection>
+
+      {usage.available ? (
+        <SettingsSection title="Storage">
+          <StorageSection usage={usage} />
+        </SettingsSection>
+      ) : null}
 
       <SettingsSection title="Sessions">
         <SessionsSection sessions={sessions} />

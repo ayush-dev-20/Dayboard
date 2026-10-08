@@ -25,6 +25,7 @@ import { textToDoc } from "@/lib/inbox/convert";
 import type { TiptapDoc } from "@/lib/editor/types";
 import { DescriptionEditor } from "./description-editor";
 import { TaskAi } from "./task-ai";
+import { AttachmentsSection } from "@/components/files/attachments-section";
 import { RelatedNotes } from "./related-notes";
 import { TagsSection } from "./tags-section";
 import { SubtasksSection } from "./subtasks-section";
@@ -246,6 +247,7 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
       <DescriptionEditor key={description.version} taskId={task.id} initial={description.doc} />
 
       <RelatedNotes taskId={task.id} notes={linkedNotes} onChange={setLinkedNotes} />
+      <AttachmentsSection ownerType="TASK" ownerId={task.id} />
       <TagsSection
         taskId={task.id}
         tags={task.tags}

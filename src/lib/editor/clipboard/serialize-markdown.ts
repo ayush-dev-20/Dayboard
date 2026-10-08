@@ -167,6 +167,13 @@ function blockLines(node: TiptapNode, ctx: Ctx): string[] {
     }
     case "table":
       return tableLines(node);
+    case "bookmark": {
+      const url = typeof node.attrs?.url === "string" ? node.attrs.url : "";
+      if (!url || !isAllowedLink(url)) return [];
+      const title =
+        typeof node.attrs?.title === "string" && node.attrs.title ? node.attrs.title : url;
+      return [`[${escapeInline(title)}](${url})`];
+    }
     default:
       return [];
   }

@@ -116,7 +116,7 @@ Every requirement in `../01-product-spec.md` lands in a feature:
 | 0007 | Sync protocol: change log and pull cursor, conflict records | 05 |
 | 0008 | Drag and drop library | 06 |
 | 0009 | Worker runtime and "tick mode" for serverless hosts | 08 |
-| 0010 | Object storage client (S3-compatible) and file type policy | 09 |
+| 0010 | Object storage client (S3-compatible), provider choice (Backblaze B2) and file type policy | 09 |
 | 0011 | Embedding provider and vector dimension (Anthropic has no embeddings; `@ai-sdk/google` is already installed) | 10 |
 | 0012 | Transcription provider | 13 |
 | 0013 | Web Push library and VAPID handling | 14 |

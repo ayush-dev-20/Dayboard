@@ -8,6 +8,8 @@ export type NoteListItemDTO = {
   title: string;
   emoji: string | null;
   snippet: string;
+  /** The attachment id of the first picture block in the text, for the gallery cover (feature 09). */
+  cover?: string | null;
   updatedAt: string;
   archived: boolean;
   project: ProjectRef | null;

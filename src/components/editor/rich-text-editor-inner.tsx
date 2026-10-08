@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { useWorkspace } from "@/components/workspace/workspace-context";
 import { AiEditPanel } from "./ai-edit-panel";
 import { readSelection, type SelectionInfo } from "./ai-apply";
 import {
@@ -11,6 +12,8 @@ import {
   createContextHolder,
   type EditorContextValue,
 } from "./blocks/context";
+import { PasteChoiceHost } from "./blocks/paste-choice";
+import { UrlPromptHost } from "./blocks/url-prompt";
 import { BlockHandle } from "./blocks/block-handle";
 import { TableToolbar } from "./blocks/table-toolbar";
 import { createExtensions } from "./extensions";
@@ -92,15 +95,17 @@ export default function RichTextEditor({
     () => navigator.onLine,
     () => true,
   );
+  const { filesEnabled } = useWorkspace();
   const context = useMemo<EditorContextValue>(
     () => ({
       ...DEFAULT_EDITOR_CONTEXT,
       surface: surface ?? (variant === "document" ? "note" : "task"),
       ownerId,
       offline,
+      filesEnabled,
       ensureOwner,
     }),
-    [surface, variant, ownerId, offline, ensureOwner],
+    [surface, variant, ownerId, offline, filesEnabled, ensureOwner],
   );
   // The editor is created once; its extensions read the latest context through a holder.
   const [holder] = useState(() => createContextHolder(context));
@@ -189,6 +194,8 @@ export default function RichTextEditor({
         <EditorContent editor={editor} />
         {editor ? <TableToolbar editor={editor} root={root} /> : null}
         {editor ? <BlockHandle editor={editor} root={root} /> : null}
+        {editor ? <PasteChoiceHost view={editor.view} /> : null}
+        {editor ? <UrlPromptHost view={editor.view} /> : null}
         {editor && variant === "document" ? (
           <SelectionMenu
             editor={editor}
