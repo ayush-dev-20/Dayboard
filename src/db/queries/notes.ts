@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { projectRefsFor, tagsForNotes } from "@/db/queries/meta";
+import { getBreadcrumb, getChildren } from "@/db/queries/note-tree";
 import { notes, taskNotes, tasks } from "@/db/schema";
 import { makeSnippet, type NoteDTO, type NoteListItemDTO } from "@/lib/notes/dto";
 import { SNIPPET_LENGTH } from "@/lib/notes/dto";
@@ -37,7 +38,7 @@ function filterConditions(userId: string, filters: NoteFilters) {
  */
 export async function listNotes(
   userId: string,
-  options: { archived?: boolean; limit?: number } & NoteFilters = {},
+  options: { archived?: boolean; limit?: number; topLevelOnly?: boolean } & NoteFilters = {},
 ): Promise<NoteListItemDTO[]> {
   const rows = await db
     .select({
@@ -55,6 +56,7 @@ export async function listNotes(
         eq(notes.userId, userId),
         isNull(notes.deletedAt),
         options.archived ? isNotNull(notes.archivedAt) : isNull(notes.archivedAt),
+        options.topLevelOnly ? isNull(notes.parentNoteId) : undefined,
         ...filterConditions(userId, options),
       ),
     )
@@ -86,7 +88,10 @@ export async function listNotes(
   }));
 }
 
-/** How many notes there are in total (not deleted), split by archived, under the same filters. */
+/**
+ * How many top-level notes there are (not deleted), split by archived, under the same filters:
+ * the notes the Notes page lists. Sub-notes are counted through their parent.
+ */
 export async function countNotes(
   userId: string,
   filters: NoteFilters = {},
@@ -98,7 +103,12 @@ export async function countNotes(
     })
     .from(notes)
     .where(
-      and(eq(notes.userId, userId), isNull(notes.deletedAt), ...filterConditions(userId, filters)),
+      and(
+        eq(notes.userId, userId),
+        isNull(notes.deletedAt),
+        isNull(notes.parentNoteId),
+        ...filterConditions(userId, filters),
+      ),
     );
   return { active: row?.active ?? 0, archived: row?.archived ?? 0 };
 }
@@ -112,9 +122,11 @@ export async function getNote(userId: string, id: string): Promise<NoteDTO | nul
     .limit(1);
   if (!row) return null;
 
-  const [refs, tagMap, linked] = await Promise.all([
+  const [refs, tagMap, breadcrumb, children, linked] = await Promise.all([
     projectRefsFor(db, userId, [row.projectId]),
     tagsForNotes(db, userId, [row.id]),
+    getBreadcrumb(userId, row.id),
+    getChildren(userId, row.id),
     db
       .select({
         id: tasks.id,
@@ -158,6 +170,9 @@ export async function getNote(userId: string, id: string): Promise<NoteDTO | nul
     project: (row.projectId && refs.get(row.projectId)) || null,
     tags: tagMap.get(row.id) ?? [],
     tasks: linkedTasks,
+    breadcrumb,
+    children,
+    depth: row.depth,
   };
 }
 

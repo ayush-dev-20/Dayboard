@@ -135,7 +135,7 @@ export async function getProjectDetail(userId: string, id: string): Promise<Proj
     listTasks(userId, { projectId: id }),
     listClosedTasks(userId, { projectId: id, statuses: ["DONE"], limit: 20 }),
     listOpenTodos(userId, { projectId: id }),
-    listNotes(userId, { projectId: id }),
+    listNotes(userId, { projectId: id, topLevelOnly: true }),
   ]);
 
   return {

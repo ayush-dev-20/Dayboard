@@ -22,7 +22,7 @@ export type BlockItem = {
   icon: LucideIcon;
   /** Where it is offered. */
   surfaces: ("note" | "task")[];
-  insert(editor: Editor, ctx: EditorContext): void;
+  insert(editor: Editor, ctx: EditorContext): void | Promise<void>;
   available?(ctx: EditorContext): boolean;
 };
 

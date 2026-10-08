@@ -34,6 +34,7 @@ export type DragData =
       columnLabel: string;
     }
   | { type: "column"; key: string; label: string; count: number }
+  | { type: "treeRow"; id: string; label: string }
   | { type: "day"; date: string; label: string };
 
 /** Mouse after a small move (so a click still opens the item), touch after a long press, keyboard on Space. */
@@ -46,6 +47,18 @@ export function useDragSensors() {
       keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] },
       coordinateGetter: jumpToNeighbour,
     }),
+  );
+}
+
+/**
+ * The notes tree's sensors (V2 feature 07 §5): a mouse after a small move, a touch after a long
+ * press. Its keyboard way is Alt+Up and Alt+Down on a row and the "Move to…" picker, so there is no
+ * keyboard drag here.
+ */
+export function useTreeSensors() {
+  return useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
   );
 }
 

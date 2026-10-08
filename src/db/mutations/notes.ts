@@ -1,14 +1,27 @@
 import "server-only";
 import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inTransaction, type Tx } from "@/db/executor";
+import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject, assertOwnedTask } from "@/db/mutations/guards";
+import { projectDoc, syncNoteLinks } from "@/db/mutations/note-links";
+import { orderAtTopOf } from "@/db/mutations/note-tree";
 import { notes, taskNotes } from "@/db/schema";
 import { AppError } from "@/lib/errors";
-import { toPlainText } from "@/lib/editor/projection";
-import { orderAtTop, orderBetween, renumber } from "@/lib/tasks/ordering";
+import { orderBetween, renumber } from "@/lib/tasks/ordering";
 import type { TiptapDoc } from "@/lib/editor/types";
 import type { CreateNoteInput } from "@/lib/validations/notes";
+
+// Trash, archive and everything that moves a note live in `note-tree.ts`; they are re-exported here
+// so the rest of the app keeps one place to import notes from.
+export {
+  archiveNote,
+  createSubNote,
+  deleteNote,
+  moveNote,
+  permanentlyDeleteNote,
+  restoreNote,
+  restoreNoteAsTopLevel,
+} from "@/db/mutations/note-tree";
 
 // Every function takes the signed-in person's id first and puts it in every WHERE clause. Someone
 // else's note behaves exactly like one that doesn't exist.
@@ -33,24 +46,22 @@ export async function createNote(
     if (input.linkTaskId) await assertOwnedTask(tx, userId, input.linkTaskId);
 
     const doc = input.contentJson ?? EMPTY_DOC;
-    // A new note goes to the top of the manual order (boards, the future tree).
-    const [top] = await tx
-      .select({ min: sql<number | null>`min(${notes.sortOrder})` })
-      .from(notes)
-      .where(and(eq(notes.userId, userId), isNull(notes.deletedAt)));
+    const { text, titles } = await projectDoc(tx, userId, doc);
     const [created] = await tx
       .insert(notes)
       .values({
         userId,
-        sortOrder: orderAtTop(top?.min ?? null),
+        // A new note goes to the top of the top level (boards, the tree).
+        sortOrder: await orderAtTopOf(tx, userId, null),
         projectId: input.projectId ?? null,
         title: input.title ?? "",
         emoji: input.emoji ?? null,
         contentJson: doc,
-        contentText: toPlainText(doc),
+        contentText: text,
       })
       .returning({ id: notes.id, version: notes.version });
     if (!created) throw new AppError("INTERNAL_ERROR");
+    await syncNoteLinks(tx, userId, { type: "NOTE", id: created.id }, doc, titles);
 
     if (input.linkTaskId) {
       await tx.insert(taskNotes).values({ taskId: input.linkTaskId, noteId: created.id, userId });
@@ -64,8 +75,12 @@ export type SaveResult =
   /** Someone (another tab or device) saved first. `version` is the latest on the server. */
   | { outcome: "conflict"; version: number };
 
-async function conflictOrMissing(userId: string, id: string): Promise<SaveResult> {
-  const [current] = await db
+async function conflictOrMissing(
+  executor: Executor,
+  userId: string,
+  id: string,
+): Promise<SaveResult> {
+  const [current] = await executor
     .select({ version: notes.version })
     .from(notes)
     .where(owned(userId, id))
@@ -82,17 +97,21 @@ export async function saveNoteContent(
   userId: string,
   input: { id: string; contentJson: TiptapDoc; baseVersion: number },
 ): Promise<SaveResult> {
-  const [row] = await db
-    .update(notes)
-    .set({
-      contentJson: input.contentJson,
-      contentText: toPlainText(input.contentJson),
-      version: sql`${notes.version} + 1`,
-    })
-    .where(and(owned(userId, input.id), eq(notes.version, input.baseVersion)))
-    .returning({ version: notes.version, updatedAt: notes.updatedAt });
-  if (!row) return conflictOrMissing(userId, input.id);
-  return { outcome: "saved", version: row.version, updatedAt: row.updatedAt.toISOString() };
+  return db.transaction(async (tx) => {
+    const { text, titles } = await projectDoc(tx, userId, input.contentJson);
+    const [row] = await tx
+      .update(notes)
+      .set({
+        contentJson: input.contentJson,
+        contentText: text,
+        version: sql`${notes.version} + 1`,
+      })
+      .where(and(owned(userId, input.id), eq(notes.version, input.baseVersion)))
+      .returning({ version: notes.version, updatedAt: notes.updatedAt });
+    if (!row) return conflictOrMissing(tx, userId, input.id);
+    await syncNoteLinks(tx, userId, { type: "NOTE", id: input.id }, input.contentJson, titles);
+    return { outcome: "saved", version: row.version, updatedAt: row.updatedAt.toISOString() };
+  });
 }
 
 export async function saveNoteTitle(
@@ -104,7 +123,7 @@ export async function saveNoteTitle(
     .set({ title: input.title, version: sql`${notes.version} + 1` })
     .where(and(owned(userId, input.id), eq(notes.version, input.baseVersion)))
     .returning({ version: notes.version, updatedAt: notes.updatedAt });
-  if (!row) return conflictOrMissing(userId, input.id);
+  if (!row) return conflictOrMissing(db, userId, input.id);
   return { outcome: "saved", version: row.version, updatedAt: row.updatedAt.toISOString() };
 }
 
@@ -120,49 +139,6 @@ export async function updateNoteEmoji(
     .where(owned(userId, id))
     .returning({ id: notes.id });
   if (!row) throw new AppError("NOT_FOUND");
-}
-
-export async function archiveNote(userId: string, id: string, archived: boolean): Promise<void> {
-  const [row] = await db
-    .update(notes)
-    .set({ archivedAt: archived ? new Date() : null })
-    .where(owned(userId, id))
-    .returning({ id: notes.id });
-  if (!row) throw new AppError("NOT_FOUND");
-}
-
-export async function deleteNote(userId: string, id: string): Promise<{ deletedAt: string }> {
-  const now = new Date();
-  const [row] = await db
-    .update(notes)
-    .set({ deletedAt: now })
-    .where(owned(userId, id))
-    .returning({ id: notes.id });
-  if (!row) throw new AppError("NOT_FOUND");
-  return { deletedAt: now.toISOString() };
-}
-
-export async function restoreNote(userId: string, id: string): Promise<void> {
-  const [row] = await db
-    .update(notes)
-    .set({ deletedAt: null })
-    .where(owned(userId, id, true))
-    .returning({ id: notes.id });
-  if (!row) throw new AppError("NOT_FOUND");
-}
-
-/** Only from Trash (feature 04). Links and tag rows go with it. */
-export async function permanentlyDeleteNote(userId: string, id: string): Promise<void> {
-  await db.transaction(async (tx) => {
-    const [row] = await tx
-      .select()
-      .from(notes)
-      .where(owned(userId, id, true))
-      .limit(1);
-    if (!row) throw new AppError("NOT_FOUND");
-    if (!row.deletedAt) throw new AppError("CONFLICT", "Move it to Trash first.");
-    await tx.delete(notes).where(owned(userId, id, true));
-  });
 }
 
 /** Both the task and the note must be the person's, or this is NOT_FOUND. Linking twice is a no-op. */

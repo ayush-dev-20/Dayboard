@@ -1,5 +1,6 @@
 import type { TiptapNode } from "../types";
 import { inlineText } from "./inline";
+import { linkNoteRefs, type NoteRefReader } from "./note-refs";
 import { serializeHtml, serializeInlineHtml } from "./serialize-html";
 import { serializeMarkdown } from "./serialize-markdown";
 import { encodeInternal } from "./slice";
@@ -38,8 +39,15 @@ function singleTextblock(content: TiptapNode[], openStart: number, openEnd: numb
  * wrapping block, so pasting a word into a sentence adds no paragraph break) and as bare text.
  * Anything larger is clean HTML and Markdown. The internal flavour keeps the slice exactly.
  */
-export function flavoursFor(content: TiptapNode[], openStart: number, openEnd: number): Flavours {
-  const internal = encodeInternal(content, openStart, openEnd);
+export function flavoursFor(
+  slice: TiptapNode[],
+  openStart: number,
+  openEnd: number,
+  noteRefs?: NoteRefReader,
+): Flavours {
+  const internal = encodeInternal(slice, openStart, openEnd);
+  // Note links and sub-note blocks are links to the note for everything but Dayboard's own flavour.
+  const content = noteRefs ? linkNoteRefs(slice, noteRefs) : slice;
   const block = singleTextblock(content, openStart, openEnd);
   if (block) {
     const text = inlineText(block.content);

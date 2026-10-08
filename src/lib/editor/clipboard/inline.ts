@@ -109,10 +109,18 @@ export function blocksToInline(blocks: TiptapNode[]): TiptapNode[] {
       case "paragraph":
       case "heading":
       case "toggleSummary":
-        addLine((node.content ?? []).filter((c) => c.type === "text" || c.type === "hardBreak"));
+        addLine(
+          (node.content ?? []).filter(
+            (c) => c.type === "text" || c.type === "hardBreak" || c.type === "noteLink",
+          ),
+        );
         break;
       case "codeBlock":
         addLine(plainInline(inlineText(node.content)));
+        break;
+      case "subNote":
+        // A block that points at a note becomes the link where only a line of text fits.
+        addLine([{ type: "noteLink", attrs: node.attrs }]);
         break;
       case "horizontalRule":
       case "tableOfContents":

@@ -8,6 +8,17 @@ import { MESSAGES } from "@/lib/editor/limits";
 import { MAX_DOC_BYTES, sanitizeDoc } from "@/lib/editor/schema";
 import type { TiptapDoc, TiptapNode } from "@/lib/editor/types";
 
+// The note nodes ask the server for titles; this test never reaches a server.
+vi.mock("@/actions/notes", () => ({
+  createLinkedNoteForTask: vi.fn(),
+  createNote: vi.fn(),
+  createSubNote: vi.fn(),
+  findNotesForLink: vi.fn(async () => ({ ok: true, data: [] })),
+  getNoteMetas: vi.fn(async () => ({ ok: true, data: [] })),
+  restoreNote: vi.fn(),
+  restoreNoteAsTopLevel: vi.fn(),
+}));
+
 // V2 feature 02 against a real ProseMirror editor: copy and paste events carrying fixture-like
 // clipboard data, and where the content lands.
 

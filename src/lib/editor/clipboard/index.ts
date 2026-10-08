@@ -5,7 +5,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import { MESSAGES } from "../limits";
 import type { TiptapNode } from "../types";
 import { flavoursFor } from "./copy";
-import { fitInner, toCalloutChildren } from "./fit";
+import { fitInner, subNotesToLinks, toCalloutChildren } from "./fit";
 import { blocksToInline, inlineText } from "./inline";
 import { fitToBudget, planPaste, planPlainPaste, type PasteInput } from "./paste";
 import { plainParagraphs } from "./parse-text";
@@ -35,20 +35,25 @@ export const clipboardKey = new PluginKey("dayboardClipboard");
 // ---- Copy and cut ----------------------------------------------------------------------------
 
 /** Writes the three flavours for a slice onto a clipboard event's data. */
-function writeSlice(data: DataTransfer, slice: Slice) {
+function writeSlice(data: DataTransfer, slice: Slice, noteRefs: PasteContext["noteRefs"]) {
   const content = (slice.content.toJSON() ?? []) as TiptapNode[];
-  const flavours = flavoursFor(content, slice.openStart, slice.openEnd);
+  const flavours = flavoursFor(content, slice.openStart, slice.openEnd, noteRefs);
   data.clearData();
   data.setData("text/html", flavours.html);
   data.setData("text/plain", flavours.text);
   data.setData(INTERNAL_MIME, flavours.internal);
 }
 
-function onCopy(view: EditorView, event: ClipboardEvent, cut: boolean): boolean {
+function onCopy(
+  view: EditorView,
+  event: ClipboardEvent,
+  cut: boolean,
+  options: ClipboardPluginOptions,
+): boolean {
   const { selection } = view.state;
   const data = event.clipboardData;
   if (selection.empty || !data) return false;
-  writeSlice(data, selection.content());
+  writeSlice(data, selection.content(), options.getContext().noteRefs);
   event.preventDefault();
   if (cut && view.editable) {
     view.dispatch(
@@ -269,8 +274,10 @@ function onPaste(
   if (plan.kind === "none") return false;
   event.preventDefault();
 
+  // A task description can't hold a sub-note block: it gets a link to the note instead.
+  const noBlocks = ctx.surface === "task";
   try {
-    if (plan.kind === "internal") return insertInternal(view, plan.slice, options);
+    if (plan.kind === "internal") return insertInternal(view, plan.slice, options, noBlocks);
     return insertDoc(view, plan.doc.content ?? [], plan.notices, options);
   } catch {
     const text = data.text || htmlToText(data.html);
@@ -300,10 +307,12 @@ function insertInternal(
   view: EditorView,
   internal: NonNullable<PasteInput["internal"]>,
   options: ClipboardPluginOptions,
+  noSubNotes: boolean,
 ): boolean {
   const { schema } = view.state;
   const $from = view.state.selection.$from;
-  const fitted = fitToBudget(internal.doc.content, docBytes(view.state.doc));
+  const blocks = noSubNotes ? subNotesToLinks(internal.doc.content) : internal.doc.content;
+  const fitted = fitToBudget(blocks, docBytes(view.state.doc));
   if (fitted.shortened) options.onNotice(MESSAGES.pasteShortened);
   if (fitted.blocks.length === 0) return true;
 
@@ -328,8 +337,8 @@ export function clipboardPlugin(options: ClipboardPluginOptions): Plugin {
     key: clipboardKey,
     props: {
       handleDOMEvents: {
-        copy: (view, event) => onCopy(view, event, false),
-        cut: (view, event) => onCopy(view, event, true),
+        copy: (view, event) => onCopy(view, event, false, options),
+        cut: (view, event) => onCopy(view, event, true, options),
         paste: (view, event) => onPaste(view, event, options),
       },
     },

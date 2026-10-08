@@ -25,7 +25,7 @@ One list per collection could not show the same work as a board, a table or a ca
 - **Table role:** a real `table` (not `grid`); the cells edit through their own buttons and menus.
 - **`openIn`** (panel or page) is a setting for Tasks only; todos always open the panel and notes the page.
 - **Finished and archived items are read only when a view can show them**, and at most 500 of them (`VIEW_CLOSED_LIMIT`); open items are capped at 2,000 (`VIEW_ITEM_LIMIT`). Beyond that nothing more is read and **no message says so** (rows are paged on the screen, 50 at a time, never from the server). Add a notice or server paging if an account really has more.
-- **Tree** view type is registered but disabled until feature 07. **Google Calendar overlay** has only a slot (`calendar-overlay.ts`) for feature 12.
+- **Tree** view type: built by feature 07 (`nested-notes-links-sidebar-tree_v2.md`); it ignores filters, sorts and grouping. **Google Calendar overlay** has only a slot (`calendar-overlay.ts`) for feature 12.
 - Not tested on a real phone or in Safari or Firefox; the 360px layout is checked in Chromium only. The Docker build was not run.
 
 ## Related files

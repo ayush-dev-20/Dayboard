@@ -27,6 +27,8 @@ export type SearchHit = {
   project: ProjectRef | null;
   /** The matching text around the first body match, as plain segments. */
   snippet: Snippet | null;
+  /** Notes: the titles of the notes it sits under, top-level first (V2 feature 07). */
+  path: string[];
   status: TaskStatus | null;
   /** Tasks and todos. */
   dueDate: string | null;

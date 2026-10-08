@@ -168,15 +168,73 @@ export async function insertNote(
     projectId?: string | null;
     emoji?: string;
     archived?: boolean;
+    /** A sub-note: its parent (the depth follows the parent's) and its place among siblings. */
+    parentId?: string | null;
+    sortOrder?: number;
   },
 ) {
   const text = seed.text ?? "";
+  const [parent] = seed.parentId
+    ? await sql<{ depth: number }[]>`select depth from notes where id = ${seed.parentId}`
+    : [];
   const [row] = await sql<{ id: string }[]>`
-    insert into notes (id, user_id, title, emoji, project_id, content_json, content_text, archived_at)
+    insert into notes (id, user_id, title, emoji, project_id, content_json, content_text, archived_at,
+                       parent_note_id, depth, sort_order)
     values (gen_random_uuid(), ${userId}, ${seed.title}, ${seed.emoji ?? null}, ${seed.projectId ?? null},
-            ${sql.json(docOf(text))}, ${text}, ${seed.archived ? sql`now()` : null})
+            ${sql.json(docOf(text))}, ${text}, ${seed.archived ? sql`now()` : null},
+            ${seed.parentId ?? null}, ${(parent?.depth ?? 0) + 1}, ${seed.sortOrder ?? 0})
     returning id`;
   return row!.id;
+}
+
+/** Many top-level notes at once, ordered as given (the first is first in the tree). */
+export async function insertManyNotes(userId: string, count: number, prefix = "Bulk note") {
+  await sql`
+    insert into notes (id, user_id, title, content_json, content_text, sort_order)
+    select gen_random_uuid(), ${userId}, ${prefix} || ' ' || lpad(g::text, 3, '0'),
+           ${sql.json(docOf(""))}, '', g * 1024
+    from generate_series(1, ${count}) g`;
+}
+
+/** A note whose text is exactly this document (links and sub-note blocks). */
+export async function setNoteDoc(noteId: string, doc: unknown, text = "") {
+  await sql`update notes set content_json = ${sql.json(doc as never)}, content_text = ${text},
+            version = version + 1 where id = ${noteId}`;
+}
+
+export async function noteTreeInfo(noteId: string) {
+  const [row] = await sql<
+    {
+      parent_note_id: string | null;
+      depth: number;
+      deleted_at: Date | null;
+      archived_at: Date | null;
+      deleted_cascade_id: string | null;
+      content_text: string;
+      sort_order: number;
+    }[]
+  >`select parent_note_id, depth, deleted_at, archived_at, deleted_cascade_id, content_text, sort_order
+    from notes where id = ${noteId}`;
+  return row ?? null;
+}
+
+/** The note's own text blocks and links, from the saved document. */
+export async function noteDoc(noteId: string) {
+  const [row] = await sql<{ content_json: { content?: unknown[] } }[]>`
+    select content_json from notes where id = ${noteId}`;
+  return row?.content_json ?? null;
+}
+
+export async function backlinkRows(targetNoteId: string) {
+  return sql<{ source_type: string; source_id: string; snippet: string }[]>`
+    select source_type, source_id, snippet from note_links where target_note_id = ${targetNoteId}`;
+}
+
+export async function childNoteIds(parentId: string) {
+  const rows = await sql<{ id: string }[]>`
+    select id from notes where parent_note_id = ${parentId} and deleted_at is null
+    order by sort_order, created_at desc`;
+  return rows.map((r) => r.id);
 }
 
 /** A note with an exact document, for tests that need specific formatting (a bold list item, a link). */
@@ -425,4 +483,29 @@ export async function taskDueDate(taskId: string) {
     { d: string | null }[]
   >`select to_char(due_date, 'YYYY-MM-DD') d from tasks where id = ${taskId}`;
   return row?.d ?? null;
+}
+
+/** Changes made behind the app's back, as another window or device would. */
+export async function trashNoteElsewhere(noteId: string) {
+  await sql`update notes set deleted_at = now() where id = ${noteId}`;
+}
+
+export async function purgeNoteElsewhere(noteId: string) {
+  await sql`delete from notes where id = ${noteId}`;
+}
+
+/** A backlink row, as the app writes when a document with a link is saved. */
+export async function insertBacklink(
+  userId: string,
+  sourceType: "NOTE" | "TASK",
+  sourceId: string,
+  targetNoteId: string,
+  snippet = "",
+) {
+  await sql`insert into note_links (source_type, source_id, target_note_id, user_id, snippet)
+            values (${sourceType}, ${sourceId}, ${targetNoteId}, ${userId}, ${snippet})`;
+}
+
+export async function restoreNoteElsewhere(noteId: string) {
+  await sql`update notes set deleted_at = null, deleted_cascade_id = null where id = ${noteId}`;
 }

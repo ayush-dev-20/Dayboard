@@ -4,10 +4,12 @@ import Link from "next/link";
 import { Plus, Sparkles } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { NotesTreeSheet } from "@/components/notes/tree/notes-tree-sheet";
 import { TaskContextProvider } from "@/components/tasks/task-context";
 import { buttonVariants } from "@/components/ui/button";
 import { NotesCollection } from "@/components/views/collections";
 import { ensureGalleryView } from "@/db/mutations/views";
+import { getOutline } from "@/db/queries/note-tree";
 import { countNotes, listNotes } from "@/db/queries/notes";
 import { getViews, loadViewItems } from "@/db/queries/views";
 import { env } from "@/lib/env";
@@ -42,23 +44,26 @@ export default async function NotesPage({ searchParams }: { searchParams: Search
   const quick = quickFilters({ projectId: params.projectId, tagId: params.tagId });
   const scope = { projectId: params.projectId ?? undefined, tagId: params.tagId ?? undefined };
   const showsArchivedSection = view.type === "LIST" || view.type === "GALLERY";
-  const [items, archived, counts] = await Promise.all([
-    loadViewItems(user.id, "NOTES", view, quick, null),
+  const isTree = view.type === "TREE";
+  const [items, archived, counts, tree] = await Promise.all([
+    isTree ? Promise.resolve([]) : loadViewItems(user.id, "NOTES", view, quick, null),
     showsArchivedSection
-      ? listNotes(user.id, { ...scope, archived: true, limit: 200 })
+      ? listNotes(user.id, { ...scope, archived: true, limit: 200, topLevelOnly: true })
       : Promise.resolve([]),
     countNotes(user.id, scope),
+    isTree ? getOutline(user.id) : Promise.resolve(null),
   ]);
   const filtered = hasNoteFilters(params) || view.config.filters.length > 0;
   const nothingAtAll = counts.active + counts.archived === 0 && !filtered;
 
   return (
     <TaskContextProvider value={context}>
-      <PageContainer width={view.type === "LIST" ? "content" : "wide"}>
+      <PageContainer width={view.type === "LIST" || isTree ? "content" : "wide"}>
         <PageHeader
           title="Notes"
           description={`${counts.active} ${counts.active === 1 ? "note" : "notes"}`}
         >
+          <NotesTreeSheet />
           {env.aiAvailable && aiEnabled ? (
             <Link href="/notes/new?ai=1" className={buttonVariants({ variant: "secondary" })}>
               <Sparkles strokeWidth={1.5} aria-hidden /> Write with AI
@@ -76,6 +81,7 @@ export default async function NotesPage({ searchParams }: { searchParams: Search
           params={params}
           quick={quick}
           archived={archived}
+          tree={tree}
           archivedCount={counts.archived}
           nothingAtAll={nothingAtAll}
           nowMs={now.getTime()}

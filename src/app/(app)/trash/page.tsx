@@ -3,7 +3,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/layout/empty-state";
 import { TrashList } from "@/components/trash/trash-list";
-import { listTrash, parseCursor, trashCounts } from "@/db/queries/trash";
+import { listTrash, parseCursor, trashCounts, trashedSubNoteCount } from "@/db/queries/trash";
 import { formatDayWord } from "@/lib/dates/relative";
 import type { SearchParams } from "@/lib/oauth-providers";
 import { getPreferences } from "@/lib/preferences";
@@ -33,10 +33,11 @@ export default async function TrashPage({ searchParams }: { searchParams: Search
     : null;
   const cursor = parseCursor(first(raw.before));
 
-  const [{ timezone }, { items, next }, counts] = await Promise.all([
+  const [{ timezone }, { items, next }, counts, subNotes] = await Promise.all([
     getPreferences(user.id),
     listTrash(user.id, { type, cursor }),
     trashCounts(user.id),
+    trashedSubNoteCount(user.id),
   ]);
   const now = new Date();
   const rows = items.map((item) => ({
@@ -89,7 +90,7 @@ export default async function TrashPage({ searchParams }: { searchParams: Search
               </Link>
             </p>
           ) : (
-            <TrashList items={rows} counts={counts} type={type} />
+            <TrashList items={rows} counts={counts} type={type} subNotes={subNotes} />
           )}
 
           {next ? (

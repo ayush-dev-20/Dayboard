@@ -29,8 +29,11 @@ export const VIEW_TYPES_BY_COLLECTION: Record<Collection, readonly ViewType[]> =
   NOTES: ["LIST", "TABLE", "BOARD", "GALLERY", "TREE"],
 };
 
-/** Types that exist in the vocabulary but are built by a later feature (Tree: 07). */
-export const UNAVAILABLE_VIEW_TYPES: readonly ViewType[] = ["TREE"];
+/**
+ * Types that exist in the vocabulary but are built by a later feature. Empty since feature 07
+ * built the Tree; the slot stays for the next one.
+ */
+export const UNAVAILABLE_VIEW_TYPES: readonly ViewType[] = [];
 
 export const FILTER_OPS = [
   "is",

@@ -1,10 +1,11 @@
 "use client";
 
 import { NotesFilters } from "@/components/notes/notes-filters";
+import { NotesTreeView } from "@/components/notes/tree/notes-tree-view";
 import { TaskAddRow } from "@/components/tasks/task-add-row";
 import { TaskFilters } from "@/components/tasks/task-filters";
 import { TodoAddRow } from "@/components/tasks/todo-add-row";
-import type { NoteListItemDTO } from "@/lib/notes/dto";
+import type { NoteListItemDTO, NoteTreeRow } from "@/lib/notes/dto";
 import type { NotesParams } from "@/lib/notes/params";
 import type { TasksParams } from "@/lib/tasks/params";
 import { describeSorts } from "@/lib/views/defaults";
@@ -142,8 +143,11 @@ export function NotesCollection({
   archivedCount,
   nothingAtAll,
   nowMs,
+  tree,
   ...shared
 }: Shared & {
+  /** The whole outline, read when the Tree view is showing. */
+  tree?: NoteTreeRow[] | null;
   items: ViewNote[];
   params: NotesParams;
   archived: NoteListItemDTO[];
@@ -152,6 +156,8 @@ export function NotesCollection({
   nowMs: number;
 }) {
   const projectId = shared.projectId ?? null;
+  // The Tree view shows every note where it sits: nothing to filter, sort or group.
+  const isTree = shared.views.find((v) => v.id === shared.activeViewId)?.type === "TREE";
   return (
     <CollectionHost
       collection="NOTES"
@@ -159,7 +165,7 @@ export function NotesCollection({
       projectId={projectId}
       {...shared}
       toolbar={(settings, config) =>
-        projectId ? (
+        isTree ? null : projectId ? (
           <SettingsOnly settings={settings} />
         ) : (
           <NotesFilters
@@ -171,7 +177,9 @@ export function NotesCollection({
       }
     >
       {(state) =>
-        state.view.type === "TABLE" ? (
+        state.view.type === "TREE" ? (
+          <NotesTreeView rows={tree ?? []} />
+        ) : state.view.type === "TABLE" ? (
           <TableView state={state} />
         ) : state.view.type === "BOARD" ? (
           <div className="mt-2">

@@ -1,25 +1,20 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { computePosition, flip, offset, shift } from "@floating-ui/dom";
-import { Extension, ReactRenderer, type Editor } from "@tiptap/react";
+import { Extension, type Editor } from "@tiptap/react";
 import { PluginKey } from "@tiptap/pm/state";
 import Suggestion from "@tiptap/suggestion";
 import { cn } from "@/lib/utils";
 import { DEFAULT_EDITOR_CONTEXT, type EditorContextValue } from "./context";
 import { registerCoreBlocks } from "./core-blocks";
+import { registerNoteBlocks } from "./note-blocks";
 import { BLOCK_GROUPS, filterBlocks, getBlocks, type BlockItem } from "./registry";
+import { createSuggestionRender, type ListHandle, type PopupListProps } from "./suggestion-popup";
 
 registerCoreBlocks();
+registerNoteBlocks();
 
-type ListHandle = { onKeyDown: (event: KeyboardEvent) => boolean };
-type ListProps = {
-  items: BlockItem[];
-  query: string;
-  listId: string;
-  onChoose: (item: BlockItem) => void;
-  onActive: (optionId: string | null) => void;
-};
+type ListProps = PopupListProps<BlockItem>;
 
 const optionId = (listId: string, id: string) => `${listId}-${id}`;
 
@@ -147,110 +142,11 @@ export const SlashMenu = Extension.create<Options>({
           editor.chain().focus().deleteRange(range).run();
           props.insert(editor, context());
         },
-        render: () => {
-          let renderer: ReactRenderer<ListHandle, ListProps> | null = null;
-          let view: HTMLElement | null = null;
-          const listId = `slash-${Math.random().toString(36).slice(2, 8)}`;
-
-          const place = (clientRect?: (() => DOMRect | null) | null) => {
-            if (!renderer || !clientRect) return;
-            const rect = clientRect();
-            if (!rect) return;
-            void computePosition({ getBoundingClientRect: () => rect }, renderer.element, {
-              strategy: "fixed",
-              placement: "bottom-start",
-              middleware: [offset(6), flip({ padding: 8 }), shift({ padding: 8 })],
-            }).then(({ x, y }) => {
-              if (!renderer) return;
-              Object.assign(renderer.element.style, { left: `${x}px`, top: `${y}px` });
-            });
-          };
-          const describe = (activeId: string | null) => {
-            if (!view) return;
-            view.setAttribute("aria-controls", listId);
-            view.setAttribute("aria-expanded", "true");
-            view.setAttribute("aria-haspopup", "listbox");
-            if (activeId) view.setAttribute("aria-activedescendant", activeId);
-            else view.removeAttribute("aria-activedescendant");
-          };
-          const clean = () => {
-            for (const name of [
-              "aria-controls",
-              "aria-expanded",
-              "aria-haspopup",
-              "aria-activedescendant",
-            ]) {
-              view?.removeAttribute(name);
-            }
-          };
-          const show = (props: SuggestionRenderProps) => {
-            const listProps: ListProps = {
-              items: props.items,
-              query: props.query,
-              listId,
-              onChoose: (item) => props.command(item),
-              onActive: describe,
-            };
-            if (props.items.length === 0) {
-              renderer?.destroy();
-              renderer = null;
-              clean();
-              return;
-            }
-            if (!renderer) {
-              renderer = new ReactRenderer(SlashMenuList, {
-                props: listProps,
-                editor: props.editor,
-              });
-              Object.assign(renderer.element.style, {
-                position: "fixed",
-                zIndex: "50",
-                left: "0",
-                top: "0",
-              });
-              document.body.append(renderer.element);
-            } else {
-              renderer.updateProps(listProps);
-            }
-            view = props.editor.view.dom;
-            place(props.clientRect);
-          };
-          return makeRender(
-            show,
-            () => renderer,
-            () => {
-              renderer?.destroy();
-              renderer = null;
-              clean();
-            },
-          );
-        },
+        render: createSuggestionRender<BlockItem>(SlashMenuList),
       }),
     ];
   },
 });
-
-function makeRender(
-  show: (props: SuggestionRenderProps) => void,
-  getRenderer: () => ReactRenderer<ListHandle, ListProps> | null,
-  exit: () => void,
-) {
-  return {
-    onStart: show,
-    onUpdate: show,
-    onKeyDown: ({ event }: { event: KeyboardEvent }) =>
-      getRenderer()?.ref?.onKeyDown(event) ?? false,
-    onExit: exit,
-  };
-}
-
-type SuggestionRenderProps = {
-  editor: Editor;
-  items: BlockItem[];
-  query: string;
-  command: (item: BlockItem) => void;
-  clientRect?: (() => DOMRect | null) | null;
-};
 
 /** Opens the same menu from a button: types a `/` (after a space if the line has text). */
 export function openSlashMenu(editor: Editor): void {

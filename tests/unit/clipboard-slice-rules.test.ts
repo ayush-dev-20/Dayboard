@@ -197,20 +197,24 @@ describe("paste rule registry", () => {
     registerCorePasteRules();
     registerCorePasteRules();
     const before = getPasteRules().length;
-    registerPasteRule(rule("note-address", 20, false));
+    registerPasteRule(rule("image-upload", 20, false));
     // A later feature's rule (lower number) runs before the URL rule.
-    expect(getPasteRules().map((r) => r.id)).toEqual(["note-address", "url-over-selection"]);
+    expect(getPasteRules().map((r) => r.id)).toEqual([
+      "image-upload",
+      "note-address",
+      "url-over-selection",
+    ]);
     expect(getPasteRules()).toHaveLength(before + 1);
   });
 
-  it("ships only the URL-over-selection rule", () => {
+  it("ships the note-address rule and the URL-over-selection rule", () => {
     registerCorePasteRules();
-    expect(getPasteRules().map((r) => r.id)).toEqual(["url-over-selection"]);
+    expect(getPasteRules().map((r) => r.id)).toEqual(["note-address", "url-over-selection"]);
   });
 
   it("the URL rule claims a lone address, not text around one, not Dayboard's own paste", () => {
     registerCorePasteRules();
-    const [url] = getPasteRules();
+    const url = getPasteRules().find((r) => r.id === "url-over-selection");
     expect(url!.test(data("https://example.com/a?b=1"), ctx)).toBe(true);
     expect(url!.test(data("  https://example.com  "), ctx)).toBe(true);
     expect(url!.test(data("see https://example.com"), ctx)).toBe(false);

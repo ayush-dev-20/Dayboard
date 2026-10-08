@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CheckSquare, CircleCheck, FileText, Folder, Tag } from "lucide-react";
 import { ProjectToken } from "@/components/workspace/tokens";
 import { formatDay } from "@/lib/dates/calendar";
+import { pathLabel } from "@/lib/notes/tree";
 import { highlightParts } from "@/lib/search/snippet";
 import { TYPE_LABELS, type SearchHit } from "@/lib/search/types";
 import { STATUS_LABELS } from "@/lib/tasks/status";
@@ -64,6 +65,9 @@ export function SearchResult({ hit, q, today }: { hit: SearchHit; q: string; tod
               hit.done && "text-muted-foreground line-through",
             )}
           >
+            {hit.path.length > 0 ? (
+              <span className="text-muted-foreground">{pathLabel(hit.path)} / </span>
+            ) : null}
             <Marked text={hit.title} q={q} />
             {hit.archived ? (
               <span className="ml-2 type-label-caps text-muted-foreground">Archived</span>

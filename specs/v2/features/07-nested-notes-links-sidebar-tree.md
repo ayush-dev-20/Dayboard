@@ -207,3 +207,23 @@ A trashed parent shows "Includes N sub-notes". **Restore** restores exactly its 
 ## 9. Out of scope (V2)
 
 A graph view; linking to tasks or projects from the picker (built so it can be added); transclusion or embedding another note's content; duplicating a subtree; per-note permissions or sharing; a project or tag inherited by sub-notes after creation; summarising sub-notes together; unlinking tasks from sub-notes automatically.
+
+---
+
+## 10. As built (2026-10-08)
+
+What differs from the sections above. The agent hand-off is `agent_docs/nested-notes-links-sidebar-tree_v2.md`.
+
+- **Server-side only.** Features 03 to 05 were skipped on purpose, so nothing here works offline, `uiState` is `localStorage` (open branches and whether the tree shows), and other tabs follow through a `BroadcastChannel`. Not done: the offline E2E cases (§7, 9), `dependsOn` and `note.delete { cascadeId }` operations, and the offline-created cycle rule on apply (the server half exists: hierarchy changes take a per-person lock, so the second of two crossing moves is refused).
+- **No client-made ids.** `createSubNote` and `createLinkedNoteForTask` take no `id` (a duplicate key would reveal whether someone else's id exists). `moveNote` takes `beforeId` **and** `afterId` (the neighbours), like `reorderNote`; with neither the note goes first. `getNoteMeta` is an action (`getNoteMetas`) used by the links; the picker is `findNotesForLink`; `loadBacklinks`, `loadNoteOutline`, `loadNoteTree` and `loadNoteChildren` feed the UI.
+- **Derived links.** `note_links` has two delete triggers (migration 0008) because `source_id` cannot be a foreign key. A link to a note that is not the person's stores nothing. A note linking to itself is not a backlink.
+- **Archive mirrors Trash**, including "unarchive as a top-level note" when the parent is still archived. Creating a sub-note under an archived note, or moving into one, is refused ("Unarchive this note…").
+- **Trash:** a note trashed together with its parent is not listed on its own; the row says "Includes N sub-notes". Empty trash names the sub-notes it also removes. Permanent delete names every sub-note, in any state.
+- **Notes page (owner's decision, 2026-10-08):** every main view (List, Gallery, Table, Board) and the note lists on project pages list **top-level notes only**; there is no expand-in-place and the count and Archived list agree. Sub-notes are reached through their parent, the sidebar tree and the Tree view, which ignores filters, sorts and grouping.
+- **Sub-note block of a note in Trash or gone:** shows nothing (no "Deleted note" row, no Restore); the block stays in the text and returns on restore. Inline links still show "Deleted note" with Restore.
+- **Phone:** the tree is in a sheet opened from a "Browse notes" button on the Notes page and in the note header (there is no menu sheet on a phone). The breadcrumb is hidden on a phone; the back arrow goes to the parent.
+- **Tree drag** is pointer and touch only (keyboard: `Alt+Up/Down` and Move to…), with Undo on every move.
+- **Pasted note addresses** become links only for this app's own origin(s) and over an empty cursor; the note's own address stays text; over selected text it stays an ordinary link.
+- **Copy out:** a note link or sub-note block is an ordinary link with the note's current title (a title not loaded yet reads "Note"); the Dayboard flavour keeps the real nodes. Pasting a sub-note block into a task description leaves a link.
+- **Search:** results carry a `path`, shown before the title in the command menu and on `/search`. The projection (`content_text`) includes link and sub-note titles as of the save.
+- **Not built:** a path column in the Table; a live refresh of a task's "Related notes" chips after "New linked note" from its description (the next load shows it). No design file existed for these screens; built from `DESIGN.md`.

@@ -91,3 +91,64 @@ export function DropZone({
     </Tag>
   );
 }
+
+/**
+ * One row of the notes tree: dragged by the mouse or a long press, and dropped on. Only the row
+ * itself (not the branch beneath it) is the draggable, so "above, onto, below" is measured against
+ * the row. `data-drop` carries where the pointer is, for the line or outline the row draws.
+ */
+export function TreeRowDrag({
+  id,
+  label,
+  disabled,
+  dropHint,
+  className,
+  children,
+  ...rest
+}: {
+  id: string;
+  label: string;
+  disabled?: boolean;
+  dropHint?: "before" | "inside" | "after" | null;
+  className?: string;
+  children: React.ReactNode;
+} & Omit<React.HTMLAttributes<HTMLDivElement>, "className" | "children">) {
+  const data: DragData = { type: "treeRow", id, label };
+  const draggable = useDraggable({ id, data, disabled });
+  const droppable = useDroppable({ id, data });
+  return (
+    <div
+      ref={(node) => {
+        draggable.setNodeRef(node);
+        droppable.setNodeRef(node);
+      }}
+      // The library's listeners only: its `attributes` would give the row a button role.
+      {...draggable.listeners}
+      data-tree-row={id}
+      data-drop={dropHint ?? undefined}
+      className={cn(className, draggable.isDragging && "opacity-40")}
+      {...rest}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** The empty space below the tree: a note dropped here goes to the end of the top level. */
+export function TreeRootDrop({
+  className,
+  children,
+}: {
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "tree-root",
+    data: { type: "treeRow", id: "tree-root", label: "Top level" },
+  });
+  return (
+    <div ref={setNodeRef} className={className} data-over={isOver ? "" : undefined}>
+      {children}
+    </div>
+  );
+}

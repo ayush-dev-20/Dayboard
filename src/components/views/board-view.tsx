@@ -99,7 +99,7 @@ export function BoardView({ state }: { state: ViewState }) {
     const active = event.active.data.current as DragData | undefined;
     if (!over || active?.type !== "card") return null;
     const target = over.data.current as DragData | undefined;
-    if (!target || target.type === "day") return null;
+    if (!target || target.type === "day" || target.type === "treeRow") return null;
 
     if (target.type === "column") {
       const list = (groupOf(target.key)?.items ?? []).filter((i) => i.id !== active.id);

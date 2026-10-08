@@ -17,7 +17,10 @@ import {
 import { DEFAULT_EDITOR_CONTEXT, type EditorContextValue } from "./blocks/context";
 import { BlockLimits, HeadingAnchors, ListDepthAnchors, type LimitHandler } from "./blocks/guards";
 import { BlockKeys } from "./blocks/keys";
+import { NoteLinkPicker } from "./blocks/note-link-picker";
+import { createNoteLink, createSubNote } from "./blocks/note-nodes";
 import { SlashMenu } from "./blocks/slash-menu";
+import { clientNoteRefs } from "@/components/notes/note-refs";
 import { ClipboardFidelity } from "./clipboard-extension";
 
 export type ExtensionOptions = {
@@ -56,6 +59,10 @@ export function createExtensions(placeholder = "", options: ExtensionOptions = {
     ToggleSummary,
     createToggleContent(interactive, () => options.getContext?.().ownerId ?? null),
     createTableOfContents(interactive),
+    createNoteLink(interactive),
+    // Sub-notes belong under a note; a task description has the node (so pasted text parses) but no
+    // way to insert one, and the server refuses a saved one (feature 07 §4).
+    createSubNote(interactive),
     BlockTable,
     BlockTableRow,
     BlockTableHeader,
@@ -68,8 +75,12 @@ export function createExtensions(placeholder = "", options: ExtensionOptions = {
           BlockLimits.configure({ onLimit: options.onLimit ?? (() => {}) }),
           BlockKeys.configure({ getOwnerId: () => options.getContext?.().ownerId ?? null }),
           SlashMenu.configure({ getContext: options.getContext }),
+          NoteLinkPicker.configure({ getContext: options.getContext }),
           ClipboardFidelity.configure({
-            getContext: options.getContext ?? (() => DEFAULT_EDITOR_CONTEXT),
+            getContext: () => ({
+              ...(options.getContext?.() ?? DEFAULT_EDITOR_CONTEXT),
+              noteRefs: clientNoteRefs(),
+            }),
             onNotice: options.onLimit ?? (() => {}),
           }),
         ]

@@ -57,6 +57,13 @@
       "when": 1791359914853,
       "tag": "0007_collection-views",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791442864076,
+      "tag": "0008_nested-notes",
+      "breakpoints": true
     }
   ]
 }

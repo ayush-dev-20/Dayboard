@@ -177,6 +177,10 @@ export function TodosListBody({ state }: { state: ViewState }) {
   );
 }
 
+/**
+ * The notes of a List or Gallery. Only top-level notes are listed (the query leaves sub-notes out):
+ * a sub-note is reached through its parent, the sidebar tree or the Tree view.
+ */
 export function NotesListBody({
   state,
   archived,

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Command } from "cmdk";
+import { pathLabel } from "@/lib/notes/tree";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import {
   CheckSquare,
@@ -74,6 +75,9 @@ function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) 
         {hit.emoji ?? <Icon className="size-4 text-muted-foreground" strokeWidth={1.5} />}
       </span>
       <span className="min-w-0 flex-1 truncate">
+        {hit.path.length > 0 ? (
+          <span className="text-muted-foreground">{pathLabel(hit.path)} / </span>
+        ) : null}
         {hit.title}
         {hit.snippet ? (
           <span className="ml-2 type-body-sm text-muted-foreground">

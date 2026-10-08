@@ -15,6 +15,10 @@ export type TrashItemDTO = {
   title: string;
   emoji: string | null;
   deletedAt: string;
+  /** Notes only: how many sub-notes went to Trash with this one ("Includes 3 sub-notes"). */
+  subNotes: number;
+  /** Notes only: everything below it in any state, which permanent deletion also removes. */
+  descendants: number;
 };
 
 export type TrashCounts = Record<TrashType, number> & { total: number };

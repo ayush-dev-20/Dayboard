@@ -10,7 +10,9 @@ import {
   CircleAlert,
   Copy,
   Ellipsis,
+  FilePlus2,
   Folder,
+  FolderInput,
   Info,
   SmilePlus,
   Sparkles,
@@ -18,7 +20,14 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { archiveNote, createNote, deleteNote, restoreNote, updateNoteMeta } from "@/actions/notes";
+import {
+  archiveNote,
+  createNote,
+  deleteNote,
+  loadNoteChildren,
+  restoreNote,
+  updateNoteMeta,
+} from "@/actions/notes";
 import { assignToProject } from "@/actions/projects";
 import { setNoteTags } from "@/actions/tags";
 import { createTasksBatch } from "@/actions/tasks";
@@ -39,7 +48,11 @@ import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { copyFlavours, copyToClipboard, type CopyKind } from "@/components/editor/copy-note";
 import { pasteSingleLine } from "@/components/editor/single-line-paste";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/layout/confirm-dialog";
 import { PageContainer } from "@/components/layout/page-container";
+import { makeSubNote } from "@/components/editor/blocks/note-create";
+import { MoveNoteDialog } from "@/components/notes/tree/move-note-dialog";
+import { NotesTreeSheet } from "@/components/notes/tree/notes-tree-sheet";
 import { SaveState } from "@/components/tasks/description-editor";
 import {
   DropdownMenu,
@@ -56,12 +69,19 @@ import { isEmptyDoc } from "@/lib/editor/projection";
 import { COPY_NOTE_EVENT } from "@/lib/shortcuts";
 import type { TiptapDoc } from "@/lib/editor/types";
 import { clearDraft, readDraft } from "@/lib/notes/draft";
-import type { NoteDTO, LinkedTaskDTO } from "@/lib/notes/dto";
+import { subNotesWord } from "@/lib/notes/cascade";
+import type { BacklinkDTO, LinkedTaskDTO, NoteChildDTO, NoteDTO } from "@/lib/notes/dto";
+import { collectNoteRefs } from "@/lib/notes/links";
 import type { NoteSaveState } from "@/lib/notes/save-state";
 import type { ProjectRef } from "@/lib/projects/dto";
 import type { TagDTO } from "@/lib/tags";
 import { cn } from "@/lib/utils";
+import { BacklinksPanel } from "./backlinks-panel";
 import { LinkedTasks } from "./linked-tasks";
+import { NoteBreadcrumb } from "./note-breadcrumb";
+import { emitNoteEvent, onNoteEvent } from "./note-events";
+import { SubNotesSection } from "./sub-notes-section";
+import { clientNoteRefs } from "./note-refs";
 import { SummaryPanel } from "./note-ai";
 import { useNoteSync } from "./use-note-sync";
 
@@ -70,6 +90,8 @@ type Props = {
   note: NoteDTO | null;
   /** For a new note: the project it starts in and the task it is linked to. */
   start?: { project: ProjectRef | null; linkTaskId: string | null; ai?: boolean };
+  /** What links to this note (V2 feature 07 §4), read on the server with the note. */
+  backlinks?: BacklinkDTO[];
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -123,7 +145,7 @@ function saveStatus(state: NoteSaveState): SaveStatus {
  * The full-page note editor, for new and existing notes alike. A new note is created on the first
  * change, then the address bar is updated without remounting, so the cursor never moves.
  */
-export function NoteEditor({ note, start }: Props) {
+export function NoteEditor({ note, start, backlinks = [] }: Props) {
   const router = useRouter();
   const isClient = useIsClient();
   const online = useSyncExternalStore(
@@ -145,6 +167,20 @@ export function NoteEditor({ note, start }: Props) {
     doc: note?.contentJson ?? null,
   });
   const [draftDismissed, setDraftDismissed] = useState(false);
+  // Sub-notes: the ones whose block is not in the text are listed at the end (feature 07 §3).
+  const [children, setChildren] = useState<NoteChildDTO[]>(note?.children ?? []);
+  const [seenChildren, setSeenChildren] = useState(note?.children);
+  if (seenChildren !== note?.children) {
+    setSeenChildren(note?.children);
+    setChildren(note?.children ?? []);
+  }
+  const [placedKey, setPlacedKey] = useState(() =>
+    collectNoteRefs(note?.contentJson).blocks.join(","),
+  );
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [askTopLevel, setAskTopLevel] = useState(false);
+  const liveTitle = useRef(note?.title ?? "");
+  const liveEmoji = useRef<string | null>(note?.emoji ?? null);
   const [projectOpen, setProjectOpen] = useState(false);
   const [extractOpen, setExtractOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -154,9 +190,61 @@ export function NoteEditor({ note, start }: Props) {
       ? { id: note.id, version: note.version, title: note.title, doc: note.contentJson }
       : null,
     create: { projectId: project?.id ?? null, linkTaskId: start?.linkTaskId ?? null },
-    onCreated: (id) => window.history.replaceState(window.history.state, "", `/notes/${id}`),
+    onCreated: (id) => {
+      window.history.replaceState(window.history.state, "", `/notes/${id}`);
+      // The sidebar tree learns about it now; there is no refresh while the editor keeps running.
+      emitNoteEvent({
+        type: "created",
+        note: {
+          id,
+          parentId: null,
+          title: liveTitle.current,
+          emoji: liveEmoji.current,
+          sortOrder: -1e15,
+          depth: 1,
+        },
+      });
+    },
   });
   const noteId = sync.noteId;
+  const ensureOwner = sync.ensureCreated;
+
+  // Sub-notes made, renamed, moved, archived or trashed (here or in another tab) keep the list at
+  // the end of the note current.
+  useEffect(() => {
+    if (!noteId) return;
+    return onNoteEvent((event) => {
+      if (event.type === "created" && event.note.parentId === noteId) {
+        setChildren((list) =>
+          list.some((c) => c.id === event.note.id)
+            ? list
+            : [
+                {
+                  id: event.note.id,
+                  title: event.note.title,
+                  emoji: event.note.emoji,
+                  archived: false,
+                },
+                ...list,
+              ],
+        );
+      } else if (event.type === "title") {
+        setChildren((list) =>
+          list.map((c) => (c.id === event.id ? { ...c, title: event.title } : c)),
+        );
+      } else if (event.type === "emoji") {
+        setChildren((list) =>
+          list.map((c) => (c.id === event.id ? { ...c, emoji: event.emoji } : c)),
+        );
+      } else if (event.type === "structure") {
+        void loadNoteChildren({ id: noteId }).then((result) => {
+          if (result.ok) setChildren(result.data);
+        });
+      }
+    });
+  }, [noteId]);
+  const placed = useMemo(() => new Set(placedKey ? placedKey.split(",") : []), [placedKey]);
+  const unplaced = children.filter((c) => !placed.has(c.id));
 
   // AI (feature 05): summarize streams into a panel above the note; extract tasks is a preview.
   const { aiEnabled } = useWorkspace();
@@ -298,10 +386,12 @@ export function NoteEditor({ note, start }: Props) {
 
   async function changeEmoji(next: string | null) {
     setEmoji(next);
+    liveEmoji.current = next;
     sync.onEmojiChange(next);
     if (noteId) {
       const result = await updateNoteMeta({ id: noteId, emoji: next });
       if (!result.ok) toast.error("Couldn't change the emoji. Try again.");
+      else emitNoteEvent({ type: "emoji", id: noteId, emoji: next });
     }
   }
 
@@ -315,23 +405,29 @@ export function NoteEditor({ note, start }: Props) {
     setProject(result.data.project);
   }
 
-  async function toggleArchive(next: boolean) {
+  async function toggleArchive(next: boolean, asTopLevel = false) {
     await sync.flush();
     if (!noteId) return;
-    const result = await archiveNote({ id: noteId, archived: next });
+    const result = await archiveNote({ id: noteId, archived: next, asTopLevel });
     if (!result.ok) {
-      toast.error("Couldn't update that note. Try again.");
+      // A sub-note whose parent is still archived asks first (feature 07 §3).
+      if (result.error.fieldErrors?.parent === "top-level") setAskTopLevel(true);
+      else toast.error("Couldn't update that note. Try again.");
       return;
     }
     setArchived(next);
-    toast(next ? "Note archived." : "Note unarchived.", {
+    emitNoteEvent({ type: "structure" });
+    const along = result.data.subNotes > 0 ? ` with ${subNotesWord(result.data.subNotes)}` : "";
+    toast(next ? `Note archived${along}.` : `Note unarchived${along}.`, {
       duration: 5000,
       action: {
         label: "Undo",
         onClick: async () => {
-          const undo = await archiveNote({ id: noteId, archived: !next });
-          if (undo.ok) setArchived(!next);
-          else toast.error("Couldn't undo that. Try again.");
+          const undo = await archiveNote({ id: noteId, archived: !next, asTopLevel });
+          if (undo.ok) {
+            setArchived(!next);
+            emitNoteEvent({ type: "structure" });
+          } else toast.error("Couldn't undo that. Try again.");
         },
       },
     });
@@ -348,17 +444,45 @@ export function NoteEditor({ note, start }: Props) {
       toast.error("Couldn't move that to Trash. Try again.");
       return;
     }
+    emitNoteEvent({ type: "structure" });
     router.push("/notes");
-    toast("Moved to Trash.", {
+    const along =
+      result.data.subNotes > 0 ? ` ${subNotesWord(result.data.subNotes)} went with it.` : "";
+    toast(`Moved to Trash.${along}`, {
       duration: 5000,
       action: {
         label: "Undo",
         onClick: async () => {
           const undo = await restoreNote({ id: noteId });
           if (!undo.ok) toast.error("Couldn't restore that. Try Trash.");
-          else router.refresh();
+          else {
+            emitNoteEvent({ type: "structure" });
+            router.refresh();
+          }
         },
       },
+    });
+  }
+
+  // "New sub-note" in the note menu: makes it, puts its block at the end of the text, and offers to
+  // open it. (From the editor's `/` menu the block goes at the cursor instead.)
+  async function addSubNote() {
+    const made = await makeSubNote({
+      surface: "note",
+      ownerId: noteId,
+      offline: !online,
+      ensureOwner,
+    });
+    if (!made) return;
+    const editor = editorRef.current;
+    editor
+      ?.chain()
+      .focus("end")
+      .insertContent({ type: "subNote", attrs: { noteId: made.id } })
+      .run();
+    toast("Sub-note created.", {
+      duration: 6000,
+      action: { label: "Open", onClick: () => router.push(`/notes/${made.id}`) },
     });
   }
 
@@ -372,7 +496,7 @@ export function NoteEditor({ note, start }: Props) {
   async function copyNote(kind: CopyKind) {
     const editor = editorRef.current;
     if (!editor) return;
-    const flavours = copyFlavours(editor.getJSON() as TiptapDoc, title);
+    const flavours = copyFlavours(editor.getJSON() as TiptapDoc, title, clientNoteRefs());
     if (await copyToClipboard(flavours, kind)) toast("Copied");
     else toast.error("Couldn't copy. Select the text and copy it instead.");
   }
@@ -405,10 +529,15 @@ export function NoteEditor({ note, start }: Props) {
         placeholder="Untitled"
         aria-label="Note title"
         maxLength={300}
-        autoFocus={!note && !start?.ai}
+        // A new note, or a note just made and still blank (a sub-note), opens ready for its title.
+        autoFocus={
+          (!note && !start?.ai) || (Boolean(note) && !note?.title && isEmptyDoc(note!.contentJson))
+        }
         onChange={(e) => {
           setTitle(e.target.value);
+          liveTitle.current = e.target.value;
           sync.onTitleChange(e.target.value);
+          if (noteId) emitNoteEvent({ type: "title", id: noteId, title: e.target.value });
         }}
         onBlur={() => void sync.flush()}
         onPaste={pasteSingleLine}
@@ -427,30 +556,28 @@ export function NoteEditor({ note, start }: Props) {
     <PageContainer className="pb-28 md:pb-16">
       <header className="mb-4 flex items-center gap-2">
         <Link
-          href={project && !note ? `/projects/${project.id}` : "/notes"}
-          aria-label="Back to notes"
+          href={
+            project && !note
+              ? `/projects/${project.id}`
+              : note && note.breadcrumb.length > 0
+                ? `/notes/${note.breadcrumb[note.breadcrumb.length - 1]!.id}`
+                : "/notes"
+          }
+          aria-label={
+            note && note.breadcrumb.length > 0 ? "Back to the parent note" : "Back to notes"
+          }
           className="-ml-2 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-8"
         >
           <ArrowLeft className="size-4" strokeWidth={1.5} aria-hidden />
         </Link>
-        <nav
-          aria-label="Breadcrumb"
-          className="min-w-0 flex-1 truncate type-body-md text-muted-foreground max-md:hidden"
-        >
-          <Link href="/notes" className="hover:text-foreground">
-            Notes
-          </Link>
-          {project ? (
-            <>
-              {" / "}
-              <Link href={`/projects/${project.id}`} className="hover:text-foreground">
-                {project.name}
-              </Link>
-            </>
-          ) : null}
-          {!note && !noteId ? " / New note" : null}
-        </nav>
+        <NoteBreadcrumb
+          ancestors={note?.breadcrumb ?? []}
+          project={project}
+          title={title}
+          isNew={!note && !noteId}
+        />
         <span className="flex-1 md:hidden" />
+        <NotesTreeSheet />
 
         <SaveState status={saveStatus(sync.state)} />
         <LinkedTasks noteId={noteId} tasks={tasks} onChange={setTasks} />
@@ -505,6 +632,25 @@ export function NoteEditor({ note, start }: Props) {
                 }}
               >
                 <SmilePlus strokeWidth={1.5} aria-hidden /> Emoji
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={!noteId}
+                title={noteId ? undefined : needsNote}
+                onSelect={() => {
+                  afterMenu.current = () => void addSubNote();
+                }}
+              >
+                <FilePlus2 strokeWidth={1.5} aria-hidden /> New sub-note
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!noteId}
+                title={noteId ? undefined : needsNote}
+                onSelect={() => {
+                  afterMenu.current = () => setMoveOpen(true);
+                }}
+              >
+                <FolderInput strokeWidth={1.5} aria-hidden /> Move to…
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => void copyNote("note")}>
@@ -668,11 +814,13 @@ export function NoteEditor({ note, start }: Props) {
         writingHelp={aiEnabled}
         surface="note"
         ownerId={noteId}
+        ensureOwner={ensureOwner}
         label="Note content"
         placeholder="Start writing. The note is created when you type."
         onChange={(doc) => {
           liveDoc.current = doc;
           setHasText(!isEmptyDoc(doc));
+          setPlacedKey(collectNoteRefs(doc).blocks.join(","));
           sync.onDocChange(doc);
         }}
         onEditorReady={(editor) => {
@@ -682,8 +830,15 @@ export function NoteEditor({ note, start }: Props) {
           editorRef.current = null;
         }}
         onBlur={() => void sync.flush()}
-        beforeContent={titleField}
+        beforeContent={
+          <>
+            {titleField}
+            {noteId ? <BacklinksPanel noteId={noteId} initial={backlinks} /> : null}
+          </>
+        }
       />
+
+      <SubNotesSection notes={unplaced} />
 
       {aiEnabled && !noteId && !generateOpen ? (
         <p className="mt-2">
@@ -718,6 +873,22 @@ export function NoteEditor({ note, start }: Props) {
           onConfirm={createExtractedTasks}
         />
       ) : null}
+      <MoveNoteDialog
+        note={noteId ? { id: noteId, title } : null}
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+      />
+      <ConfirmDialog
+        open={askTopLevel}
+        onOpenChange={setAskTopLevel}
+        title="Unarchive as a top-level note?"
+        description="The note it sat inside is still archived, so this note can't go back inside it. It will come back as a top-level note."
+        confirmLabel="Unarchive as top-level"
+        onConfirm={async () => {
+          setAskTopLevel(false);
+          await toggleArchive(false, true);
+        }}
+      />
     </PageContainer>
   );
 }

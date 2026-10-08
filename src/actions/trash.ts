@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { restoreInboxItem, permanentlyDeleteInboxItem } from "@/db/mutations/inbox";
-import { restoreNote, permanentlyDeleteNote } from "@/db/mutations/notes";
+import { restoreNote, restoreNoteAsTopLevel, permanentlyDeleteNote } from "@/db/mutations/notes";
 import { restoreProject, permanentlyDeleteProject } from "@/db/mutations/projects";
 import { permanentlyDeleteTask, restoreTask } from "@/db/mutations/tasks";
 import { permanentlyDeleteTodo, restoreTodo } from "@/db/mutations/todos";
@@ -18,6 +18,12 @@ import { idSchema } from "@/lib/validations/tasks";
 // one place. Permanent deletion is never optimistic and only works on items already in Trash.
 
 const itemSchema = z.strictObject({ type: z.enum(TRASH_TYPES), id: idSchema });
+// A sub-note whose parent is still in Trash asks first, then comes back as a top-level note.
+const restoreSchema = z.strictObject({
+  type: z.enum(TRASH_TYPES),
+  id: idSchema,
+  asTopLevel: z.boolean().optional(),
+});
 const emptySchema = z.strictObject({ type: z.enum(TRASH_TYPES).nullish() });
 
 function refresh() {
@@ -28,11 +34,11 @@ function refresh() {
 export async function restoreTrashItem(input: unknown): Promise<ActionResult<{ href: string }>> {
   return runAction("trash.restore", async () => {
     const user = await requireUser();
-    const { type, id } = itemSchema.parse(input);
+    const { type, id, asTopLevel } = restoreSchema.parse(input);
     const restore: Record<TrashType, () => Promise<unknown>> = {
       task: () => restoreTask(user.id, id),
       todo: () => restoreTodo(user.id, id),
-      note: () => restoreNote(user.id, id),
+      note: () => (asTopLevel ? restoreNoteAsTopLevel(user.id, id) : restoreNote(user.id, id)),
       project: () => restoreProject(user.id, id),
       inbox: () => restoreInboxItem(user.id, id),
     };

@@ -53,6 +53,8 @@ export type RichTextEditorProps = {
   surface?: "note" | "task";
   /** The note or task id (null for a note that is not created yet): keys per-device UI state. */
   ownerId?: string | null;
+  /** Creates a note that does not exist yet and returns its id (a sub-note needs a parent). */
+  ensureOwner?: () => Promise<string | null>;
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -83,6 +85,7 @@ export default function RichTextEditor({
   writingHelp,
   surface,
   ownerId = null,
+  ensureOwner,
 }: RichTextEditorProps) {
   const offline = !useSyncExternalStore(
     subscribeOnline,
@@ -95,8 +98,9 @@ export default function RichTextEditor({
       surface: surface ?? (variant === "document" ? "note" : "task"),
       ownerId,
       offline,
+      ensureOwner,
     }),
-    [surface, variant, ownerId, offline],
+    [surface, variant, ownerId, offline, ensureOwner],
   );
   // The editor is created once; its extensions read the latest context through a holder.
   const [holder] = useState(() => createContextHolder(context));

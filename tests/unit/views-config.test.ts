@@ -158,9 +158,11 @@ describe("view types", () => {
     expect(isViewTypeAllowed("TASKS", "GALLERY")).toBe(false);
   });
 
-  it("Tree is in the vocabulary but not available until feature 07", () => {
+  it("Tree is a notes view since feature 07, and only a notes view", () => {
     expect(VIEW_TYPES_BY_COLLECTION.NOTES).toContain("TREE");
-    expect(isViewTypeAllowed("NOTES", "TREE")).toBe(false);
+    expect(isViewTypeAllowed("NOTES", "TREE")).toBe(true);
+    expect(isViewTypeAllowed("TASKS", "TREE")).toBe(false);
+    expect(isViewTypeAllowed("TODOS", "TREE")).toBe(false);
   });
 });
 

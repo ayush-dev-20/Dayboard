@@ -17,7 +17,26 @@ const isTop = (node: TiptapNode) =>
   node.type === "callout" ||
   node.type === "toggle" ||
   node.type === "table" ||
-  node.type === "tableOfContents";
+  node.type === "tableOfContents" ||
+  node.type === "subNote";
+
+/** A sub-note block as a line holding a link to the same note. */
+const subNoteAsLink = (block: TiptapNode): TiptapNode =>
+  paragraphOf([{ type: "noteLink", attrs: block.attrs }]);
+
+/**
+ * A place that cannot hold a sub-note block (a task description) gets a link to the note instead,
+ * wherever the block sat, including inside a toggle.
+ */
+export function subNotesToLinks(blocks: TiptapNode[]): TiptapNode[] {
+  return blocks.map((block) =>
+    block.type === "subNote"
+      ? subNoteAsLink(block)
+      : block.content
+        ? { ...block, content: subNotesToLinks(block.content) }
+        : block,
+  );
+}
 
 /** A table as one line per row, cells separated by " | " (the form for places without tables). */
 function tableAsLines(table: TiptapNode): TiptapNode[] {
@@ -88,6 +107,9 @@ export function fitInner(blocks: TiptapNode[]): TiptapNode[] {
       }
       case "callout":
         out.push(...fitInner(block.content ?? []));
+        break;
+      case "subNote":
+        out.push(subNoteAsLink(block));
         break;
       default:
         break;

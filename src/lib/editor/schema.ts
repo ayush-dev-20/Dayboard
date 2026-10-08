@@ -49,11 +49,23 @@ export const NODE_TYPES = new Set([
   "tableHeader",
   "tableCell",
   "tableOfContents",
+  // V2 feature 07: a link to a note (inline) and a sub-note (block). Identity only.
+  "noteLink",
+  "subNote",
 ]);
-const LEAF_TYPES = new Set(["horizontalRule", "hardBreak", "tableOfContents"]);
+const LEAF_TYPES = new Set([
+  "horizontalRule",
+  "hardBreak",
+  "tableOfContents",
+  "noteLink",
+  "subNote",
+]);
 
 /** Blocks that live only at the top of a document or inside a toggle (never in lists or quotes). */
-const TOP_BLOCKS = new Set(["callout", "toggle", "table", "tableOfContents"]);
+const TOP_BLOCKS = new Set(["callout", "toggle", "table", "tableOfContents", "subNote"]);
+
+/** Where a note link may sit: in a line of text. */
+const INLINE_PARENTS = new Set(["paragraph", "heading", "toggleSummary"]);
 const TOP_PARENTS = new Set(["doc", "toggleContent"]);
 
 const PLAIN_BLOCKS = [
@@ -74,7 +86,7 @@ const CHILDREN: Record<string, { allowed: Set<string>; min: number; max: number 
     min: 1,
     max: Infinity,
   },
-  toggleSummary: { allowed: new Set(["text", "hardBreak"]), min: 0, max: Infinity },
+  toggleSummary: { allowed: new Set(["text", "hardBreak", "noteLink"]), min: 0, max: Infinity },
   toggleContent: {
     allowed: new Set([...PLAIN_BLOCKS, ...TOP_BLOCKS]),
     min: 0,
@@ -96,6 +108,8 @@ const ONLY_IN: Record<string, string> = {
 };
 const MARK_TYPES = new Set(["bold", "italic", "underline", "strike", "code", "link"]);
 const LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -153,6 +167,14 @@ export function sanitizeAttrs(type: string, raw: unknown): Record<string, unknow
     }
     case "taskItem":
       return { checked: attrs.checked === true };
+    case "noteLink":
+    case "subNote": {
+      const id = attrs.noteId;
+      if (typeof id !== "string" || !UUID.test(id)) {
+        throw new EditorDocError("A link to a note isn't valid.");
+      }
+      return { noteId: id.toLowerCase() };
+    }
     case "callout": {
       const emoji = typeof attrs.emoji === "string" ? attrs.emoji : DEFAULT_CALLOUT_EMOJI;
       if (!isSingleEmoji(emoji)) throw new EditorDocError("A callout needs a single emoji.");
@@ -197,7 +219,7 @@ export function sanitizeAttrs(type: string, raw: unknown): Record<string, unknow
   }
 }
 
-type Context = { depth: number; parent: string; listDepth: number };
+type Context = { depth: number; parent: string; listDepth: number; allowSubNotes: boolean };
 
 function sanitizeNode(raw: unknown, ctx: Context): TiptapNode {
   if (ctx.depth > MAX_DEPTH) throw new EditorDocError("This document is nested too deeply.");
@@ -217,6 +239,13 @@ function sanitizeNode(raw: unknown, ctx: Context): TiptapNode {
 
   // Structural blocks only go where the editor can put them.
   if (TOP_BLOCKS.has(type) && !TOP_PARENTS.has(ctx.parent)) {
+    throw new EditorDocError("This content can't go there.");
+  }
+  // A sub-note belongs under another note: a task description can't hold one (feature 07 §4).
+  if (type === "subNote" && !ctx.allowSubNotes) {
+    throw new EditorDocError("A task description can't hold a sub-note. Link to a note instead.");
+  }
+  if (type === "noteLink" && !INLINE_PARENTS.has(ctx.parent)) {
     throw new EditorDocError("This content can't go there.");
   }
   const only = ONLY_IN[type];
@@ -246,7 +275,7 @@ function sanitizeNode(raw: unknown, ctx: Context): TiptapNode {
         }
       }
     }
-    const childCtx: Context = { depth: ctx.depth + 1, parent: type, listDepth };
+    const childCtx: Context = { ...ctx, depth: ctx.depth + 1, parent: type, listDepth };
     node.content = raw.content.map((child) => sanitizeNode(child, childCtx));
   } else if (CHILDREN[type] && CHILDREN[type].min > 0) {
     throw new EditorDocError("Invalid document.");
@@ -265,8 +294,13 @@ function sanitizeNode(raw: unknown, ctx: Context): TiptapNode {
   return node;
 }
 
+export type SanitizeOptions = {
+  /** A note may hold sub-note blocks; a task description may not. Defaults to false. */
+  allowSubNotes?: boolean;
+};
+
 /** Validates and cleans a document. Throws `EditorDocError` with a plain-language message. */
-export function sanitizeDoc(input: unknown): TiptapDoc {
+export function sanitizeDoc(input: unknown, options: SanitizeOptions = {}): TiptapDoc {
   const size = new TextEncoder().encode(JSON.stringify(input) ?? "").length;
   if (size > MAX_DOC_BYTES) throw new EditorDocError("This text is too long to save.");
 
@@ -276,20 +310,32 @@ export function sanitizeDoc(input: unknown): TiptapDoc {
   }
   const content =
     (input.content as unknown[] | undefined)?.map((child) =>
-      sanitizeNode(child, { depth: 1, parent: "doc", listDepth: 0 }),
+      sanitizeNode(child, {
+        depth: 1,
+        parent: "doc",
+        listDepth: 0,
+        allowSubNotes: options.allowSubNotes ?? false,
+      }),
     ) ?? [];
   return { type: "doc", content };
 }
 
-/** Zod schema form of `sanitizeDoc`, so Server Actions can use it like any other field. */
-export const richTextSchema = z.unknown().transform((value, ctx) => {
-  try {
-    return sanitizeDoc(value);
-  } catch (error) {
-    if (error instanceof EditorDocError) {
-      ctx.issues.push({ code: "custom", message: error.message, input: value });
-      return z.NEVER;
+function schemaFor(options: SanitizeOptions) {
+  return z.unknown().transform((value, ctx) => {
+    try {
+      return sanitizeDoc(value, options);
+    } catch (error) {
+      if (error instanceof EditorDocError) {
+        ctx.issues.push({ code: "custom", message: error.message, input: value });
+        return z.NEVER;
+      }
+      throw error;
     }
-    throw error;
-  }
-});
+  });
+}
+
+/** Zod schema form of `sanitizeDoc`, so Server Actions can use it like any other field. */
+export const richTextSchema = schemaFor({});
+
+/** The same for a note's own text, which may also hold sub-note blocks. */
+export const noteRichTextSchema = schemaFor({ allowSubNotes: true });

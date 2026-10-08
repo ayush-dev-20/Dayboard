@@ -56,7 +56,7 @@ export function orderedColumns(collection: Collection, config: ViewConfig): Prop
 export function ViewSettings({ collection, type, config, update }: Props) {
   const sortable = PROPERTIES[collection].filter((p) => p.sortable);
   const canGroup = type === "LIST" || type === "TABLE" || type === "BOARD";
-  const canSort = type !== "CALENDAR";
+  const canSort = type !== "CALENDAR" && type !== "TREE";
   const showsProperties = type === "TABLE" || type === "BOARD";
   const groupOptions = GROUP_BY_OPTIONS[collection];
 

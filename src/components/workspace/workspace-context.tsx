@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type { NoteTreeRow } from "@/lib/notes/dto";
 import type { ProjectRef } from "@/lib/projects/dto";
 import type { TagDTO } from "@/lib/tags";
 
@@ -13,6 +14,8 @@ export type WorkspaceValue = {
   counts: { today: number; inbox: number };
   /** AI is configured and the person has it switched on. When false, no AI surface renders. */
   aiEnabled: boolean;
+  /** The notes under Notes in the sidebar: the first 50 top-level notes and what is under them. */
+  noteTree: { rows: NoteTreeRow[]; rootTotal: number };
 };
 
 const WorkspaceContext = createContext<WorkspaceValue>({
@@ -20,6 +23,7 @@ const WorkspaceContext = createContext<WorkspaceValue>({
   tags: [],
   counts: { today: 0, inbox: 0 },
   aiEnabled: false,
+  noteTree: { rows: [], rootTotal: 0 },
 });
 
 export function WorkspaceProvider({

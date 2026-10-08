@@ -1,6 +1,8 @@
 import { closeHistory } from "@tiptap/pm/history";
 import type { EditorView } from "@tiptap/pm/view";
+import { noteIdFromAddress } from "../../notes/links";
 import { isAllowedLink } from "../schema";
+import type { NoteRefReader } from "./note-refs";
 import type { InternalSlice } from "./slice";
 
 // The paste rule registry (V2 feature 02 §5). A later feature that wants to claim a paste (a note
@@ -9,7 +11,13 @@ import type { InternalSlice } from "./slice";
 // of the editor's own handling, and the first one whose `apply` returns true wins.
 
 /** Where the editor is used; the same shape as the slash menu's context. */
-export type PasteContext = { surface: "note" | "task"; ownerId: string | null; offline: boolean };
+export type PasteContext = {
+  surface: "note" | "task";
+  ownerId: string | null;
+  offline: boolean;
+  /** How note links leave the editor and which addresses count as this app's own (feature 07). */
+  noteRefs?: NoteRefReader & { origins: readonly string[] };
+};
 
 export type ParsedClipboard = {
   types: readonly string[];
@@ -81,6 +89,41 @@ export const urlOverSelection: PasteRule = {
   },
 };
 
+/**
+ * A Dayboard note address pasted as plain text becomes a link to that note (V2 feature 07 §4).
+ * Over selected text it stays an ordinary link (the rule above); pasting a note's own address into
+ * that note leaves plain text, so a note never links to itself.
+ */
+export const noteAddressPaste: PasteRule = {
+  id: "note-address",
+  priority: 90,
+  test: (data, ctx) =>
+    !data.internal &&
+    data.text.trim() !== "" &&
+    noteIdFromAddress(data.text, ctx.noteRefs?.origins ?? []) !== null,
+  apply(view, data, ctx) {
+    const { state } = view;
+    const link = state.schema.nodes.noteLink;
+    const id = noteIdFromAddress(data.text, ctx.noteRefs?.origins ?? []);
+    if (!link || !id) return false;
+    if (!state.selection.empty) return false;
+    if (state.selection.$from.parent.type.spec.code) return false;
+    // Only where a line of text can hold a link.
+    const parent = state.selection.$from.parent.type.name;
+    if (parent !== "paragraph" && parent !== "heading" && parent !== "toggleSummary") return false;
+
+    const text = data.text.trim();
+    const tr =
+      id === ctx.ownerId
+        ? state.tr.insertText(text)
+        : state.tr.replaceSelectionWith(link.create({ noteId: id })).insertText(" ");
+    tr.setMeta("paste", true).setMeta("preventAutolink", true);
+    view.dispatch(closeHistory(tr));
+    return true;
+  },
+};
+
 export function registerCorePasteRules(): void {
+  if (!rules.has(noteAddressPaste.id)) registerPasteRule(noteAddressPaste);
   if (!rules.has(urlOverSelection.id)) registerPasteRule(urlOverSelection);
 }

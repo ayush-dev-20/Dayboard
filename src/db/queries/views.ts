@@ -156,6 +156,9 @@ export async function listNotesForViews(
         eq(notes.userId, userId),
         isNull(notes.deletedAt),
         scope.archivedOnly ? isNotNull(notes.archivedAt) : isNull(notes.archivedAt),
+        // The views list top-level notes; sub-notes are reached through their parent, the sidebar
+        // tree and the Tree view (feature 07).
+        isNull(notes.parentNoteId),
         projectCondition(notes.projectId, scope),
       ),
     )

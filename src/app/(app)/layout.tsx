@@ -5,6 +5,7 @@ import { ThemeSync } from "@/components/layout/theme-sync";
 import { WorkspaceProvider } from "@/components/workspace/workspace-context";
 import { listProjectRefs } from "@/db/queries/projects";
 import { getNavCounts } from "@/db/queries/nav-counts";
+import { getNoteTree } from "@/db/queries/note-tree";
 import { listTags } from "@/db/queries/tags";
 import { env } from "@/lib/env";
 import { getPreferences } from "@/lib/preferences";
@@ -22,18 +23,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
-  const [projects, tags, counts] = await Promise.all([
+  const [projects, tags, counts, noteTree] = await Promise.all([
     listProjectRefs(user.id),
     listTags(user.id),
     getNavCounts(user.id, {
       timezone: preferences.timezone,
       startOfDay: preferences.startOfDay.slice(0, 5),
     }),
+    getNoteTree(user.id),
   ]);
 
   return (
     <WorkspaceProvider
-      value={{ projects, tags, counts, aiEnabled: env.aiAvailable && preferences.aiEnabled }}
+      value={{
+        projects,
+        tags,
+        counts,
+        aiEnabled: env.aiAvailable && preferences.aiEnabled,
+        noteTree,
+      }}
     >
       <AppShell name={user.name} email={user.email} sidebarCollapsed={sidebarCollapsed}>
         <ThemeSync theme={preferences.theme} />

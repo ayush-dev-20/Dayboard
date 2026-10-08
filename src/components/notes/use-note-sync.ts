@@ -38,6 +38,11 @@ export type NoteSync = {
   loadLatest: () => Promise<NoteDTO | null>;
   /** After a conflict: save what is on screen on top of the server's copy. */
   keepMine: () => void;
+  /**
+   * The note's id, making the note first if it does not exist yet (a sub-note needs a parent that
+   * is saved). Null if the first save failed.
+   */
+  ensureCreated: () => Promise<string | null>;
 };
 
 /**
@@ -243,6 +248,14 @@ export function useNoteSync({ initial, create, onCreated }: Options): NoteSync {
     });
   }, [run]);
 
+  const ensureCreated = useCallback(async () => {
+    if (idRef.current) return idRef.current;
+    // Nothing typed yet is still worth saving when something needs the note to exist.
+    if (!isDirty()) dirtyTitle.current = titleRef.current;
+    await flush();
+    return idRef.current;
+  }, [flush]);
+
   const loadLatest = useCallback(async () => {
     const id = idRef.current;
     if (!id) return null;
@@ -299,5 +312,6 @@ export function useNoteSync({ initial, create, onCreated }: Options): NoteSync {
     flush,
     loadLatest,
     keepMine,
+    ensureCreated,
   };
 }

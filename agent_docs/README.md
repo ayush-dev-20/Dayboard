@@ -20,6 +20,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | Editor blocks and lists | V2 | Done | [editor-blocks-and-lists_v2.md](editor-blocks-and-lists_v2.md) |
 | Clipboard fidelity | V2 | In progress | [clipboard-fidelity_v2.md](clipboard-fidelity_v2.md) |
 | Multiple views | V2 | In progress | [multiple-views_v2.md](multiple-views_v2.md) |
+| Nested notes, links and sidebar tree | V2 | In progress | [nested-notes-links-sidebar-tree_v2.md](nested-notes-links-sidebar-tree_v2.md) |
 
 Status is `Done` or `In progress`.
 

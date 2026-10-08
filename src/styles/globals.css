@@ -824,3 +824,32 @@
   outline-offset: 2px;
   border-radius: 6px;
 }
+
+/* Note links and sub-notes (V2 feature 07). The selected-node outline above shows on the wrapper. */
+.rich-text .note-link-wrap {
+  display: inline;
+}
+/* A pill and a block are not prose links: no underline, ink text, a hover fill. */
+.rich-text a.note-link,
+.rich-text a.sub-note {
+  color: var(--foreground);
+  text-decoration: none;
+}
+.rich-text a.note-link:hover,
+.rich-text a.sub-note:hover {
+  text-decoration: none;
+}
+.rich-text .note-link {
+  line-height: 1.4;
+  /* Sits with the surrounding text: same size, no jump in the line height. */
+  font-size: 0.95em;
+  vertical-align: baseline;
+}
+.rich-text .sub-note-wrap {
+  margin: 0.25rem 0;
+}
+@media (pointer: coarse) {
+  .rich-text .note-link {
+    min-height: 1.75rem;
+  }
+}

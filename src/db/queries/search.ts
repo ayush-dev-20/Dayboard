@@ -3,6 +3,7 @@ import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { projectRefsFor } from "@/db/queries/meta";
+import { ancestorsFor } from "@/db/queries/note-tree";
 import { notes, projects, tags, tasks, todos } from "@/db/schema";
 import { dueInstant, type DayPrefs } from "@/lib/dates/today";
 import { addDays } from "@/lib/dates/calendar";
@@ -45,6 +46,7 @@ function hit(
     archived: false,
     project: null,
     snippet: null,
+    path: [],
     status: null,
     dueDate: null,
     done: false,
@@ -216,11 +218,17 @@ async function searchNotes(
     )
     .orderBy(rankOf(notes.title, q), desc(notes.updatedAt))
     .limit(limit);
-  const refs = await projectRefsFor(
-    db,
-    userId,
-    rows.map((r) => r.projectId),
-  );
+  const [refs, paths] = await Promise.all([
+    projectRefsFor(
+      db,
+      userId,
+      rows.map((r) => r.projectId),
+    ),
+    ancestorsFor(
+      userId,
+      rows.map((r) => r.id),
+    ),
+  ]);
   return rows.map((r) =>
     hit({
       type: "note",
@@ -230,6 +238,7 @@ async function searchNotes(
       href: `/notes/${r.id}`,
       archived: r.archivedAt !== null,
       project: (r.projectId && refs.get(r.projectId)) || null,
+      path: (paths.get(r.id) ?? []).map((c) => c.title),
       snippet: r.rank === 3 && r.window ? buildSnippet(r.window, q) : null,
       updatedAt: r.updatedAt.toISOString(),
     }),
@@ -383,9 +392,12 @@ export async function recentItems(userId: string, limit = 5): Promise<SearchHit[
       .orderBy(desc(notes.updatedAt))
       .limit(limit),
   ]);
-  const refs = await projectRefsFor(db, userId, [
-    ...t.map((r) => r.projectId),
-    ...n.map((r) => r.projectId),
+  const [refs, paths] = await Promise.all([
+    projectRefsFor(db, userId, [...t.map((r) => r.projectId), ...n.map((r) => r.projectId)]),
+    ancestorsFor(
+      userId,
+      n.map((r) => r.id),
+    ),
   ]);
   const all = [
     ...t.map((r) =>
@@ -410,6 +422,7 @@ export async function recentItems(userId: string, limit = 5): Promise<SearchHit[
         href: `/notes/${r.id}`,
         archived: r.archivedAt !== null,
         project: (r.projectId && refs.get(r.projectId)) || null,
+        path: (paths.get(r.id) ?? []).map((c) => c.title),
         updatedAt: r.updatedAt.toISOString(),
       }),
     ),

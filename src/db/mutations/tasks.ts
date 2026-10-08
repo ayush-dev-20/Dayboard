@@ -3,12 +3,13 @@ import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject } from "@/db/mutations/guards";
+import { projectDoc, syncNoteLinks } from "@/db/mutations/note-links";
 import { taskMetaFor } from "@/db/queries/meta";
 import { inboxItems, taskNotes, tasks, type NewTask, type Task } from "@/db/schema";
 import { addDays, daysBetween } from "@/lib/dates/calendar";
 import { AppError } from "@/lib/errors";
 import { uuidv7 } from "@/lib/ids";
-import { isEmptyDoc, toPlainText } from "@/lib/editor/projection";
+import { isEmptyDoc } from "@/lib/editor/projection";
 import type { TiptapDoc } from "@/lib/editor/types";
 import { toTaskDTO, type TaskDTO } from "@/lib/tasks/dto";
 import { orderAtBottom, orderAtTop, orderBetween, renumber } from "@/lib/tasks/ordering";
@@ -260,18 +261,23 @@ export async function updateTaskDescription(
   doc: TiptapDoc | null,
   executor: Executor = db,
 ): Promise<{ updatedAt: string }> {
-  // An empty editor is stored as null. The plain-text projection is always built here.
+  // An empty editor is stored as null. The plain-text projection is always built here, with the
+  // titles of any notes the text links to, and the "Linked from" rows are rebuilt with it.
   const empty = doc === null || isEmptyDoc(doc);
-  const [updated] = await executor
-    .update(tasks)
-    .set({
-      descriptionJson: empty ? null : doc,
-      descriptionText: empty ? null : toPlainText(doc),
-    })
-    .where(owned(userId, id))
-    .returning({ updatedAt: tasks.updatedAt });
-  if (!updated) throw new AppError("NOT_FOUND");
-  return { updatedAt: updated.updatedAt.toISOString() };
+  return inTransaction(executor === db ? undefined : (executor as Tx), async (tx) => {
+    const projected = empty ? null : await projectDoc(tx, userId, doc);
+    const [updated] = await tx
+      .update(tasks)
+      .set({
+        descriptionJson: empty ? null : doc,
+        descriptionText: projected ? projected.text : null,
+      })
+      .where(owned(userId, id))
+      .returning({ updatedAt: tasks.updatedAt });
+    if (!updated) throw new AppError("NOT_FOUND");
+    await syncNoteLinks(tx, userId, { type: "TASK", id }, empty ? null : doc, projected?.titles);
+    return { updatedAt: updated.updatedAt.toISOString() };
+  });
 }
 
 export type CompleteResult = {
@@ -343,6 +349,8 @@ export async function completeTask(
         createdAt: now,
         updatedAt: now,
       });
+      // The copy of the description carries its note links too.
+      await syncNoteLinks(tx, userId, { type: "TASK", id: nextOccurrenceId }, task.descriptionJson);
 
       const subtasks = await tx
         .select()
@@ -350,25 +358,36 @@ export async function completeTask(
         .where(and(eq(tasks.parentTaskId, id), isNull(tasks.deletedAt)))
         .orderBy(asc(tasks.sortOrder), asc(tasks.createdAt));
       if (subtasks.length > 0) {
-        await tx.insert(tasks).values(
-          subtasks.map((s) => ({
+        const copies = await tx
+          .insert(tasks)
+          .values(
+            subtasks.map((s) => ({
+              userId,
+              parentTaskId: nextOccurrenceId,
+              title: s.title,
+              emoji: s.emoji,
+              descriptionJson: s.descriptionJson,
+              descriptionText: s.descriptionText,
+              status: "PLANNED" as const,
+              priority: s.priority,
+              dueDate: s.dueDate ? addDays(s.dueDate, shiftDays) : null,
+              dueTime: s.dueTime,
+              startDate: s.startDate ? addDays(s.startDate, shiftDays) : null,
+              startTime: s.startTime,
+              sortOrder: s.sortOrder,
+              createdAt: now,
+              updatedAt: now,
+            })),
+          )
+          .returning({ id: tasks.id });
+        for (const [index, copy] of copies.entries()) {
+          await syncNoteLinks(
+            tx,
             userId,
-            parentTaskId: nextOccurrenceId,
-            title: s.title,
-            emoji: s.emoji,
-            descriptionJson: s.descriptionJson,
-            descriptionText: s.descriptionText,
-            status: "PLANNED" as const,
-            priority: s.priority,
-            dueDate: s.dueDate ? addDays(s.dueDate, shiftDays) : null,
-            dueTime: s.dueTime,
-            startDate: s.startDate ? addDays(s.startDate, shiftDays) : null,
-            startTime: s.startTime,
-            sortOrder: s.sortOrder,
-            createdAt: now,
-            updatedAt: now,
-          })),
-        );
+            { type: "TASK", id: copy.id },
+            subtasks[index]?.descriptionJson ?? null,
+          );
+        }
       }
 
       // The finished one becomes a plain completed task; the new one carries the repeat.

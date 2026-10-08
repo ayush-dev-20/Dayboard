@@ -153,6 +153,25 @@ export function insertBlock(editor: Editor, json: Record<string, unknown>): bool
   return true;
 }
 
+/** A block that points at a note (a sub-note), after the block the cursor is in. */
+export function insertSubNoteBlock(editor: Editor, noteId: string): boolean {
+  if (editor.isDestroyed) return false;
+  return insertBlock(editor, { type: "subNote", attrs: { noteId } });
+}
+
+/** An inline link to a note at the cursor, followed by a space so typing carries on. */
+export function insertNoteLink(editor: Editor, noteId: string): boolean {
+  if (editor.isDestroyed) return false;
+  return editor
+    .chain()
+    .focus()
+    .insertContent([
+      { type: "noteLink", attrs: { noteId } },
+      { type: "text", text: " " },
+    ])
+    .run();
+}
+
 // ---- Turn into -------------------------------------------------------------------------------
 
 export type TurnIntoKind =

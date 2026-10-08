@@ -22,6 +22,32 @@ export type LinkedTaskDTO = {
   dueDate: string | null;
 };
 
+/** A note in the tree: just what the sidebar, the Tree view and the Move-to picker need. */
+export type NoteTreeRow = {
+  id: string;
+  parentId: string | null;
+  title: string;
+  emoji: string | null;
+  sortOrder: number;
+  /** 1 for a top-level note. */
+  depth: number;
+};
+
+/** A sub-note of the note being read, for the automatic "Sub-notes" section. */
+export type NoteChildDTO = { id: string; title: string; emoji: string | null; archived: boolean };
+
+/** One part of a breadcrumb (an ancestor of the note being read). */
+export type NoteCrumbDTO = { id: string; title: string; emoji: string | null };
+
+/** Something that links to a note, for "Linked from". */
+export type BacklinkDTO = {
+  kind: "note" | "task";
+  id: string;
+  title: string;
+  emoji: string | null;
+  snippet: string;
+};
+
 export type NoteDTO = {
   id: string;
   title: string;
@@ -35,6 +61,12 @@ export type NoteDTO = {
   tags: TagDTO[];
   /** Linked tasks, open ones first. */
   tasks: LinkedTaskDTO[];
+  /** The notes this one sits under, top-level first (V2 feature 07). Empty for a top-level note. */
+  breadcrumb: NoteCrumbDTO[];
+  /** Its sub-notes in manual order, in every state but Trash. */
+  children: NoteChildDTO[];
+  /** 1 for a top-level note. */
+  depth: number;
 };
 
 export const SNIPPET_LENGTH = 160;

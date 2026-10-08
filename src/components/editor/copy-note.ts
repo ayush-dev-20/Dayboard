@@ -1,5 +1,6 @@
 import type { TiptapDoc } from "@/lib/editor/types";
 import { flavoursFor, type Flavours } from "@/lib/editor/clipboard/copy";
+import type { NoteRefReader } from "@/lib/editor/clipboard/note-refs";
 import { INTERNAL_MIME } from "@/lib/editor/clipboard/slice";
 
 // "Copy note" and "Copy as Markdown" (V2 feature 02 §4): the whole document through the same
@@ -8,8 +9,8 @@ import { INTERNAL_MIME } from "@/lib/editor/clipboard/slice";
 export type CopyKind = "note" | "markdown";
 
 /** The note's text as it will be copied (for tests and the toast). */
-export function copyFlavours(doc: TiptapDoc, title?: string): Flavours {
-  const flavours = flavoursFor(doc.content ?? [], 0, 0);
+export function copyFlavours(doc: TiptapDoc, title?: string, noteRefs?: NoteRefReader): Flavours {
+  const flavours = flavoursFor(doc.content ?? [], 0, 0, noteRefs);
   if (!title?.trim()) return flavours;
   // The title leads the copy: a heading in the rich flavours, a `#` line in Markdown.
   const heading = title.trim();

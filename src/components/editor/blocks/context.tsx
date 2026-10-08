@@ -10,6 +10,12 @@ export type EditorContextValue = {
   ownerId: string | null;
   /** The browser has no connection. */
   offline: boolean;
+  /**
+   * A note that is not created yet becomes real (its first save happens now) and its id comes
+   * back, so a sub-note can be made under it. Absent where the owner always exists (task
+   * descriptions).
+   */
+  ensureOwner?: () => Promise<string | null>;
 };
 
 export const DEFAULT_EDITOR_CONTEXT: EditorContextValue = {

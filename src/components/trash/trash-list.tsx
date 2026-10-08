@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { subNotesWord } from "@/lib/notes/cascade";
 import {
   describeCounts,
   TRASH_LABELS,
@@ -31,7 +32,15 @@ const ICONS = {
 
 type Row = TrashItemDTO & { when: string };
 
-function TrashRow({ item, onDelete }: { item: Row; onDelete: (item: Row) => void }) {
+function TrashRow({
+  item,
+  onDelete,
+  onAskTopLevel,
+}: {
+  item: Row;
+  onDelete: (item: Row) => void;
+  onAskTopLevel: (item: Row) => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const Icon = ICONS[item.type];
@@ -41,6 +50,11 @@ function TrashRow({ item, onDelete }: { item: Row; onDelete: (item: Row) => void
     const result = await restoreTrashItem({ type: item.type, id: item.id });
     setBusy(false);
     if (!result.ok) {
+      // A sub-note whose parent is still in Trash: ask whether it should come back on its own.
+      if (result.error.fieldErrors?.parent === "top-level") {
+        onAskTopLevel(item);
+        return;
+      }
       toast.error(
         result.error.code === "CONFLICT"
           ? result.error.message
@@ -49,7 +63,9 @@ function TrashRow({ item, onDelete }: { item: Row; onDelete: (item: Row) => void
       return;
     }
     const href = result.data.href;
-    toast("Restored.", { action: { label: "Open", onClick: () => router.push(href) } });
+    toast(item.subNotes > 0 ? `Restored with ${subNotesWord(item.subNotes)}.` : "Restored.", {
+      action: { label: "Open", onClick: () => router.push(href) },
+    });
   }
 
   return (
@@ -64,6 +80,11 @@ function TrashRow({ item, onDelete }: { item: Row; onDelete: (item: Row) => void
       <span className="flex min-w-0 flex-1 items-center gap-2 text-[16px] md:text-[14px]">
         {item.emoji ? <span aria-hidden>{item.emoji}</span> : null}
         <span className="truncate">{item.title}</span>
+        {item.subNotes > 0 ? (
+          <span className="shrink-0 type-body-sm text-muted-foreground">
+            Includes {subNotesWord(item.subNotes)}
+          </span>
+        ) : null}
       </span>
       <time dateTime={item.deletedAt} className="shrink-0 type-data-sm text-muted-foreground">
         <span className="sr-only">Deleted </span>
@@ -102,20 +123,47 @@ export function TrashList({
   items,
   counts,
   type,
+  subNotes = 0,
 }: {
   items: Row[];
   counts: TrashCounts;
   /** The tab being viewed, or null for All. */
   type: TrashType | null;
+  /** Notes in Trash that went with a parent (not listed on their own). */
+  subNotes?: number;
 }) {
+  const router = useRouter();
   const [deleting, setDeleting] = useState<Row | null>(null);
+  const [topLevel, setTopLevel] = useState<Row | null>(null);
   const [emptying, setEmptying] = useState(false);
   const [pending, setPending] = useState(false);
 
   const scope = type ? { ...counts, total: counts[type] } : counts;
+  // Sub-notes are only counted with notes, so only the notes tab and the full list name them.
+  const includedSubNotes = type === null || type === "note" ? subNotes : 0;
   const scopeCounts = type
     ? { task: 0, todo: 0, note: 0, project: 0, inbox: 0, [type]: counts[type] }
     : counts;
+
+  async function confirmTopLevel() {
+    if (!topLevel) return;
+    setPending(true);
+    const result = await restoreTrashItem({
+      type: topLevel.type,
+      id: topLevel.id,
+      asTopLevel: true,
+    });
+    setPending(false);
+    if (!result.ok) {
+      toast.error("Couldn't restore that. Try again.");
+      return;
+    }
+    const href = result.data.href;
+    setTopLevel(null);
+    toast("Restored as a top-level note.", {
+      action: { label: "Open", onClick: () => router.push(href) },
+    });
+  }
 
   async function confirmDelete() {
     if (!deleting) return;
@@ -153,7 +201,12 @@ export function TrashList({
       </div>
       <ul className="border-t border-border" aria-label="Deleted items">
         {items.map((item) => (
-          <TrashRow key={`${item.type}:${item.id}`} item={item} onDelete={setDeleting} />
+          <TrashRow
+            key={`${item.type}:${item.id}`}
+            item={item}
+            onDelete={setDeleting}
+            onAskTopLevel={setTopLevel}
+          />
         ))}
       </ul>
 
@@ -161,17 +214,32 @@ export function TrashList({
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}
         title="Delete permanently?"
-        description={`“${deleting?.title ?? ""}” will be deleted for good. This can’t be undone.`}
+        description={`“${deleting?.title ?? ""}” will be deleted for good.${
+          deleting && deleting.descendants > 0
+            ? ` This also deletes ${subNotesWord(deleting.descendants)}.`
+            : ""
+        } This can’t be undone.`}
         confirmLabel="Delete permanently"
         destructive
         pending={pending}
         onConfirm={confirmDelete}
       />
       <ConfirmDialog
+        open={topLevel !== null}
+        onOpenChange={(open) => !open && setTopLevel(null)}
+        title="Restore as a top-level note?"
+        description={`“${topLevel?.title ?? ""}” belonged to a note that is still in Trash, so it can’t go back inside it. It will come back as a top-level note.`}
+        confirmLabel="Restore as top-level"
+        pending={pending}
+        onConfirm={confirmTopLevel}
+      />
+      <ConfirmDialog
         open={emptying}
         onOpenChange={setEmptying}
         title="Empty trash?"
-        description={`${scope.total} ${scope.total === 1 ? "item" : "items"} will be deleted permanently: ${describeCounts(scopeCounts)}. This can’t be undone.`}
+        description={`${scope.total} ${scope.total === 1 ? "item" : "items"} will be deleted permanently: ${describeCounts(scopeCounts)}${
+          includedSubNotes > 0 ? `, and ${subNotesWord(includedSubNotes)} that went with them` : ""
+        }. This can’t be undone.`}
         confirmLabel={`Delete ${scope.total} ${scope.total === 1 ? "item" : "items"}`}
         destructive
         pending={pending}

@@ -7,6 +7,8 @@ import { useCommandMenu } from "@/components/command/command-context";
 import { Counter } from "@/components/motion/counter";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip } from "@/components/ui/tooltip";
+import { NotesTreeToggle, SidebarNotesTree } from "@/components/notes/tree/sidebar-notes-tree";
+import { SidebarSectionToggle, useSidebarSection } from "./sidebar-section";
 import { ColorDot } from "@/components/workspace/tokens";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,7 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
   const { collapsed: collapsedState, toggle, toggled } = useSidebar();
   const collapsed = collapsible && collapsedState;
   const countFor: Record<string, number> = { "/today": counts.today, "/inbox": counts.inbox };
+  const projectsSection = useSidebarSection("projects");
   const active = projects.filter((p) => p.status === "ACTIVE");
   const shown = active.slice(0, SIDEBAR_PROJECTS);
   // Labels fade in as the sidebar opens (never on first load), while the width eases open.
@@ -146,45 +149,68 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                 const count = countFor[href];
                 return (
                   <li key={href} className={cn(collapsed && "w-full")}>
-                    <Tooltip label={count ? `${label} · ${count}` : label} disabled={!collapsed}>
-                      <Link
-                        href={href}
-                        onClick={onNavigate}
-                        aria-current={here ? "page" : undefined}
-                        aria-label={collapsed ? (count ? `${label}, ${count}` : label) : undefined}
-                        className={cn(
-                          itemBase,
-                          "relative",
-                          collapsed && "mx-auto w-10 justify-center px-0",
-                          here
-                            ? "bg-sidebar-primary type-label-md text-sidebar-primary-foreground"
-                            : "type-body-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
-                        )}
-                      >
-                        <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-                        {collapsed ? (
-                          count ? (
-                            <span
-                              aria-hidden
-                              className="absolute top-1 right-1 size-1.5 rounded-full bg-primary"
-                            />
-                          ) : null
-                        ) : (
-                          <>
-                            <span className={fade}>{label}</span>
-                            {count ? (
+                    <div className="relative">
+                      <Tooltip label={count ? `${label} · ${count}` : label} disabled={!collapsed}>
+                        <Link
+                          href={href}
+                          onClick={onNavigate}
+                          aria-current={here ? "page" : undefined}
+                          aria-label={
+                            collapsed ? (count ? `${label}, ${count}` : label) : undefined
+                          }
+                          className={cn(
+                            itemBase,
+                            "relative",
+                            (href === "/notes" || (href === "/projects" && shown.length > 0)) &&
+                              !collapsed &&
+                              "pr-9",
+                            collapsed && "mx-auto w-10 justify-center px-0",
+                            here
+                              ? "bg-sidebar-primary type-label-md text-sidebar-primary-foreground"
+                              : "type-body-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                          )}
+                        >
+                          <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+                          {collapsed ? (
+                            count ? (
                               <span
-                                className={cn("ml-auto type-data-sm text-muted-foreground", fade)}
-                              >
-                                <span className="sr-only">, </span>
-                                <Counter value={count} />
-                              </span>
-                            ) : null}
-                          </>
-                        )}
-                      </Link>
-                    </Tooltip>
-                    {href === "/projects" && !collapsed && shown.length > 0 ? (
+                                aria-hidden
+                                className="absolute top-1 right-1 size-1.5 rounded-full bg-primary"
+                              />
+                            ) : null
+                          ) : (
+                            <>
+                              <span className={fade}>{label}</span>
+                              {count ? (
+                                <span
+                                  className={cn("ml-auto type-data-sm text-muted-foreground", fade)}
+                                >
+                                  <span className="sr-only">, </span>
+                                  <Counter value={count} />
+                                </span>
+                              ) : null}
+                            </>
+                          )}
+                        </Link>
+                      </Tooltip>
+                      {href === "/notes" && !collapsed ? (
+                        <NotesTreeToggle className="absolute top-1/2 right-1 -translate-y-1/2" />
+                      ) : null}
+                      {href === "/projects" && !collapsed && shown.length > 0 ? (
+                        <SidebarSectionToggle
+                          name="projects"
+                          label="projects"
+                          className="absolute top-1/2 right-1 -translate-y-1/2"
+                        />
+                      ) : null}
+                    </div>
+                    {href === "/notes" && !collapsed ? (
+                      <SidebarNotesTree onNavigate={onNavigate} />
+                    ) : null}
+                    {href === "/projects" &&
+                    !collapsed &&
+                    projectsSection.shown &&
+                    shown.length > 0 ? (
                       <ul className="mt-0.5 flex flex-col gap-0.5">
                         {shown.map((project) => {
                           const projectHref = `/projects/${project.id}`;
