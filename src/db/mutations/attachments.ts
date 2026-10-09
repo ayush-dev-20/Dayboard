@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { attachments, type Attachment } from "@/db/schema";
 import { ownerIsLive, usedBytes } from "@/db/queries/attachments";
@@ -23,8 +23,6 @@ import { STORAGE_SETTINGS, type OwnerType } from "@/lib/storage/types";
 export const INTENTS_PER_MINUTE = 30;
 /** A file that never finalized is removed after this long. */
 const PENDING_TTL_MS = 24 * 60 * 60 * 1000;
-/** A deleted file's object is removed after this long. */
-export const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 function requireStorage() {
   const storage = getStorage();
@@ -66,10 +64,12 @@ export async function createIntent(userId: string, input: IntentInput): Promise<
     throw new AppError("NOT_FOUND");
   }
 
-  // A person's own stale uploads are cleared first, so they never count against them.
+  // A person's own stale uploads are cleared first, so they never count against them, and any file
+  // whose object is still waiting to be removed is removed now.
   await cleanupPendingFor(userId).catch((error) =>
     logger.warn("pending cleanup failed", { error }),
   );
+  await purgeExpired(userId).catch((error) => logger.warn("file purge failed", { error }));
 
   return db.transaction(async (tx) => {
     // One lock for everyone: the whole-service limit is a sum, and two intents racing past it would
@@ -238,7 +238,11 @@ export async function finalizeAttachment(userId: string, id: string): Promise<At
   return toAttachmentDTO(ready);
 }
 
-/** Soft delete: hidden at once, and the object is removed after the retention period. */
+/**
+ * Deleting a file: it is hidden at once (the row is marked `DELETED`) and its stored object is
+ * removed in the same request, after which the row goes too. Only if storage refuses does the row
+ * stay as `DELETED`, and `purgeExpired` tries again; there is no undo, so nothing waits.
+ */
 export async function deleteAttachment(userId: string, id: string): Promise<void> {
   const [row] = await db
     .update(attachments)
@@ -250,14 +254,16 @@ export async function deleteAttachment(userId: string, id: string): Promise<void
         inArray(attachments.status, ["READY", "PENDING"]),
       ),
     )
-    .returning({ id: attachments.id });
+    .returning({ id: attachments.id, storageKey: attachments.storageKey });
   if (!row) throw new AppError("NOT_FOUND");
+  await removeObjects([row]);
 }
 
 // ---- Housekeeping (the jobs of V2 feature 08 §8, until that feature exists) --------------------
 // The spec runs these as background jobs. There is no job runner yet, so each is a plain function a
 // job handler can call later, and the ones that work on one person's files also run for that person
-// when they upload, so abandoned uploads and old deleted files do not pile up unseen.
+// when they start an upload or open a list of files, so abandoned uploads and leftovers do not pile up
+// unseen.
 
 async function removeObjects(rows: { id: string; storageKey: string }[]): Promise<number> {
   const storage = getStorage();
@@ -294,8 +300,9 @@ export async function cleanupPending(userId?: string): Promise<number> {
 const cleanupPendingFor = (userId: string) => cleanupPending(userId);
 
 /**
- * `attachment.purge`: objects of files deleted more than 30 days ago, of rejected files, and of
- * files whose note, task or project was deleted for good.
+ * `attachment.purge`: objects of files still marked deleted or rejected (storage refused when the
+ * person deleted them, so this is the retry), and of files whose note, task or project was deleted
+ * for good. Nothing waits: a person's own delete cannot be undone.
  */
 export async function purgeExpired(userId?: string): Promise<number> {
   const orphan = or(
@@ -309,15 +316,7 @@ export async function purgeExpired(userId?: string): Promise<number> {
     .where(
       and(
         userId ? eq(attachments.userId, userId) : undefined,
-        or(
-          and(
-            inArray(attachments.status, ["DELETED", "REJECTED"]),
-            lt(attachments.deletedAt, new Date(Date.now() - RETENTION_MS)),
-          ),
-          // A rejected file's object is already gone: only the row is left.
-          and(eq(attachments.status, "REJECTED"), isNull(attachments.deletedAt)),
-          orphan,
-        ),
+        or(inArray(attachments.status, ["DELETED", "REJECTED"]), orphan),
       ),
     )
     .limit(200);

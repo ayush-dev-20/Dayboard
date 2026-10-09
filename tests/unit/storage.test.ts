@@ -403,4 +403,66 @@ describe("the S3 adapter", () => {
     expect(url.searchParams.get("response-content-type")).toBe("application/pdf");
     expect(url.searchParams.get("response-content-disposition")).toContain("attachment; filename=");
   });
+
+  describe("delete", () => {
+    type Sent = { name: string; input: Record<string, unknown> };
+    /** A stand-in client that records each command and answers from a script. */
+    function fake(answers: Record<string, unknown>) {
+      const sent: Sent[] = [];
+      const client = {
+        send: async (command: {
+          constructor: { name: string };
+          input: Record<string, unknown>;
+        }) => {
+          const name = command.constructor.name;
+          sent.push({ name, input: command.input });
+          const answer = answers[name];
+          if (answer instanceof Error) throw answer;
+          return answer ?? {};
+        },
+      } as unknown as Parameters<typeof createS3Storage>[1];
+      return { client, sent };
+    }
+    const notFound = Object.assign(new Error("nope"), {
+      name: "NotFound",
+      $metadata: { httpStatusCode: 404 },
+    });
+
+    it("deletes the object's own version, so nothing is left hidden in a versioned bucket", async () => {
+      const { client, sent } = fake({ HeadObjectCommand: { VersionId: "4_zabc_v1" } });
+      await createS3Storage(settings, client).delete("some/key");
+      expect(sent.map((c) => c.name)).toEqual(["HeadObjectCommand", "DeleteObjectCommand"]);
+      expect(sent[1]!.input).toMatchObject({ Key: "some/key", VersionId: "4_zabc_v1" });
+    });
+
+    it("falls back to a plain delete when the head names no version", async () => {
+      const { client, sent } = fake({ HeadObjectCommand: {} });
+      await createS3Storage(settings, client).delete("some/key");
+      expect(sent[1]!.name).toBe("DeleteObjectCommand");
+      expect(sent[1]!.input).not.toHaveProperty("VersionId");
+    });
+
+    it("does nothing for an object that is already gone", async () => {
+      const { client, sent } = fake({ HeadObjectCommand: notFound });
+      await createS3Storage(settings, client).delete("some/key");
+      expect(sent.map((c) => c.name)).toEqual(["HeadObjectCommand"]);
+    });
+
+    it("treats an object that vanishes between the look-up and the delete as deleted", async () => {
+      const { client } = fake({
+        HeadObjectCommand: { VersionId: "v1" },
+        DeleteObjectCommand: notFound,
+      });
+      await expect(createS3Storage(settings, client).delete("some/key")).resolves.toBeUndefined();
+    });
+
+    it("reports a real failure, so the row is kept and tried again", async () => {
+      const denied = Object.assign(new Error("denied"), { name: "AccessDenied" });
+      const { client } = fake({
+        HeadObjectCommand: { VersionId: "v1" },
+        DeleteObjectCommand: denied,
+      });
+      await expect(createS3Storage(settings, client).delete("some/key")).rejects.toThrow("denied");
+    });
+  });
 });

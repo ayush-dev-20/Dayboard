@@ -1,4 +1,5 @@
 import { Node, ReactNodeViewRenderer } from "@tiptap/react";
+import { IMAGE_WIDTH_MAX, IMAGE_WIDTH_MIN } from "@/lib/editor/limits";
 import { isWebAddress } from "@/lib/editor/schema";
 import { BookmarkView, FileView, ImageView } from "./file-views";
 
@@ -27,6 +28,27 @@ const textAttribute = (name: string, attribute: string) => ({
     attrs[name] ? { [attribute]: String(attrs[name]) } : {},
 });
 
+/**
+ * Which events inside a picture block the editor leaves alone: everything on a resize handle, and
+ * what happens in the caption box and the buttons (the editor's own default for a block with inputs).
+ * Dragging the block by the picture itself stays off: blocks are moved with the block handle.
+ */
+function imageStopEvent({ event }: { event: Event }): boolean {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest("[data-resize-handle]")) return true;
+  const isDrag = event.type.startsWith("drag") || event.type === "drop";
+  if (isDrag) {
+    if (event.type !== "drop" && target.hasAttribute("data-node-view-wrapper")) {
+      event.preventDefault();
+    }
+    return false;
+  }
+  return (
+    ["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(target.tagName) || target.isContentEditable
+  );
+}
+
 export function createImage(interactive: boolean) {
   return Node.create({
     name: "image",
@@ -42,7 +64,9 @@ export function createImage(interactive: boolean) {
           default: null,
           parseHTML: (el: HTMLElement) => {
             const value = Number(el.getAttribute("data-width"));
-            return Number.isInteger(value) && value > 0 && value < 100 ? value : null;
+            return Number.isInteger(value) && value >= IMAGE_WIDTH_MIN && value <= IMAGE_WIDTH_MAX
+              ? value
+              : null;
           },
           renderHTML: (attrs: Record<string, unknown>) =>
             attrs.width ? { "data-width": String(attrs.width) } : {},
@@ -55,7 +79,9 @@ export function createImage(interactive: boolean) {
     renderHTML({ HTMLAttributes }) {
       return ["div", { ...HTMLAttributes, "data-type": "image" }];
     },
-    addNodeView: interactive ? () => ReactNodeViewRenderer(ImageView) : undefined,
+    addNodeView: interactive
+      ? () => ReactNodeViewRenderer(ImageView, { stopEvent: imageStopEvent })
+      : undefined,
   });
 }
 

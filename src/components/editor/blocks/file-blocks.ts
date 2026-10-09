@@ -161,4 +161,3 @@ export const FileDrop = Extension.create<DropOptions>({
     ];
   },
 });
-

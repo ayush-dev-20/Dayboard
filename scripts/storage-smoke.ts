@@ -2,6 +2,7 @@
 // real STORAGE_* values in .env.local. It is never run in CI (no secrets there). It must pass before
 // the first production deploy and after any change of key, bucket, SDK version or CORS rule.
 // `server-only` is satisfied by the `react-server` condition set in the package script.
+import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { createS3Client, createS3Storage } from "../src/lib/storage/s3";
 
 try {
@@ -137,11 +138,29 @@ await step("a wrong Content-Type is rejected by the signature", async () => {
   }
 });
 
-await step("delete, then head finds nothing", async () => {
+await step("delete removes the data itself, not just a hiding marker", async () => {
+  const client = createS3Client(settings);
+  // The version that exists now. If B2 returns none, the delete falls back to a plain one.
+  const before = await client.send(new HeadObjectCommand({ Bucket: settings.bucket, Key: key }));
+  const versionId = before.VersionId;
   await storage.delete(key);
   const head = await storage.head(key);
-  // B2 keeps older versions unless the bucket lifecycle is "keep only the last version".
-  expect(head === null, "object still found (check the bucket's lifecycle rule)");
+  expect(head === null, "the object is still found after delete");
+  if (!versionId)
+    return "no version id returned, so a plain delete was used: check the lifecycle rule";
+  // A hide marker would leave this exact version behind; a real delete does not.
+  let gone = false;
+  try {
+    await client.send(
+      new HeadObjectCommand({ Bucket: settings.bucket, Key: key, VersionId: versionId }),
+    );
+  } catch (error) {
+    const e = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+    gone = e.name === "NotFound" || e.$metadata?.httpStatusCode === 404;
+    if (!gone) throw error;
+  }
+  expect(gone, `version ${versionId} still exists: the data was only hidden`);
+  return `version ${versionId} is gone`;
 });
 
 console.log(

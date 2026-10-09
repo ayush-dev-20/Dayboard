@@ -47,7 +47,7 @@ export async function GET(request: Request, { params }: Context) {
   });
 }
 
-/** Soft delete: the file is hidden at once and its object is removed after 30 days. */
+/** Deleting: the file is hidden and its stored object removed in this request (no 30-day wait). */
 export async function DELETE(_request: Request, { params }: Context) {
   return handle("files.delete", async () => {
     const user = await requireUser();

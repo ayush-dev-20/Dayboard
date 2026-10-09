@@ -870,3 +870,13 @@
 .rich-text .bookmark-block a {
   text-decoration: none;
 }
+/* A picture can be resized by its edge handles (feature 09): the box is as wide as the picture. */
+.rich-text .image-frame {
+  /* Keeps a drag from selecting the caption or the page. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+.rich-text .image-frame .image-caption {
+  -webkit-user-select: text;
+  user-select: text;
+}

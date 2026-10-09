@@ -8,6 +8,7 @@ import { fetchLinkPreview } from "@/components/files/api";
 import { useAttachment } from "@/components/files/attachment-meta-store";
 import { FileKindIcon } from "@/components/files/file-icon";
 import { ImageViewer } from "@/components/files/image-viewer";
+import { ResizableFrame } from "./image-resize";
 import {
   cancelUpload,
   dismissUpload,
@@ -94,7 +95,7 @@ function UploadState({ id, name, onRemove }: { id: string; name: string; onRemov
 
 const removedNote = <p className="type-body-md text-muted-foreground">File removed</p>;
 
-export function ImageView({ node, editor, updateAttributes, deleteNode }: NodeViewProps) {
+export function ImageView({ node, editor, selected, updateAttributes, deleteNode }: NodeViewProps) {
   const id = String(node.attrs.attachmentId ?? "");
   const caption = String(node.attrs.caption ?? "");
   const width = typeof node.attrs.width === "number" ? node.attrs.width : null;
@@ -102,72 +103,93 @@ export function ImageView({ node, editor, updateAttributes, deleteNode }: NodeVi
   const upload = useUpload(id);
   const [viewing, setViewing] = useState(false);
   const [broken, setBroken] = useState(false);
+  // The picture's own proportions, from the file's record or, failing that, from the loaded image.
+  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
 
   const pending = upload && upload.status !== "done";
   const name = state.state === "ready" ? state.file.name : (upload?.name ?? "image");
   const label = caption || name;
+  const editable = editor.isEditable;
 
-  let body: React.ReactNode;
-  if (pending) {
-    body = (
-      <div className="rounded-md border border-border p-3">
-        <UploadState id={id} name={upload.name} onRemove={() => deleteNode()} />
-      </div>
-    );
-  } else if (state.state === "loading") {
-    body = (
-      <div
-        className="h-24 animate-pulse rounded-md bg-secondary motion-reduce:animate-none"
-        aria-busy="true"
-      />
-    );
-  } else if (state.state === "missing" || broken) {
-    body = <div className="rounded-md border border-border p-3">{removedNote}</div>;
-  } else {
-    const { file } = state;
-    body = (
-      <button
-        type="button"
-        onClick={() => setViewing(true)}
-        aria-label={`Open picture: ${label}`}
-        className="block max-w-full cursor-zoom-in rounded-md focus-visible:ring-2 focus-visible:ring-ring"
-        style={{ width: width ? `${width}%` : undefined }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element -- a private file behind a redirect */}
-        <img
-          src={fileUrl(id)}
-          alt={label}
-          width={file.width ?? undefined}
-          height={file.height ?? undefined}
-          loading="lazy"
-          onError={() => setBroken(true)}
-          className="h-auto max-w-full rounded-md"
+  if (pending || state.state === "loading" || state.state === "missing" || broken) {
+    let body: React.ReactNode;
+    if (pending) {
+      body = (
+        <div className="rounded-md border border-border p-3">
+          <UploadState id={id} name={upload.name} onRemove={() => deleteNode()} />
+        </div>
+      );
+    } else if (state.state === "loading") {
+      body = (
+        <div
+          className="h-24 animate-pulse rounded-md bg-secondary motion-reduce:animate-none"
+          aria-busy="true"
         />
-      </button>
+      );
+    } else {
+      body = <div className="rounded-md border border-border p-3">{removedNote}</div>;
+    }
+    return (
+      <NodeViewWrapper className="image-block" contentEditable={false} data-attachment-id={id}>
+        {body}
+      </NodeViewWrapper>
     );
   }
 
+  const { file } = state;
+  const naturalWidth = file.width ?? natural?.width ?? null;
+  const naturalHeight = file.height ?? natural?.height ?? null;
+  const aspect = naturalWidth && naturalHeight ? naturalWidth / naturalHeight : 1.5;
+
   return (
     <NodeViewWrapper className="image-block" contentEditable={false} data-attachment-id={id}>
-      {body}
-      {!pending && state.state === "ready" && !broken ? (
-        <>
-          {editor.isEditable ? (
-            <input
-              type="text"
-              value={caption}
-              maxLength={IMAGE_CAPTION_MAX}
-              placeholder="Add a caption"
-              aria-label="Picture caption"
-              onChange={(event) => updateAttributes({ caption: event.target.value })}
-              className="image-caption mt-1 w-full bg-transparent type-body-sm text-muted-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          ) : caption ? (
-            <p className="mt-1 type-body-sm text-muted-foreground">{caption}</p>
-          ) : null}
-          <ImageViewer attachmentId={id} label={label} open={viewing} onOpenChange={setViewing} />
-        </>
-      ) : null}
+      <ResizableFrame
+        width={width}
+        aspect={aspect}
+        naturalWidth={naturalWidth}
+        editable={editable}
+        selected={selected}
+        onResize={(next) => updateAttributes({ width: next })}
+      >
+        <button
+          type="button"
+          onClick={() => setViewing(true)}
+          aria-label={`Open picture: ${label}`}
+          className="block w-full cursor-zoom-in rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- a private file behind a redirect */}
+          <img
+            src={fileUrl(id)}
+            alt={label}
+            width={file.width ?? undefined}
+            height={file.height ?? undefined}
+            loading="lazy"
+            draggable={false}
+            onLoad={(event) =>
+              setNatural({
+                width: event.currentTarget.naturalWidth,
+                height: event.currentTarget.naturalHeight,
+              })
+            }
+            onError={() => setBroken(true)}
+            className="block h-auto w-full rounded-md"
+          />
+        </button>
+        {editable ? (
+          <input
+            type="text"
+            value={caption}
+            maxLength={IMAGE_CAPTION_MAX}
+            placeholder="Add a caption"
+            aria-label="Picture caption"
+            onChange={(event) => updateAttributes({ caption: event.target.value })}
+            className="image-caption mt-1 w-0 min-w-full bg-transparent type-body-sm text-muted-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        ) : caption ? (
+          <p className="mt-1 type-body-sm text-muted-foreground">{caption}</p>
+        ) : null}
+      </ResizableFrame>
+      <ImageViewer attachmentId={id} label={label} open={viewing} onOpenChange={setViewing} />
     </NodeViewWrapper>
   );
 }

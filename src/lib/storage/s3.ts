@@ -97,7 +97,28 @@ export function createS3Storage(settings: S3Settings, client = createS3Client(se
       return (await out.Body?.transformToByteArray()) ?? new Uint8Array();
     },
     async delete(key) {
-      await client.send(new DeleteObjectCommand({ Bucket, Key: key }));
+      // On a versioned bucket (Backblaze B2 is one) a plain delete only hides the file: the data stays
+      // and still counts against the free space. Deleting the object's own version removes it for
+      // good, so look the version up first. A missing object has nothing to delete.
+      let versionId: string | undefined;
+      try {
+        const out = await client.send(new HeadObjectCommand({ Bucket, Key: key }));
+        versionId = out.VersionId ?? undefined;
+      } catch (error) {
+        if (isMissing(error)) return;
+        throw error;
+      }
+      try {
+        await client.send(
+          new DeleteObjectCommand({
+            Bucket,
+            Key: key,
+            ...(versionId ? { VersionId: versionId } : {}),
+          }),
+        );
+      } catch (error) {
+        if (!isMissing(error)) throw error;
+      }
     },
   };
   return service;

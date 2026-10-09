@@ -206,4 +206,3 @@ export function dismissUpload(id: string) {
   files.delete(id);
   publish();
 }
-

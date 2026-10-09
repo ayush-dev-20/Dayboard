@@ -8,6 +8,7 @@ import {
   CALLOUT_TONES,
   DEFAULT_CALLOUT_EMOJI,
   IMAGE_CAPTION_MAX,
+  IMAGE_WIDTH_MAX,
   IMAGE_WIDTH_MIN,
   LIST_MAX_DEPTH,
   MESSAGES,
@@ -248,7 +249,7 @@ export function sanitizeAttrs(type: string, raw: unknown): Record<string, unknow
         typeof width === "number" &&
         Number.isInteger(width) &&
         width >= IMAGE_WIDTH_MIN &&
-        width < 100
+        width <= IMAGE_WIDTH_MAX
       ) {
         out.width = width;
       }

@@ -22,19 +22,23 @@ function attrsOf(node: TiptapNode | undefined) {
 }
 
 describe("image blocks", () => {
-  it("keep a lowercased id, a tidy caption and a width between the minimum and 100", () => {
+  it("keep a lowercased id, a tidy caption and a width in pixels", () => {
     const out = sanitizeDoc(
-      doc(image({ attachmentId: ID.toUpperCase(), caption: "  A   cat \n here ", width: 50 })),
+      doc(image({ attachmentId: ID.toUpperCase(), caption: "  A   cat \n here ", width: 320 })),
     );
     expect(attrsOf(out.content?.[0])).toEqual({
       attachmentId: ID,
       caption: "A cat here",
-      width: 50,
+      width: 320,
     });
   });
 
-  it("drop a width that is out of range, not whole numbers, or full width", () => {
-    for (const width of [0, 5, 100, 250, 33.5, "50"]) {
+  it("keep a width of whole pixels from 64 to 4000, and drop any other (which means automatic size)", () => {
+    for (const width of [64, 65, 300, 1200, 4000]) {
+      const out = sanitizeDoc(doc(image({ attachmentId: ID, width })));
+      expect(attrsOf(out.content?.[0])).toEqual({ attachmentId: ID, width });
+    }
+    for (const width of [0, 10, 63, 4001, 99999, 320.5, "320", null, -5]) {
       const out = sanitizeDoc(doc(image({ attachmentId: ID, width })));
       expect(attrsOf(out.content?.[0])).toEqual({ attachmentId: ID });
     }

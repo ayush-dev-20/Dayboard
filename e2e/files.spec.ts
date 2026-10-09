@@ -242,7 +242,8 @@ test.describe("attachments", () => {
         async () =>
           (await attachmentsOf(noteId)).find((r) => r.original_name === "cancel.pdf")?.status,
       )
-      .toBe("DELETED");
+      // The cancel deletes the unfinished file: its object and its row are both removed.
+      .toBeUndefined();
   });
 
   test("deleting a file removes it and says so, and its block shows File removed", async ({
@@ -268,7 +269,8 @@ test.describe("attachments", () => {
     await expect(page.getByText("File removed.")).toBeVisible();
     await expect(section(page).getByRole("link", { name: "gone.pdf" })).toBeHidden();
     await expect(page.locator(".file-block")).toContainText("File removed");
-    expect(await attachmentStatus(file!.id)).toBe("DELETED");
+    // Its stored object is removed in the same request, and then its row: nothing is left behind.
+    expect(await attachmentStatus(file!.id)).toBeNull();
     expect((await page.request.get(`/api/files/${file!.id}`)).status()).toBe(404);
   });
 });
@@ -364,6 +366,177 @@ test.describe("picture and file blocks", () => {
     await page.goto(`/notes/${noteId}`);
     await expect(page.locator(".image-block")).toContainText("File removed");
     await expect(page.locator(".image-block img")).toHaveCount(0);
+  });
+});
+
+test.describe("resizing a picture", () => {
+  const frame = (page: Page) => page.locator(".image-block .image-frame");
+  const handle = (page: Page, side: "left" | "right") =>
+    page.locator(`.image-block [data-resize-handle="${side}"]`);
+  const widthOf = async (page: Page) => Math.round((await frame(page).boundingBox())!.width);
+  const savedWidth = async (noteId: string) =>
+    (
+      (await noteDoc(noteId)) as {
+        content: { type: string; attrs?: { width?: number } }[];
+      }
+    ).content.find((n) => n.type === "image")?.attrs?.width;
+
+  /** Drags a handle by `dx` pixels with the real mouse, in small steps. */
+  async function drag(page: Page, side: "left" | "right", dx: number) {
+    await frame(page).hover();
+    const box = (await handle(page, side).boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + dx, y, { steps: 8 });
+    await page.mouse.up();
+  }
+
+  async function noteWithPicture(page: Page) {
+    const { user } = await newUser(page);
+    const noteId = await insertNote(user.id, { title: "Resize me" });
+    await page.goto(`/notes/${noteId}`);
+    await editor(page).click();
+    await pasteFiles(page, [
+      { name: "big.png", type: "image/png", base64: PNG.toString("base64") },
+    ]);
+    await expect(page.locator(".image-block img")).toBeVisible();
+    await expect.poll(async () => (await attachmentsOf(noteId))[0]?.status).toBe("READY");
+    // The picture's own size (96 px wide) until it is resized.
+    await expect.poll(() => widthOf(page)).toBe(96);
+    return noteId;
+  }
+
+  test("dragging an edge handle resizes it, centred, follows the pointer and is saved once", async ({
+    page,
+  }) => {
+    const noteId = await noteWithPicture(page);
+    expect(await savedWidth(noteId)).toBeUndefined();
+
+    // Right handle, 50 px to the right: twice that wider, since the picture stays centred.
+    await drag(page, "right", 50);
+    await expect.poll(() => widthOf(page)).toBe(196);
+    await expect.poll(() => savedWidth(noteId)).toBe(196);
+
+    // Left handle, 40 px to the right: 80 px narrower.
+    await drag(page, "left", 40);
+    await expect.poll(() => widthOf(page)).toBe(116);
+    await expect.poll(() => savedWidth(noteId)).toBe(116);
+
+    // The proportions are kept (96 x 64 is 3:2).
+    const box = (await frame(page).locator("img").boundingBox())!;
+    expect(Math.abs(box.width / box.height - 1.5)).toBeLessThan(0.05);
+
+    // It stays after a reload.
+    await page.reload();
+    await expect.poll(() => widthOf(page)).toBe(116);
+  });
+
+  test("never goes below 64 px tall or above the column, and one undo takes a drag back", async ({
+    page,
+  }) => {
+    const noteId = await noteWithPicture(page);
+
+    await drag(page, "right", -2000);
+    // 3:2 picture: 64 px tall is 96 px wide.
+    await expect.poll(() => widthOf(page)).toBe(96);
+    await drag(page, "right", 2000);
+    const column = await page.locator(".image-block").evaluate((el) => el.clientWidth);
+    await expect.poll(() => widthOf(page)).toBe(column);
+    await expect.poll(() => savedWidth(noteId)).toBe(column);
+
+    await drag(page, "right", -100);
+    await expect.poll(() => widthOf(page)).toBe(column - 200);
+    // One undo returns the whole drag.
+    await editor(page).locator("p").last().click();
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect.poll(() => widthOf(page)).toBe(column);
+  });
+
+  test("Esc during a drag keeps the old size, and a click on the handle changes nothing", async ({
+    page,
+  }) => {
+    const noteId = await noteWithPicture(page);
+    await frame(page).hover();
+    const box = (await handle(page, "right").boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 80, y, { steps: 6 });
+    await expect.poll(() => widthOf(page)).toBeGreaterThan(150);
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    await expect.poll(() => widthOf(page)).toBe(96);
+    expect(await savedWidth(noteId)).toBeUndefined();
+
+    await handle(page, "right").click();
+    expect(await widthOf(page)).toBe(96);
+    expect(await savedWidth(noteId)).toBeUndefined();
+  });
+
+  test("the right handle is a keyboard slider: arrows, Shift, Home and End; double-click goes back to automatic", async ({
+    page,
+  }) => {
+    const noteId = await noteWithPicture(page);
+    const slider = page.getByRole("slider", { name: "Resize picture" });
+    await expect(slider).toHaveAttribute("aria-valuemin", "96");
+    await expect(slider).toHaveAttribute("aria-valuenow", "96");
+
+    await slider.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect.poll(() => widthOf(page)).toBe(112);
+    await page.keyboard.press("Shift+ArrowRight");
+    await expect.poll(() => widthOf(page)).toBe(176);
+    await expect(slider).toHaveAttribute("aria-valuenow", "176");
+    await page.keyboard.press("ArrowLeft");
+    await expect.poll(() => widthOf(page)).toBe(160);
+    await expect.poll(() => savedWidth(noteId)).toBe(160);
+
+    await page.keyboard.press("End");
+    const column = await page.locator(".image-block").evaluate((el) => el.clientWidth);
+    await expect.poll(() => widthOf(page)).toBe(column);
+    await page.keyboard.press("Home");
+    await expect.poll(() => widthOf(page)).toBe(96);
+
+    await page.keyboard.press("Shift+ArrowRight");
+    await expect.poll(() => widthOf(page)).toBe(160);
+    await handle(page, "left").dblclick();
+    await expect.poll(() => widthOf(page)).toBe(96);
+    await expect.poll(() => savedWidth(noteId)).toBeUndefined();
+  });
+
+  test("a narrow screen shrinks a wide picture to fit, and the handles are reachable by touch", async ({
+    page,
+  }) => {
+    const { user } = await newUser(page);
+    const source = await insertNote(user.id, { title: "Source" });
+    await page.goto(`/notes/${source}`);
+    await attach(page, [{ name: "wide.png", mimeType: "image/png", buffer: PNG }]);
+    await expect(section(page).getByRole("link", { name: "wide.png" })).toBeVisible();
+    const [file] = await attachmentsOf(source);
+    const noteId = await insertNote(user.id, { title: "Narrow" });
+    await setNoteDoc(noteId, {
+      type: "doc",
+      content: [
+        { type: "image", attrs: { attachmentId: file!.id, width: 3000 } },
+        { type: "paragraph" },
+      ],
+    });
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto(`/notes/${noteId}`);
+    await expect(page.locator(".image-block img")).toBeVisible();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    const column = await page.locator(".image-block").evaluate((el) => el.clientWidth);
+    expect(await widthOf(page)).toBeLessThanOrEqual(column);
+    // On a touch screen the handle's hit area is at least 44 px wide.
+    await page.emulateMedia({ media: "screen" });
+    const hit = await handle(page, "right").boundingBox();
+    expect(hit!.width).toBeGreaterThanOrEqual(20);
   });
 });
 

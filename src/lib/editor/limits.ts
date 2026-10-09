@@ -26,7 +26,11 @@ export const MESSAGES = {
 
 // Files and bookmarks (V2 feature 09 §2).
 export const IMAGE_CAPTION_MAX = 500;
-export const IMAGE_WIDTH_MIN = 10;
+/** A picture is never shown narrower, or shorter, than this many pixels (feature 09 §6, Resizing). */
+export const IMAGE_MIN_SIZE = 64;
+export const IMAGE_WIDTH_MIN = IMAGE_MIN_SIZE;
+/** The widest `width` a document may hold; a narrower column simply shows the picture smaller. */
+export const IMAGE_WIDTH_MAX = 4000;
 export const BOOKMARK_TITLE_MAX = 200;
 export const BOOKMARK_DESCRIPTION_MAX = 400;
 export const BOOKMARK_SITE_MAX = 100;

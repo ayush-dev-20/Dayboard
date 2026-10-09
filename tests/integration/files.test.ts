@@ -1,14 +1,9 @@
 import { and, eq } from "drizzle-orm";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createNote, deleteNote, restoreNote } from "@/actions/notes";
 import { createProject } from "@/actions/projects";
 import { createTask } from "@/actions/tasks";
-import {
-  INTENTS_PER_MINUTE,
-  RETENTION_MS,
-  cleanupPending,
-  purgeExpired,
-} from "@/db/mutations/attachments";
+import { INTENTS_PER_MINUTE, cleanupPending, purgeExpired } from "@/db/mutations/attachments";
 import { usedBytes } from "@/db/queries/attachments";
 import { db } from "@/db/client";
 import { attachments } from "@/db/schema";
@@ -375,29 +370,52 @@ describe("finalizing", () => {
 });
 
 describe("deleting, hiding and cleaning up", () => {
-  it("a deleted file is hidden at once, and its object is removed after the retention period", async () => {
+  const del = (id: string) =>
+    removeFile(new Request(`http://localhost/api/files/${id}`, { method: "DELETE" }), {
+      params: Promise.resolve({ id }),
+    });
+
+  it("deleting a file removes its stored object and its row in the same request", async () => {
     const id = await attach();
+    const key = await keyOf(id);
+    expect(await getStorage()!.head(key)).not.toBeNull();
     actAs(alice);
-    const res = await removeFile(
-      new Request(`http://localhost/api/files/${id}`, { method: "DELETE" }),
-      {
-        params: Promise.resolve({ id }),
-      },
-    );
-    expect(res.status).toBe(200);
+    expect((await del(id)).status).toBe(200);
+    expect((await read(alice, id)).status).toBe(404);
+    expect(await getStorage()!.head(key)).toBeNull(); // gone from storage, not just hidden
+    expect(await statusOf(id)).toBeUndefined(); // and no row left behind
+    // Deleting again is the same answer as for a file that never existed.
+    actAs(alice);
+    expect((await del(id)).status).toBe(404);
+  });
+
+  it("if storage refuses, the file is still hidden, and the next purge removes the object", async () => {
+    const id = await attach();
+    const key = await keyOf(id);
+    const storage = getStorage()!;
+    const spy = vi.spyOn(storage, "delete").mockRejectedValueOnce(new Error("storage is down"));
+    actAs(alice);
+    expect((await del(id)).status).toBe(200); // the person is not shown the failure
+    spy.mockRestore();
     expect(await statusOf(id)).toBe("DELETED");
     expect((await read(alice, id)).status).toBe(404);
-    const key = await keyOf(id);
-    expect(await getStorage()!.head(key)).not.toBeNull(); // kept for the retention period
+    expect(await storage.head(key)).not.toBeNull(); // still there, waiting for the retry
 
-    await purgeExpired(alice.id);
-    expect(await statusOf(id)).toBe("DELETED"); // not old enough yet
-    await db
-      .update(attachments)
-      .set({ deletedAt: new Date(Date.now() - RETENTION_MS - 1000) })
-      .where(eq(attachments.id, id));
     expect(await purgeExpired(alice.id)).toBeGreaterThanOrEqual(1);
-    expect(await getStorage()!.head(key)).toBeNull();
+    expect(await storage.head(key)).toBeNull();
+    expect(await statusOf(id)).toBeUndefined();
+  });
+
+  it("starting an upload also removes any leftover object waiting to be removed", async () => {
+    const id = await attach();
+    const key = await keyOf(id);
+    const storage = getStorage()!;
+    vi.spyOn(storage, "delete").mockRejectedValueOnce(new Error("storage is down"));
+    actAs(alice);
+    await del(id);
+    expect(await statusOf(id)).toBe("DELETED");
+    expect((await intent(alice, base())).res.status).toBe(200);
+    expect(await storage.head(key)).toBeNull();
     expect(await statusOf(id)).toBeUndefined();
   });
 
