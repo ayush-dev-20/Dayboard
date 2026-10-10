@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { askAttrsDraggable } from "@/lib/ai/ask-attrs";
 import { PAGE_SIZE } from "@/lib/views/engine";
 import type { AnyItem } from "@/lib/views/items";
 import type { PropertyDef } from "@/lib/views/properties";
@@ -148,6 +149,11 @@ export function TableView({ state }: { state: ViewState }) {
       <tr
         key={item.id}
         data-item-id={item.id}
+        {...(collection === "TASKS"
+          ? askAttrsDraggable({ type: "task", id: item.id, title: item.title })
+          : collection === "NOTES"
+            ? askAttrsDraggable({ type: "note", id: item.id, title: item.title })
+            : {})}
         aria-selected={isSelected}
         className={cn(
           "group border-b border-border",

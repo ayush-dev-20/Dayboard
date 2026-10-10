@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ProjectPicker } from "@/components/workspace/project-picker";
+import { useBottomBar } from "@/components/assistant/launcher-state";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { PRIORITY_LABELS, STATUS_LABELS, TASK_PRIORITIES, TASK_STATUSES } from "@/lib/tasks/status";
 import type { AnyItem, ViewNote, ViewTask, ViewTodo } from "@/lib/views/items";
@@ -47,6 +48,8 @@ export function BulkBar({
   onClear: () => void;
 }) {
   const { tags } = useWorkspace();
+  // The floating chat button sits above this bar while it is shown (feature 11 §6A).
+  useBottomBar(true, 72);
   const { collection } = state;
   const [trashing, setTrashing] = useState(false);
   const itemType = collection === "TASKS" ? "task" : collection === "TODOS" ? "todo" : "note";

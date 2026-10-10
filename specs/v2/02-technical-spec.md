@@ -143,8 +143,10 @@ Examples:
 - suggestDailyPlan
 - draftWeeklyReview
 - voiceCaptureParse
+- askAboutSelection (answer a question about selected text, from the selection and the text around it; no other tools)
+- editSelection with a custom instruction (rewrite the selection only)
 
-Every AI tool must enforce the authenticated user's workspace scope.
+Every AI tool must enforce the authenticated user's workspace scope. When the person drags a note, task or project onto the chat button, the assistant request carries up to 5 `{ type, id }` contexts: each is re-checked for ownership on the server and the tools are limited to those items (a project stands for itself and its tasks and notes).
 
 ## 7. AI grounding and citations
 

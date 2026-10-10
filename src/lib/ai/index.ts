@@ -4,7 +4,13 @@ import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { PROMPT_VERSIONS, repairHint } from "./prompts";
-import { ProviderError, type AIProvider } from "./provider";
+import {
+  ProviderError,
+  type AIProvider,
+  type AssistantTools,
+  type AssistantTurnEvent,
+} from "./provider";
+import type { ChatTurnMessage } from "./assistant-types";
 import { createMockProvider } from "./providers/mock";
 import { createSdkProvider } from "./providers/sdk";
 import { recordUsage } from "./usage";
@@ -162,6 +168,64 @@ export function streamText(args: CommonArgs & { signal?: AbortSignal }): StreamS
         provider: provider.id,
         model: provider.modelName(tier),
         promptVersion: PROMPT_VERSIONS[args.feature],
+        status: ok || args.signal?.aborted ? "SUCCESS" : "PROVIDER_ERROR",
+        latencyMs: Date.now() - started,
+        tokens,
+      });
+    },
+  };
+}
+
+export const ASSISTANT_TIMEOUT_MS = 90_000;
+
+export type AssistantSession = {
+  events: AsyncIterable<AssistantTurnEvent>;
+  /** Call once when the turn ended (ok) or broke (not ok). Records usage: one action per turn. */
+  finish(ok: boolean): Promise<void>;
+};
+
+/**
+ * Opens one assistant turn (feature 11 §4): the model may call the given tools, up to `maxSteps`
+ * times. The caller reads `events`, then calls `finish`. A turn the person stopped counts as a
+ * success: the provider worked and quota was used.
+ */
+export function runAssistantTurn(args: {
+  userId: string;
+  system: string;
+  messages: ChatTurnMessage[];
+  tools: AssistantTools;
+  maxSteps: number;
+  maxOutputTokens?: number;
+  /** Plain-data copy of the request, for the mock provider only. */
+  fixture?: unknown;
+  signal?: AbortSignal;
+}): AssistantSession {
+  const provider = getProvider();
+  const started = Date.now();
+  const timeout = AbortSignal.timeout(ASSISTANT_TIMEOUT_MS);
+  const signal = args.signal ? AbortSignal.any([args.signal, timeout]) : timeout;
+  const turn = provider.runAssistantTurn({
+    system: args.system,
+    messages: args.messages,
+    tools: args.tools,
+    maxSteps: args.maxSteps,
+    maxOutputTokens: args.maxOutputTokens,
+    fixture: args.fixture,
+    signal,
+  });
+  return {
+    events: turn.events,
+    async finish(ok) {
+      const tokens = await Promise.race([
+        turn.usage,
+        new Promise<TokenUsage>((resolve) => setTimeout(() => resolve({}), 500)),
+      ]);
+      await recordUsage({
+        userId: args.userId,
+        feature: "ASSISTANT",
+        provider: provider.id,
+        model: provider.modelName("main"),
+        promptVersion: PROMPT_VERSIONS.ASSISTANT,
         status: ok || args.signal?.aborted ? "SUCCESS" : "PROVIDER_ERROR",
         latencyMs: Date.now() - started,
         tokens,

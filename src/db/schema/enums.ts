@@ -49,6 +49,9 @@ export const aiFeatureEnum = pgEnum("ai_feature", [
   "GENERATE_CONTENT",
   "PLAN_DAY",
   "EDIT_SELECTION",
+  // V2 feature 11: the assistant (one action per turn) and a question about selected text.
+  "ASSISTANT",
+  "ASK_SELECTION",
 ]);
 
 export const aiUsageStatusEnum = pgEnum("ai_usage_status", [

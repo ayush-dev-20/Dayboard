@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CalendarClock } from "lucide-react";
+import { askAttrs } from "@/lib/ai/ask-attrs";
 import { colorVar } from "@/lib/colors";
 import { formatDay } from "@/lib/dates/calendar";
 import type { NextDueTask } from "@/db/queries/projects";
@@ -34,6 +35,7 @@ export function ProjectCard({
       <Link
         href={`/projects/${project.id}`}
         data-project-id={project.id}
+        {...askAttrs({ type: "project", id: project.id, title: project.name })}
         className="flex h-full card-interactive flex-col overflow-hidden card"
       >
         <span

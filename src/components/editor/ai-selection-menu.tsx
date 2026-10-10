@@ -7,23 +7,33 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { EditMode } from "@/lib/ai/types";
 import { cn } from "@/lib/utils";
 
-const ITEMS: { mode: EditMode; label: string; hint?: string }[] = [
+/** What the menu can start: Writing help's modes, "Update with AI" (`CUSTOM`) and "Ask AI" (feature 11 §6B). */
+export type HelpMode = EditMode | "ASK";
+
+const ONE_CLICK: { mode: HelpMode; label: string; hint?: string }[] = [
   { mode: "IMPROVE", label: "Improve" },
   { mode: "SHORTEN", label: "Shorten" },
   { mode: "FIX_GRAMMAR", label: "Fix grammar" },
   { mode: "CONTINUE", label: "Continue", hint: "Uses the text before your cursor." },
 ];
 
+// After a divider: the two open-ended actions, which ask what you want (feature 11 §6B).
+const OPEN_ENDED: { mode: HelpMode; label: string; hint: string }[] = [
+  { mode: "ASK", label: "Ask AI…", hint: "Ask a question about the selected text." },
+  { mode: "CUSTOM", label: "Update with AI…", hint: "Rewrite the selected text your way." },
+];
+
 type Props = {
   editor: Editor;
   /** `bubble` sits in the floating selection menu, `toolbar` in the formatting toolbar. */
   placement: "bubble" | "toolbar";
-  onChoose: (mode: EditMode) => void;
+  onChoose: (mode: HelpMode) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
@@ -51,7 +61,7 @@ export function WritingHelpMenu({ editor, placement, onChoose, open, onOpenChang
   // The panel opens only after the menu has finished closing (`onCloseAutoFocus`), never from the
   // item's own `onSelect`: opened while the closing menu still holds focus, the panel counts that
   // as a click outside and dismisses itself at once.
-  const chosen = useRef<EditMode | null>(null);
+  const chosen = useRef<HelpMode | null>(null);
 
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
@@ -78,7 +88,7 @@ export function WritingHelpMenu({ editor, placement, onChoose, open, onOpenChang
         }}
         className="min-w-60 p-1.5"
       >
-        {ITEMS.map((item) => (
+        {ONE_CLICK.map((item) => (
           <DropdownMenuItem
             key={item.mode}
             disabled={item.mode !== "CONTINUE" && !hasSelection}
@@ -91,6 +101,20 @@ export function WritingHelpMenu({ editor, placement, onChoose, open, onOpenChang
             {item.hint ? (
               <span className="type-body-sm text-muted-foreground">{item.hint}</span>
             ) : null}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        {OPEN_ENDED.map((item) => (
+          <DropdownMenuItem
+            key={item.mode}
+            disabled={!hasSelection}
+            onSelect={() => {
+              chosen.current = item.mode;
+            }}
+            className="flex-col items-start justify-center gap-0.5 px-3 py-2 md:min-h-9"
+          >
+            {item.label}
+            <span className="type-body-sm text-muted-foreground">{item.hint}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

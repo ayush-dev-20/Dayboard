@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { askAttrs } from "@/lib/ai/ask-attrs";
 import { CheckSquare, CircleCheck, FileText, Folder, Tag } from "lucide-react";
 import { ProjectToken } from "@/components/workspace/tokens";
 import { formatDay } from "@/lib/dates/calendar";
@@ -53,6 +54,9 @@ export function SearchResult({ hit, q, today }: { hit: SearchHit; q: string; tod
     <li className="border-b border-border">
       <Link
         href={hit.href}
+        {...(hit.type === "note" || hit.type === "task" || hit.type === "project"
+          ? askAttrs({ type: hit.type, id: hit.id, title: hit.title })
+          : {})}
         className="flex items-start gap-3 px-2 py-3 transition-colors duration-[120ms] hover:bg-accent"
       >
         <span aria-hidden className="mt-0.5 inline-flex w-5 shrink-0 justify-center">

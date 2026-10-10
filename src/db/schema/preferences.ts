@@ -26,6 +26,8 @@ export const userPreferences = pgTable(
     startOfDay: time("start_of_day").notNull().default("06:00:00"),
     weekStart: smallint("week_start").notNull().default(1),
     aiEnabled: boolean("ai_enabled").notNull().default(true),
+    // V2 feature 11 §6A: the floating chat button. On by default; off hides only the button.
+    assistantLauncher: boolean("assistant_launcher").notNull().default(true),
     // Today's focus (feature 04). Cleared if the task is permanently deleted.
     focusTaskId: uuid("focus_task_id").references(() => tasks.id, { onDelete: "set null" }),
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),

@@ -97,12 +97,16 @@ Implement in order:
 4. suggested task creation
 5. daily planning
 6. weekly review
+7. floating chat button with drop-a-note-task-or-project-to-ask (feature 11 §6A)
+8. Ask AI and Update with AI on selected text (feature 11 §6B)
 
 Definition of done:
 
 - AI never accesses data outside the authenticated workspace
 - mutations require confirmation
 - failures degrade gracefully
+- a dropped item scopes the answers to that item, and every drag has a keyboard and touch alternative
+- Update with AI changes only the selected text, and only after Replace
 
 ## 8. Phase 7 — Calendar
 

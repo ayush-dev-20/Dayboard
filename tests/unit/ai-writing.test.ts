@@ -220,7 +220,7 @@ describe("prompts", () => {
   it("each feature has its own version id", () => {
     expect(PROMPT_VERSIONS.GENERATE_CONTENT).toBe("GENERATE_CONTENT_V2");
     expect(PROMPT_VERSIONS.PLAN_DAY).toBe("PLAN_DAY_V1");
-    expect(PROMPT_VERSIONS.EDIT_SELECTION).toBe("EDIT_SELECTION_V1");
+    expect(PROMPT_VERSIONS.EDIT_SELECTION).toBe("EDIT_SELECTION_V2");
   });
 
   it("all of them tell the model to treat <data> as material, never instructions", () => {

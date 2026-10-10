@@ -1,12 +1,16 @@
 import "server-only";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText, Output, streamText } from "ai";
+import { generateText, Output, stepCountIs, streamText, tool, type LanguageModel } from "ai";
 import type { z } from "zod";
 import { env } from "@/lib/env";
 import {
   ProviderError,
   type AIProvider,
+  type AssistantTools,
+  type AssistantTurn,
+  type AssistantTurnEvent,
+  type AssistantTurnOptions,
   type CallOptions,
   type StructuredResult,
   type TextStream,
@@ -32,6 +36,78 @@ function isRetryable(error: unknown): boolean {
 
 function usageOf(usage: { inputTokens?: number; outputTokens?: number } | undefined): TokenUsage {
   return { inputTokens: usage?.inputTokens, outputTokens: usage?.outputTokens };
+}
+
+/** Our tools as the SDK's: the model's arguments are validated against the Zod schema first. */
+function sdkTools(tools: AssistantTools) {
+  return Object.fromEntries(
+    Object.entries(tools).map(([name, t]) => [
+      name,
+      tool({
+        description: t.description,
+        inputSchema: t.inputSchema as never,
+        execute: async (input: unknown) => (await t.execute(input)).text,
+      } as never),
+    ]),
+  );
+}
+
+/**
+ * One assistant turn on any language model (feature 11 §4): the model may call the tools, up to
+ * `maxSteps` times, and then has to answer. Exported so a test can run it on the SDK's own mock model.
+ */
+export function assistantTurnOn(
+  model: LanguageModel,
+  options: AssistantTurnOptions,
+): AssistantTurn {
+  let resolveUsage: (u: TokenUsage) => void = () => {};
+  const usage = new Promise<TokenUsage>((resolve) => {
+    resolveUsage = resolve;
+  });
+  const result = streamText({
+    model,
+    system: options.system,
+    messages: options.messages.map((m) => ({ role: m.role, content: m.text })),
+    tools: sdkTools(options.tools),
+    // `maxSteps` tool steps, then one more step in which tools are off, so there is always an answer.
+    stopWhen: stepCountIs(options.maxSteps + 1),
+    prepareStep: ({ stepNumber }: { stepNumber: number }) =>
+      stepNumber >= options.maxSteps ? { toolChoice: "none" as const } : undefined,
+    abortSignal: options.signal,
+    maxOutputTokens: options.maxOutputTokens,
+    maxRetries: 0,
+    onError: () => {
+      // Surfaces through the iterator below.
+    },
+    onFinish: (event: { totalUsage?: unknown; usage?: unknown }) =>
+      resolveUsage(usageOf((event.totalUsage ?? event.usage) as never)),
+  } as never);
+
+  async function* events(): AsyncGenerator<AssistantTurnEvent> {
+    try {
+      for await (const part of (
+        result as unknown as {
+          fullStream: AsyncIterable<{
+            type: string;
+            text?: string;
+            toolName?: string;
+            error?: unknown;
+          }>;
+        }
+      ).fullStream) {
+        if (part.type === "text-delta" && part.text) yield { type: "text", delta: part.text };
+        else if (part.type === "tool-call")
+          yield { type: "tool", name: part.toolName ?? "", status: "start" };
+        else if (part.type === "tool-result" || part.type === "tool-error") {
+          yield { type: "tool", name: part.toolName ?? "", status: "done" };
+        } else if (part.type === "error") throw part.error;
+      }
+    } catch (error) {
+      resolveUsage({});
+      throw new ProviderError("The AI service failed.", isRetryable(error), { cause: error });
+    }
+  }
+  return { events: events(), usage };
 }
 
 export function createSdkProvider(): AIProvider {
@@ -102,6 +178,10 @@ export function createSdkProvider(): AIProvider {
         }
       }
       return { chunks: chunks(), usage };
+    },
+
+    runAssistantTurn(options) {
+      return assistantTurnOn(languageModel(modelName("main")), options);
     },
   };
 }

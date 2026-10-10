@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useAskBridge } from "@/components/assistant/use-ask-bridge";
 import {
   DndContext,
   DragOverlay,
+  type Active,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -198,9 +200,26 @@ export function BoardView({ state }: { state: ViewState }) {
     refresh();
   }
 
+  // Dropping a card on the floating chat button asks the assistant about it (feature 11 §6A).
+  const ask = useAskBridge(
+    useCallback(
+      (active: Active) => {
+        const data = active.data.current as DragData | undefined;
+        if (data?.type !== "card" || state.collection === "TODOS") return null;
+        return {
+          type: state.collection === "TASKS" ? "task" : "note",
+          id: data.id,
+          title: data.label,
+        };
+      },
+      [state.collection],
+    ),
+  );
+
   function onDragStart(event: DragStartEvent) {
     const data = event.active.data.current as DragData | undefined;
     if (data?.type === "card") setActiveCard(data);
+    ask.start(event);
   }
 
   function onDragOver(event: DragOverEvent) {
@@ -212,6 +231,8 @@ export function BoardView({ state }: { state: ViewState }) {
     const data = event.active.data.current as DragData | undefined;
     setActiveCard(null);
     setOverKey(null);
+    // Over the chat button: the card is asked about, not moved.
+    if (ask.end()) return;
     if (data?.type !== "card") return;
     const place = placeOf(event);
     const item = itemById(data.id);
@@ -341,6 +362,7 @@ export function BoardView({ state }: { state: ViewState }) {
       onDragCancel={() => {
         setActiveCard(null);
         setOverKey(null);
+        ask.cancel();
       }}
     >
       {board}

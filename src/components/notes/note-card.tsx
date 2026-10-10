@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ProjectToken, TagBadge } from "@/components/workspace/tokens";
 import { formatCompact } from "@/lib/dates/relative";
 import type { NoteListItemDTO } from "@/lib/notes/dto";
+import { askAttrs } from "@/lib/ai/ask-attrs";
 import { fileUrl } from "@/lib/storage/dto";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ export function NoteCard({ note, now, timeZone, hideProject, compact, className 
     <li className={cn("border-b border-border", className)}>
       <Link
         href={`/notes/${note.id}`}
+        {...askAttrs({ type: "note", id: note.id, title: note.title })}
         className="flex min-h-row-touch items-center gap-2 px-3 py-2 transition-colors duration-[120ms] hover:bg-accent md:min-h-row md:py-1"
       >
         <span aria-hidden className="inline-flex w-5 shrink-0 justify-center">
@@ -92,6 +94,7 @@ export function NoteTile({ note, now, timeZone }: Omit<Props, "compact" | "class
     <li className="min-w-0">
       <Link
         href={`/notes/${note.id}`}
+        {...askAttrs({ type: "note", id: note.id, title: note.title })}
         className="flex h-full min-h-40 card-interactive flex-col card p-4"
       >
         {note.cover && !coverBroken ? (

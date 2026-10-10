@@ -6,8 +6,10 @@ import {
   integer,
   pgTable,
   primaryKey,
+  jsonb,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { uuidv7 } from "../../lib/ids";
@@ -57,5 +59,33 @@ export const aiDailySuggestions = pgTable(
   ],
 );
 
+// A record of every change an AI proposal made once the person confirmed it (V2 feature 11 §3).
+// It holds ids and a short summary of counts and kinds ("Created 3 tasks"), never note content, task
+// titles or prompts. `(user_id, proposal_id)` is unique, so a proposal can be applied only once.
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    source: text("source").notNull(),
+    action: text("action").notNull(),
+    entityRefs: jsonb("entity_refs").$type<{ type: string; id: string }[]>().notNull().default([]),
+    proposalId: text("proposal_id").notNull(),
+    summary: text("summary").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("audit_log_user_created_idx").on(t.userId, t.createdAt.desc()),
+    uniqueIndex("audit_log_user_proposal_idx").on(t.userId, t.proposalId),
+    check("audit_log_summary_length", sql`char_length(${t.summary}) between 1 and 200`),
+    check("audit_log_source", sql`${t.source} in ('ASSISTANT', 'WEEKLY_REVIEW', 'VOICE')`),
+  ],
+);
+
+export type AuditLogRow = typeof auditLog.$inferSelect;
 export type AiUsage = typeof aiUsage.$inferSelect;
 export type AiDailySuggestion = typeof aiDailySuggestions.$inferSelect;

@@ -26,6 +26,8 @@ The feature doc requires AI to be contextual, always previewed, never blocking, 
 - **Since feature 08** (`ai-writing-and-planning_v1.md`): three more routes (generate-content, plan-day, edit-selection), so the list of AI actions above is no longer complete. Same pipeline, same rule: nothing is written before a click. `streamText` now takes `maxOutputTokens`, and a client abort is recorded as `SUCCESS`. Settings → AI has an extra data notice.
 - **Since feature 07** (`ui-modernization_v1.md`): AI output uses the tinted `ai-panel` (`AiPanel`, `GrowingAiPanel` for streams with a caret), previews are forms (Enter confirms, Esc discards) with Select all/none, the Today brief carries "Help me clean up", and the ⌘K menu offers "Ask your workspace" for sentence-like queries. No AI behavior changed.
 
+- **Since V2 feature 11** (`ai-workspace-assistant_v2.md`): the same pipeline (`gate.ts`, `usage.ts`, mock, NDJSON streaming, `filterCitations`/`verifyQuotes`) now also serves a multi-turn assistant with tools, a floating chat button, Ask AI / Update with AI on selected text and Related items. The ⌘K Ask tab is unchanged and gains **Open in assistant**. `AIFeature` has `ASSISTANT` and `ASK_SELECTION`; `EDIT_MODES` has `CUSTOM`; `EDIT_SELECTION` is prompt `EDIT_SELECTION_V2`.
+
 ## Related files
 
 - `src/lib/ai/gate.ts`: pipeline steps 1–4 and the stream response helper. `index.ts`: retries, validation, usage. `usage.ts` and `limits.ts`: limits (pure part in `limits.ts`).

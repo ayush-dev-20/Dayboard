@@ -2,11 +2,11 @@ import { env } from "@/lib/env";
 import {
   ProviderError,
   type AIProvider,
-  type CallOptions,
   type StructuredResult,
   type TextStream,
 } from "../provider";
 import type { AIFeature, ModelTier } from "../types";
+import { mockAssistantTurn } from "./mock-assistant";
 
 // Deterministic fixtures for development, tests and CI. No network, no key, no cost. Each feature
 // builds its answer from the plain-data `fixture` the caller passes, so tests can predict it.
@@ -22,7 +22,7 @@ const CHUNK_MS = 20;
 type Obj = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
-function wait(ms: number, signal: AbortSignal): Promise<void> {
+export function wait(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) return reject(new ProviderError("Aborted.", true));
     const timer = setTimeout(resolve, ms);
@@ -44,7 +44,7 @@ function behaviour(fixture: unknown): "error" | "slow" | null {
   return env.AI_MOCK_MODE ?? null;
 }
 
-async function applyBehaviour(options: CallOptions) {
+export async function applyBehaviour(options: { fixture?: unknown; signal: AbortSignal }) {
   const mode = behaviour(options.fixture);
   if (mode === "error") throw new ProviderError("Mock provider failure.", false);
   if (mode === "slow") await wait(SLOW_MS, options.signal);
@@ -64,7 +64,7 @@ const clean = (s: string) =>
     .replace(/[.!?\s]+$/, "")
     .trim();
 
-function sentences(text: string): string[] {
+export function sentences(text: string): string[] {
   return text
     .split(/\n+/)
     .flatMap((line) => line.split(/(?<=[.!?])\s+/))
@@ -117,6 +117,11 @@ function extract(text: string, mode: "sentence" | "paragraph", cues: boolean) {
     }
   });
   return { items: items.slice(0, 15) };
+}
+
+/** The titles the mock would pull out of a note as action items (used by the assistant's script). */
+export function mockActionTitles(text: string): string[] {
+  return (extract(text, "paragraph", true).items as { title: string }[]).map((i) => i.title);
 }
 
 function extractFixture(feature: AIFeature, fixture: Obj) {
@@ -340,6 +345,11 @@ function editText(fixture: Obj): string {
     .split(/\n+/)
     .map((p) => p.trim())
     .filter(Boolean);
+  // "Update with AI": the person's own instruction, applied the way a test can predict.
+  if (mode === "CUSTOM") {
+    const instruction = str(fixture.instruction).replaceAll(MARKERS, "").trim();
+    return paragraphs.map((p) => `${p} (${instruction})`).join("\n\n");
+  }
   if (mode === "IMPROVE") return paragraphs.map((p) => `${p} (improved)`).join("\n\n");
   if (mode === "SHORTEN") return paragraphs.map((p) => sentences(p)[0] ?? p).join("\n\n");
   if (mode === "FIX_GRAMMAR") {
@@ -353,6 +363,24 @@ function editText(fixture: Obj): string {
   ].join("\n\n");
 }
 
+/** An answer about a selection, built from the selection so a test can predict it. */
+function askSelection(fixture: Obj): string {
+  const question = str(fixture.question).replaceAll(MARKERS, "").trim();
+  const selection = str(fixture.selection).replaceAll(MARKERS, "").trim();
+  const first = sentences(selection)[0] ?? selection;
+  if (/summar/i.test(question)) return `In short: ${first}`;
+  if (/explain/i.test(question)) return `The passage says: ${first}`;
+  if (/missing/i.test(question)) return "The passage does not say who is responsible or by when.";
+  const words = question
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length >= 4);
+  const hit = sentences(selection).find((sentence) =>
+    words.some((w) => sentence.toLowerCase().includes(w)),
+  );
+  return hit ? `The text says: “${hit}”` : "The selected text doesn't say.";
+}
+
 function streamBody(feature: AIFeature, fixture: Obj): string {
   switch (feature) {
     case "ASK":
@@ -363,6 +391,8 @@ function streamBody(feature: AIFeature, fixture: Obj): string {
       return planText(fixture);
     case "EDIT_SELECTION":
       return editText(fixture);
+    case "ASK_SELECTION":
+      return askSelection(fixture);
     default:
       return summarize(fixture);
   }
@@ -402,6 +432,7 @@ function structured(feature: AIFeature, fixture: Obj): unknown {
 export function createMockProvider(): AIProvider {
   return {
     id: "mock",
+    runAssistantTurn: mockAssistantTurn,
     modelName: (tier: ModelTier) => (tier === "fast" ? "mock-fast" : "mock"),
 
     async generateStructured(options): Promise<StructuredResult> {

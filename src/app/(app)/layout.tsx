@@ -36,10 +36,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <WorkspaceProvider
       value={{
+        userId: user.id,
         projects,
         tags,
         counts,
         aiEnabled: env.aiAvailable && preferences.aiEnabled,
+        assistantLauncher: preferences.assistantLauncher,
         filesEnabled: env.storageAvailable,
         noteTree,
       }}

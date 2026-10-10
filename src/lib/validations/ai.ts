@@ -66,13 +66,49 @@ export const generateContentRequestSchema = z
 
 export const planDayRequestSchema = z.strictObject({});
 
+export const EDIT_INSTRUCTION_MAX = 500;
+
 export const editSelectionRequestSchema = z
   .strictObject({
     mode: z.enum(EDIT_MODES),
     text: z.string().max(EDIT_TEXT_MAX, "Select a shorter passage."),
     before: z.string().max(EDIT_BEFORE_MAX).optional(),
+    // "Update with AI" (feature 11 §6B): the person's own instruction, only for the CUSTOM mode.
+    instruction: z
+      .string()
+      .trim()
+      .min(1, "Say how the text should change.")
+      .max(EDIT_INSTRUCTION_MAX, `Use ${EDIT_INSTRUCTION_MAX} characters or fewer.`)
+      .optional(),
   })
   .superRefine((v, ctx) => {
+    if (v.mode === "CUSTOM") {
+      if (v.instruction === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["instruction"],
+          message: "Say how the text should change.",
+        });
+      }
+      if (!v.text.trim()) {
+        ctx.addIssue({ code: "custom", path: ["text"], message: "Select some text first." });
+      }
+      if (v.before !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["before"],
+          message: "Only Continue uses text before the cursor.",
+        });
+      }
+      return;
+    }
+    if (v.instruction !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["instruction"],
+        message: "Only Update with AI takes an instruction.",
+      });
+    }
     if (v.mode === "CONTINUE") {
       if (!v.before?.trim() && !v.text.trim()) {
         ctx.addIssue({

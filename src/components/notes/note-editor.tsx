@@ -76,6 +76,8 @@ import type { NoteSaveState } from "@/lib/notes/save-state";
 import type { ProjectRef } from "@/lib/projects/dto";
 import type { TagDTO } from "@/lib/tags";
 import { cn } from "@/lib/utils";
+import { RelatedPanel } from "@/components/assistant/related-panel";
+import { AskAboutMenuItem } from "@/components/assistant/ask-about";
 import { AttachmentsSection } from "@/components/files/attachments-section";
 import { BacklinksPanel } from "./backlinks-panel";
 import { LinkedTasks } from "./linked-tasks";
@@ -603,6 +605,15 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
                 next();
               }}
             >
+              {noteId ? (
+                <AskAboutMenuItem
+                  type="note"
+                  id={noteId}
+                  onBefore={() => {
+                    afterMenu.current = null;
+                  }}
+                />
+              ) : null}
               <DropdownMenuItem
                 disabled={!noteId}
                 title={noteId ? undefined : needsNote}
@@ -842,6 +853,7 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
 
       <SubNotesSection notes={unplaced} />
       <AttachmentsSection ownerType="NOTE" ownerId={noteId} />
+      {noteId ? <RelatedPanel type="note" id={noteId} /> : null}
 
       {aiEnabled && !noteId && !generateOpen ? (
         <p className="mt-2">

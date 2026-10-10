@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { DndContext, DragOverlay, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import { useCallback, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  type Active,
+  type DragEndEvent,
+  type DragOverEvent,
+} from "@dnd-kit/core";
+import { useAskBridge } from "@/components/assistant/use-ask-bridge";
 import { useReducedMotion } from "motion/react";
 import { CalendarClock, ChevronLeft, ChevronRight, Ellipsis } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -128,10 +135,23 @@ export function CalendarView({ state }: { state: ViewState }) {
     await applyEdit(state, [{ item, commands }], message);
   }
 
+  // Dropping a card on the floating chat button asks the assistant about it (feature 11 §6A).
+  const ask = useAskBridge(
+    useCallback(
+      (active: Active) => {
+        const data = active.data.current as DragData | undefined;
+        if (data?.type !== "card" || collection === "TODOS") return null;
+        return { type: collection === "TASKS" ? "task" : "note", id: data.id, title: data.label };
+      },
+      [collection],
+    ),
+  );
+
   function onDragEnd(event: DragEndEvent) {
     const data = event.active.data.current as DragData | undefined;
     setActive(null);
     setOverDay(null);
+    if (ask.end()) return;
     const over = event.over?.data.current as DragData | undefined;
     if (data?.type !== "card" || over?.type !== "day") return;
     const item = items.find((i) => i.id === data.id);
@@ -271,12 +291,14 @@ export function CalendarView({ state }: { state: ViewState }) {
       onDragStart={(e) => {
         const data = e.active.data.current as DragData | undefined;
         if (data?.type === "card") setActive(data);
+        ask.start(e);
       }}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
       onDragCancel={() => {
         setActive(null);
         setOverDay(null);
+        ask.cancel();
       }}
     >
       {toolbar}

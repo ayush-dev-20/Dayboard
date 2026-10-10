@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AskPanel } from "@/components/ai/ask-panel";
+import { createThread, titleFrom } from "@/components/assistant/threads";
 import { useAIStream } from "@/components/ai/use-ai";
 import { Kbd } from "@/components/ui/kbd";
 import { useWorkspace } from "@/components/workspace/workspace-context";
@@ -185,6 +186,22 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
     window.dispatchEvent(new CustomEvent(COPY_NOTE_EVENT, { detail: { kind } }));
   }
 
+  // Continues the question and its answer as a conversation on the Assistant page (feature 11 §2).
+  function openInAssistant() {
+    if (ask.state.status !== "complete") return;
+    const { text, sources, quotes } = ask.state.data;
+    const at = Date.now();
+    createThread({
+      title: titleFrom(query),
+      messages: [
+        { id: crypto.randomUUID(), role: "user", text: query.trim(), at },
+        { id: crypto.randomUUID(), role: "assistant", text, at: at + 1, sources, quotes },
+      ],
+    });
+    close();
+    router.push("/assistant");
+  }
+
   function go(href: string) {
     rememberSearch(query);
     close();
@@ -312,6 +329,7 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                     onRetry={ask.retry}
                     onDismiss={ask.reset}
                     onOpen={(href) => go(href)}
+                    onOpenInAssistant={openInAssistant}
                   />
                 </div>
               ) : null}

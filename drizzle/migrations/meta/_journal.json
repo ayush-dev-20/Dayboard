@@ -71,6 +71,13 @@
       "when": 1791459370238,
       "tag": "0009_files-and-link-previews",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791559947888,
+      "tag": "0010_assistant-audit-and-launcher",
+      "breakpoints": true
     }
   ]
 }

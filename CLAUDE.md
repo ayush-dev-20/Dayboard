@@ -104,7 +104,7 @@ For anything the user sees, the design already exists. Do not invent a layout or
 
 **When sources disagree.** The designs show how a screen looks (layout, content, states). DESIGN.md holds the exact token values and the rules. If a design and DESIGN.md differ on a *token value*, use DESIGN.md. If they differ on a *layout or behavior*, or you cannot tell which is meant, follow the design and the UI/UX spec, and note the difference in your agent_docs hand-off so the user can resolve it. Do not quietly pick one.
 
-Always apply the rules in DESIGN.md that are easy to forget: one accent color used only for interactive things, hairlines by default and a card only for one discrete object (never a list of rows in a card), the four shadow levels and no glow or gradients, red is rare (overdue rows are red text, at most one red fill per section), only 400 and 600 font weights, square checkboxes for tasks and round ones for todos, no sparkle icons, AI badges or chat sidebar, at most two feature animations per screen, and color is never the only signal.
+Always apply the rules in DESIGN.md that are easy to forget: one accent color used only for interactive things, hairlines by default and a card only for one discrete object (never a list of rows in a card), the four shadow levels and no glow or gradients, red is rare (overdue rows are red text, at most one red fill per section), only 400 and 600 font weights, square checkboxes for tasks and round ones for todos, no sparkle icons, AI badges or docked chat sidebar (the assistant's floating chat button is allowed, ADR 0015), at most two feature animations per screen, and color is never the only signal.
 
 ## 5. Reading order for a new agent
 

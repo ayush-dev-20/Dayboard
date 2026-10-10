@@ -548,3 +548,27 @@ export async function insertReadyAttachment(
     returning id`;
   return row!.id;
 }
+
+// ---- The assistant (feature 11) ---------------------------------------------------------------
+
+export async function auditRows(userId: string) {
+  return sql<
+    { source: string; action: string; proposal_id: string; summary: string; entity_refs: unknown }[]
+  >`select source, action, proposal_id, summary, entity_refs from audit_log where user_id = ${userId} order by created_at`;
+}
+
+export async function aiUsageFeatures(userId: string) {
+  const rows = await sql<{ feature: string; status: string }[]>`
+    select feature::text, status::text from ai_usage where user_id = ${userId} order by created_at`;
+  return rows;
+}
+
+export async function taskTitlesOf(userId: string) {
+  const rows = await sql<{ title: string }[]>`
+    select title from tasks where user_id = ${userId} and deleted_at is null order by title`;
+  return rows.map((r) => r.title);
+}
+
+export async function setAssistantLauncher(userId: string, enabled: boolean) {
+  await sql`update user_preferences set assistant_launcher = ${enabled} where user_id = ${userId}`;
+}

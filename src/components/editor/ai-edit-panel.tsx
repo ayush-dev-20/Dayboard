@@ -15,22 +15,27 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { TABLET_UP_QUERY, useMediaQuery } from "@/hooks/use-media-query";
-import type { EditMode, StreamEvent } from "@/lib/ai/types";
+import type { StreamEvent } from "@/lib/ai/types";
+import type { HelpMode } from "./ai-selection-menu";
+import { AskSelectionBody } from "./ask-selection-body";
+import { InstructionForm } from "./instruction-form";
 import { selectionRefusal, SIMPLIFIED, splitParagraphs, STALE } from "@/lib/editor/replace-plan";
 
 type Props = {
   editor: Editor;
-  mode: EditMode;
+  mode: HelpMode;
   /** The selection when the person chose the mode. */
   info: SelectionInfo;
   onClose: () => void;
 };
 
-const TITLES: Record<EditMode, string> = {
+const TITLES: Record<HelpMode, string> = {
+  ASK: "Ask AI",
   IMPROVE: "Improve",
   SHORTEN: "Shorten",
   FIX_GRAMMAR: "Fix grammar",
   CONTINUE: "Continue",
+  CUSTOM: "Update with AI",
 };
 
 type Data = { text: string };
@@ -65,9 +70,23 @@ function useSelectionAnchor(editor: Editor, info: SelectionInfo) {
   );
 }
 
-function PanelBody({ editor, mode, info, onClose }: Props) {
+/** Ask AI is its own small flow; everything else is a rewrite with a before/after (Writing help). */
+function PanelBody(props: Props) {
+  return props.mode === "ASK" ? (
+    <AskSelectionBody editor={props.editor} info={props.info} onClose={props.onClose} />
+  ) : (
+    <RewriteBody {...props} mode={props.mode} />
+  );
+}
+
+const UPDATE_PRESETS = ["More formal", "Simpler", "Add detail"] as const;
+
+function RewriteBody({ editor, mode, info, onClose }: Props & { mode: Exclude<HelpMode, "ASK"> }) {
   const ids = useId();
-  const { state, run, retry, stop } = useAIEvents("/api/ai/edit-selection", INITIAL, reduce);
+  const { state, run, retry, stop, reset } = useAIEvents("/api/ai/edit-selection", INITIAL, reduce);
+  // "Update with AI": the person's own instruction comes first (null until it is sent).
+  const [instruction, setInstruction] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
   const [stale, setStale] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const tracker = useRef<ReturnType<typeof trackRange> | null>(null);
@@ -89,7 +108,7 @@ function PanelBody({ editor, mode, info, onClose }: Props) {
   }, [editor, info]);
 
   useEffect(() => {
-    if (refusal) return;
+    if (refusal || mode === "CUSTOM") return;
     run({
       mode,
       text: info.text,
@@ -104,6 +123,13 @@ function PanelBody({ editor, mode, info, onClose }: Props) {
   const usable = splitParagraphs(text).length > 0;
   const done = state.status === "complete" || state.status === "stopped";
   const mixed = info.mixedMarks && !continuing;
+
+  function send(value: string) {
+    setInstruction(value);
+    setProblem(null);
+    setStale(false);
+    run({ mode: "CUSTOM", text: info.text, instruction: value });
+  }
 
   function apply() {
     const range = tracker.current?.current();
@@ -121,6 +147,23 @@ function PanelBody({ editor, mode, info, onClose }: Props) {
       setProblem(result.reason);
       if (result.reason === STALE) setStale(true);
     }
+  }
+
+  if (mode === "CUSTOM" && instruction === null && !refusal) {
+    return (
+      <InstructionForm
+        title="Update with AI"
+        question="How should it change?"
+        placeholder="For example: make it friendlier and shorter"
+        presets={UPDATE_PRESETS}
+        selection={info.text}
+        value={draft}
+        onChange={setDraft}
+        onSubmit={send}
+        submitLabel="Update"
+        onCancel={onClose}
+      />
+    );
   }
 
   return (
@@ -221,6 +264,20 @@ function PanelBody({ editor, mode, info, onClose }: Props) {
         {streaming ? (
           <Button variant="secondary" onClick={stop}>
             Stop
+          </Button>
+        ) : null}
+        {!streaming && !refusal && mode === "CUSTOM" ? (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              // Back to the box with the same words in it; nothing is sent until it is sent again.
+              reset();
+              setInstruction(null);
+              setProblem(null);
+              setStale(false);
+            }}
+          >
+            Edit instruction
           </Button>
         ) : null}
         {!streaming && !refusal ? (

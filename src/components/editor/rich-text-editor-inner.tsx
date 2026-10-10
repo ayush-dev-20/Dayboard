@@ -17,7 +17,7 @@ import { UrlPromptHost } from "./blocks/url-prompt";
 import { BlockHandle } from "./blocks/block-handle";
 import { TableToolbar } from "./blocks/table-toolbar";
 import { createExtensions } from "./extensions";
-import type { EditMode } from "@/lib/ai/types";
+import type { HelpMode } from "./ai-selection-menu";
 import { FormatToolbar, SelectionMenu } from "./toolbar";
 import type { TiptapDoc } from "@/lib/editor/types";
 import { cn } from "@/lib/utils";
@@ -114,7 +114,7 @@ export default function RichTextEditor({
   }, [holder, context]);
 
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
-  const [help, setHelp] = useState<{ mode: EditMode; info: SelectionInfo } | null>(null);
+  const [help, setHelp] = useState<{ mode: HelpMode; info: SelectionInfo } | null>(null);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
 
   const editor = useEditor({
@@ -165,7 +165,7 @@ export default function RichTextEditor({
     return () => destroy.current?.();
   }, [editor]);
 
-  function chooseHelp(mode: EditMode) {
+  function chooseHelp(mode: HelpMode) {
     if (!editor) return;
     setHelpMenuOpen(false);
     setHelp({ mode, info: readSelection(editor) });
@@ -196,7 +196,8 @@ export default function RichTextEditor({
         {editor ? <BlockHandle editor={editor} root={root} /> : null}
         {editor ? <PasteChoiceHost view={editor.view} /> : null}
         {editor ? <UrlPromptHost view={editor.view} /> : null}
-        {editor && variant === "document" ? (
+        {/* Notes always have the floating menu; a task description gets it with Writing help (feature 11 §6B). */}
+        {editor && (variant === "document" || writingHelp) ? (
           <SelectionMenu
             editor={editor}
             writingHelp={helpControl ? { onChoose: chooseHelp } : undefined}

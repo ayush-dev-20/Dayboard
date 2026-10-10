@@ -15,16 +15,22 @@ export async function POST(request: Request) {
     const { ctx, input } = await openGate(request, "EDIT_SELECTION", editSelectionRequestSchema);
 
     return ndjsonResponse(async (send) => {
-      const size = input.text.length + (input.before?.length ?? 0);
+      const size =
+        input.text.length + (input.before?.length ?? 0) + (input.instruction?.length ?? 0);
       const session = streamText({
         userId: ctx.user.id,
         feature: "EDIT_SELECTION",
         tier: "fast",
         system: editSelectionSystem[input.mode],
-        prompt: editSelectionPrompt(input.mode, input.text, input.before),
+        prompt: editSelectionPrompt(input.mode, input.text, input.before, input.instruction),
         // Roughly twice the input (a token is about four characters), never more than 2,000.
         maxOutputTokens: Math.min(MAX_EDIT_TOKENS, Math.max(300, Math.ceil(size / 2))),
-        fixture: { mode: input.mode, text: input.text, before: input.before },
+        fixture: {
+          mode: input.mode,
+          text: input.text,
+          before: input.before,
+          instruction: input.instruction,
+        },
         signal: request.signal,
       });
       let ok = false;

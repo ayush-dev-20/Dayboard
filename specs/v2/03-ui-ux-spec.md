@@ -47,6 +47,8 @@ Today | Inbox | Tasks | Notes | More
 
 The AI assistant should not consume a permanent bottom-nav tab on mobile. Use a contextual action or command surface.
 
+The **floating chat button** (feature 11 §6A) sits at the bottom right of the main content area on every app screen. On a phone it floats **above** the bottom navigation, never over it, and moves up by the height of any bottom bar on the page. It opens a compact floating panel (a bottom sheet under 768px); it is not a tab and not a docked sidebar.
+
 ## 3. Offline indicator
 
 Use a small status indicator:
@@ -116,6 +118,14 @@ AI responses must show source chips:
 Clicking a chip opens the original item.
 
 Avoid long citation footnotes that resemble a research paper.
+
+### Asking about one item
+
+A note, task or project can be **dragged onto the floating chat button**: while it is dragged the button grows into a labelled drop zone, and dropping adds a removable chip above the chat composer (up to 5). Nothing is sent by the drop. Every drag has a keyboard and touch alternative: **Ask about this** in the item's menu and **Add item…** in the chat panel.
+
+### Ask AI and Update with AI on selected text
+
+The menu that appears over selected text (Improve writing) gains **Ask AI…** and **Update with AI…** after the one-click actions. Either opens a small panel with the selection quoted and one text box. Ask AI streams a read-only answer in the tinted AI panel (Copy, Insert below, Continue in assistant). Update with AI shows the rewrite as a before/after with Replace, Insert below, Regenerate, Edit instruction and Discard; nothing changes until Replace.
 
 ## 7. AI confirmation UX
 

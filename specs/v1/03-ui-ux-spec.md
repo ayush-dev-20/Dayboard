@@ -366,7 +366,7 @@ Never block the entire page while AI runs.
 
 ### AI identity
 
-AI output sits in a **tinted panel** (`ai-surface`, a faint wash of the accent, with a 1px `ai-border`) labelled with the plain words "AI-generated". There is no sparkle icon, no badge, no gradient, and **no chat sidebar or chat page**: AI lives where the work is. Buttons that start AI work are ordinary buttons with a verb. Proposals read like a diff: a checkbox per item, **Accept selected (N)** and **Accept all**, `Enter` confirms and `Esc` discards; nothing is written before the confirm click. Streaming text grows the panel smoothly and shows a caret while generating.
+AI output sits in a **tinted panel** (`ai-surface`, a faint wash of the accent, with a 1px `ai-border`) labelled with the plain words "AI-generated". There is no sparkle icon, no badge, no gradient, and **no docked chat sidebar**: AI lives where the work is. (V2 adds the assistant page and a floating chat button with an overlay panel, never a sidebar: ADR 0015.) Buttons that start AI work are ordinary buttons with a verb. Proposals read like a diff: a checkbox per item, **Accept selected (N)** and **Accept all**, `Enter` confirms and `Esc` discards; nothing is written before the confirm click. Streaming text grows the panel smoothly and shows a caret while generating.
 
 ---
 

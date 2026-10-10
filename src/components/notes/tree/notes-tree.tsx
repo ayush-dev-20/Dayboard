@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { DndContext, DragOverlay, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragOverlay,
+  type Active,
+  type DragEndEvent,
+  type DragOverEvent,
+} from "@dnd-kit/core";
+import { useAskBridge } from "@/components/assistant/use-ask-bridge";
 import { ChevronRight, Ellipsis, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { archiveNote, createSubNote, deleteNote, restoreNote } from "@/actions/notes";
@@ -226,7 +233,23 @@ export function NotesTree({ initial, branches, variant = "sidebar", loader, onNa
     return { overId: String(over.id), zone: zoneAt(y, over.rect.top, over.rect.height) };
   }
 
+  // Dropping a row on the floating chat button asks the assistant about that note (feature 11 §6A).
+  const ask = useAskBridge(
+    useCallback((active: Active) => {
+      const data = active.data.current as
+        { type?: string; id?: string; label?: string } | undefined;
+      return data?.type === "treeRow" && data.id
+        ? { type: "note" as const, id: data.id, title: data.label ?? "" }
+        : null;
+    }, []),
+  );
+
   async function onDragEnd(event: DragEndEvent) {
+    if (ask.end()) {
+      setActiveId(null);
+      setHint(null);
+      return;
+    }
     const active = String(event.active.id);
     const over = event.over ? String(event.over.id) : null;
     const landed = hintFor(event);
@@ -348,12 +371,16 @@ export function NotesTree({ initial, branches, variant = "sidebar", loader, onNa
       <DndContext
         sensors={sensors}
         collisionDetection={dropCollision}
-        onDragStart={(event) => setActiveId(String(event.active.id))}
+        onDragStart={(event) => {
+          setActiveId(String(event.active.id));
+          ask.start(event);
+        }}
         onDragOver={(event) => setHint(hintFor(event))}
         onDragEnd={(event) => void onDragEnd(event)}
         onDragCancel={() => {
           setActiveId(null);
           setHint(null);
+          ask.cancel();
         }}
       >
         {/* The arrow keys are handled for the whole tree; the rows are the focusable items. */}

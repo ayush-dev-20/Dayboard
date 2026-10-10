@@ -13,6 +13,9 @@ export const AI_FEATURES = [
   "GENERATE_CONTENT",
   "PLAN_DAY",
   "EDIT_SELECTION",
+  // V2 feature 11.
+  "ASSISTANT",
+  "ASK_SELECTION",
 ] as const;
 export type AIFeature = (typeof AI_FEATURES)[number];
 
@@ -32,7 +35,8 @@ export type TaskAssistMode = (typeof TASK_ASSIST_MODES)[number];
 export const GENERATE_LENGTHS = ["SHORT", "STANDARD", "DETAILED"] as const;
 export type GenerateLength = (typeof GENERATE_LENGTHS)[number];
 
-export const EDIT_MODES = ["IMPROVE", "SHORTEN", "FIX_GRAMMAR", "CONTINUE"] as const;
+// `CUSTOM` is "Update with AI" (V2 feature 11 §6B): the person writes the instruction.
+export const EDIT_MODES = ["IMPROVE", "SHORTEN", "FIX_GRAMMAR", "CONTINUE", "CUSTOM"] as const;
 export type EditMode = (typeof EDIT_MODES)[number];
 
 /** One task in a streamed day plan. Everything but `reason` comes from our own data, not the model. */
@@ -56,6 +60,10 @@ export type StreamEvent =
   /** Plan my day: the one-sentence summary, then one proposal per valid task. */
   | { type: "summary"; text: string }
   | { type: "proposal"; item: PlanProposal }
+  /** The assistant is using a tool: a quiet "Searching your workspace…" line (feature 11 §4). */
+  | { type: "tool"; name: string; status: "start" | "done" }
+  /** The assistant proposes changes. Nothing is written until the person confirms (feature 11 §5). */
+  | { type: "assistant-proposal"; proposal: import("./assistant-types").Proposal }
   | { type: "error"; message: string; code: string }
   | { type: "done" };
 
@@ -66,6 +74,11 @@ export type AskSource = {
   id: string;
   title: string;
   href: string;
+  /**
+   * Why the assistant had this item (feature 11 §4): recorded by the server from the search and the
+   * tools, never written by the model.
+   */
+  reasons?: import("./assistant-types").SourceReasons;
 };
 
 export const NOTHING_FOUND_TEXT = "I couldn't find anything about that in your workspace.";

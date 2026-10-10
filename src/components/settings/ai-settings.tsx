@@ -8,6 +8,8 @@ import { SettingsRow } from "./settings-ui";
 
 type Props = {
   initialEnabled: boolean;
+  /** The floating chat button (feature 11 §6A). */
+  initialLauncher: boolean;
   /** False when the server has a real provider selected but no key: AI is off for everyone. */
   available: boolean;
   provider: "anthropic" | "gemini" | "mock";
@@ -27,8 +29,25 @@ const POLICY_URL = {
   gemini: "https://ai.google.dev/gemini-api/terms",
 } as const;
 
-export function AiSettings({ initialEnabled, available, provider, used, limit }: Props) {
+export function AiSettings({
+  initialEnabled,
+  initialLauncher,
+  available,
+  provider,
+  used,
+  limit,
+}: Props) {
   const [enabled, setEnabled] = useState(initialEnabled);
+  const [launcher, setLauncher] = useState(initialLauncher);
+
+  async function changeLauncher(next: boolean) {
+    setLauncher(next);
+    const result = await updatePreferences({ assistantLauncher: next });
+    if (!result.ok) {
+      setLauncher(!next);
+      toast.error(result.error.message);
+    }
+  }
 
   async function change(next: boolean) {
     setEnabled(next);
@@ -47,6 +66,19 @@ export function AiSettings({ initialEnabled, available, provider, used, limit }:
       >
         <Switch checked={enabled} onCheckedChange={change} aria-label="Enable AI features" />
       </SettingsRow>
+
+      {enabled && available ? (
+        <SettingsRow
+          title="Show the chat button"
+          description="The round button at the bottom right of every screen. Off hides only the button: the Assistant page, ⌘K and Ask about this still work."
+        >
+          <Switch
+            checked={launcher}
+            onCheckedChange={changeLauncher}
+            aria-label="Show the chat button"
+          />
+        </SettingsRow>
+      ) : null}
 
       {available ? (
         <p className="mt-4 type-body-md text-foreground" data-testid="ai-usage">
@@ -73,7 +105,10 @@ export function AiSettings({ initialEnabled, available, provider, used, limit }:
         <p className="mt-3 max-w-xl type-body-md text-foreground">
           Generating content also sends your prompt and, if you allow it, the note or task you’re
           working in. Planning sends the titles of your overdue and due tasks. Writing help sends
-          only the text you select.
+          only the text you select. Ask AI and Update with AI send the text you select and the text
+          around it. The assistant sends your question, your recent messages and the notes, tasks
+          and projects it looks at to answer; its conversations stay on this device and are removed
+          when you sign out.
         </p>
         {provider === "gemini" ? (
           <p className="mt-3 max-w-xl type-body-md text-foreground">

@@ -35,8 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { openSlashMenu } from "./blocks/slash-menu";
-import type { EditMode } from "@/lib/ai/types";
-import { WritingHelpMenu } from "./ai-selection-menu";
+import { WritingHelpMenu, type HelpMode } from "./ai-selection-menu";
 import { isAllowedLink } from "@/lib/editor/schema";
 import { cn } from "@/lib/utils";
 
@@ -233,7 +232,7 @@ const icon = "size-4";
  * as a scrollable bar above the on-screen keyboard.
  */
 export type WritingHelpControl = {
-  onChoose: (mode: EditMode) => void;
+  onChoose: (mode: HelpMode) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
@@ -384,6 +383,13 @@ export function FormatToolbar({
       >
         <Code className={icon} strokeWidth={1.5} aria-hidden />
       </ToolButton>
+      {/* A task description has no floating menu on a phone, so Writing help sits in its toolbar. */}
+      {!doc && writingHelp ? (
+        <>
+          <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
+          <WritingHelpMenu editor={editor} placement="toolbar" {...writingHelp} />
+        </>
+      ) : null}
       {doc ? (
         <>
           <ToolButton

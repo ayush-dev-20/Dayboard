@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Ellipsis, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteProject, restoreProject, updateProject } from "@/actions/projects";
+import { AskAboutMenuItem } from "@/components/assistant/ask-about";
 import { ConfirmDialog } from "@/components/layout/confirm-dialog";
 import {
   DropdownMenu,
@@ -140,6 +141,7 @@ export function ProjectHeader({ project, progress }: Props) {
             <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <AskAboutMenuItem type="project" id={project.id} />
             <DropdownMenuItem onSelect={() => setEditing(true)}>
               <Pencil strokeWidth={1.5} aria-hidden /> Edit details
             </DropdownMenuItem>

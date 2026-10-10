@@ -31,6 +31,8 @@ export const updatePreferencesSchema = z.strictObject({
   startOfDay: startOfDaySchema.optional(),
   weekStart: z.number().int().min(0).max(6).optional(),
   aiEnabled: z.boolean().optional(),
+  // V2 feature 11 §6A: show the floating chat button.
+  assistantLauncher: z.boolean().optional(),
 });
 
 export const changeEmailSchema = z.object({

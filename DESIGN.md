@@ -909,7 +909,7 @@ Keyboard is a design surface. Shortcuts are visible where they apply as `kbd` ch
 - **Do** set every date, time, count, percentage, usage figure and shortcut with tabular figures. **Don't** let numbers in a column jump around.
 - **Do** pair every status with an icon or word: overdue = clock + relative label + `destructive`; priority = bar glyph; tag = dot + name; error = icon + message. **Don't** communicate anything by color alone.
 - **Do** make Task checkboxes square and Todo checkboxes circular, everywhere.
-- **Do** keep the AI quiet: an ordinary button with a verb, output in the tinted AI panel labelled "AI-generated", and a required confirm before anything is saved. **Don't** add sparkle glyphs, ✨, gradient buttons, animated mascots, an AI badge, or a chat sidebar.
+- **Do** keep the AI quiet: an ordinary button with a verb, output in the tinted AI panel labelled "AI-generated", and a required confirm before anything is saved. **Don't** add sparkle glyphs, ✨, gradient buttons, animated mascots, an AI badge, or a docked chat sidebar. (The assistant's floating chat button and its overlay panel are allowed, as a speech-bubble icon and never a sparkle: ADR 0015.)
 - **Don't** place a destructive action next to a primary one. Destructive buttons live in overflow menus and confirm dialogs, and every deletion offers Undo or a Trash.
 - **Do** center the content column in the main panel and keep text left-aligned inside it. **Don't** center body text (the landing hero and auth panel headline are the exceptions).
 - **Do** keep index views tight (36px rows, 44px on touch) and record views generous.

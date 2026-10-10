@@ -8,6 +8,7 @@ import { Maximize2, Minimize2, Minus, X, ChevronsLeft } from "lucide-react";
 import { DESKTOP_QUERY } from "@/hooks/use-media-query";
 import type { TaskDetailDTO } from "@/lib/tasks/dto";
 import { cn } from "@/lib/utils";
+import { useTaskPanelPresence } from "@/components/assistant/launcher-state";
 import { SheetResizeHandle } from "./sheet-resize-handle";
 import { setSheetMode, useSheetMode, useSheetWidth } from "./sheet-state";
 import { TaskDetail } from "./task-detail";
@@ -31,6 +32,8 @@ export function TaskDetailSheet({ detail }: { detail: TaskDetailDTO }) {
   const mode = useSheetMode();
   // Under reduced motion it starts in place (no offset at all), so not even one frame is shifted.
   const reduce = useReducedMotion();
+  // The floating chat button keeps to the left of this panel (feature 11 §6A).
+  useTaskPanelPresence(true);
 
   useEffect(() => {
     if (!window.matchMedia(DESKTOP_QUERY).matches) router.replace(`/tasks/${detail.id}`);

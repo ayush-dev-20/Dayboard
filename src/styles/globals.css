@@ -434,6 +434,25 @@
     background-position: -50% 0;
   }
 }
+/* The chat button's sheen: one quick pass every few seconds, then still (see assistant-launcher). */
+@keyframes launcher-shine {
+  0% {
+    translate: -160% 0;
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  22% {
+    translate: 320% 0;
+    opacity: 1;
+  }
+  24%,
+  100% {
+    translate: 320% 0;
+    opacity: 0;
+  }
+}
 
 /* Inside a floating layer, every `hover:bg-accent` / `data-[highlighted]:bg-accent` resolves to the
    floating tone, so a hover is visible on the layer's own surface in both themes. */

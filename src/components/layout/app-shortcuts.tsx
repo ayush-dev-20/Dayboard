@@ -43,7 +43,13 @@ export function AppShortcuts() {
       }
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
-      if (document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]')) return;
+      // The assistant's floating panel is not modal: single keys keep working beside it.
+      if (
+        document.querySelector(
+          '[role="dialog"]:not([data-nonmodal]), [role="menu"], [role="listbox"]',
+        )
+      )
+        return;
 
       const key = event.key.toLowerCase();
       // Shift+N is the new note; plain N and T are for tasks and todos.

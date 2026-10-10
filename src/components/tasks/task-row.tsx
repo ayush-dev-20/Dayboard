@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useOverride } from "@/hooks/use-override";
 import type { TaskDTO } from "@/lib/tasks/dto";
+import { askAttrsDraggable } from "@/lib/ai/ask-attrs";
 import { cn } from "@/lib/utils";
 import { ProjectToken, TagBadge } from "@/components/workspace/tokens";
 import { DueChip } from "./due-chip";
@@ -70,6 +71,7 @@ export function TaskRow({
   return (
     <motion.li
       data-task-id={task.id}
+      {...askAttrsDraggable({ type: "task", id: task.id, title: task.title })}
       layout={layoutAnimation ? "position" : false}
       initial={reduceMotion ? { opacity: 0 } : rowMotion.initial}
       animate={rowMotion.animate}

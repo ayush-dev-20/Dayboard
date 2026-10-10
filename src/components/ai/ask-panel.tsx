@@ -1,6 +1,8 @@
 "use client";
 
-import { AiFailureNotice, AiLabel, GrowingAiPanel, StreamCaret } from "@/components/ai/ai-ui";
+import { AiFailureNotice, AiLabel, GrowingAiPanel } from "@/components/ai/ai-ui";
+import { AnswerBody } from "@/components/ai/answer-body";
+import { Button } from "@/components/ui/button";
 import type { StreamState } from "@/components/ai/use-ai";
 import { splitAnswer } from "@/lib/ai/answer";
 import { NOTHING_FOUND_TEXT } from "@/lib/ai/types";
@@ -11,6 +13,8 @@ type Props = {
   onDismiss: () => void;
   /** Open a source: navigates and closes the menu. */
   onOpen: (href: string) => void;
+  /** Continue this question and answer as a conversation on the Assistant page (feature 11 §2). */
+  onOpenInAssistant?: () => void;
 };
 
 /**
@@ -18,7 +22,7 @@ type Props = {
  * become links. "From your workspace" marks only quotes the server checked against the records it
  * sent; everything else is the AI's own wording.
  */
-export function AskPanel({ state, onRetry, onDismiss, onOpen }: Props) {
+export function AskPanel({ state, onRetry, onDismiss, onOpen, onOpenInAssistant }: Props) {
   if (state.status === "idle") {
     return (
       <p className="px-4 py-4 type-body-md text-muted-foreground">
@@ -60,19 +64,7 @@ export function AskPanel({ state, onRetry, onDismiss, onOpen }: Props) {
       <GrowingAiPanel label="Answer" busy={streaming}>
         <AiLabel>{streaming ? "Generating" : "AI-generated"}</AiLabel>
         <div className="mt-2 flex flex-col gap-2" aria-live="polite">
-          {parts.map((part, i) =>
-            part.kind === "text" ? (
-              <p key={i} className="type-body-md">
-                {part.text}
-                {streaming && i === parts.length - 1 ? <StreamCaret /> : null}
-              </p>
-            ) : (
-              <blockquote key={i} className="border-l-2 border-border pl-3">
-                <p className="type-label-caps text-muted-foreground">From your workspace</p>
-                <p className="mt-1 font-serif text-[15px] leading-6">“{part.text}”</p>
-              </blockquote>
-            ),
-          )}
+          <AnswerBody parts={parts} streaming={streaming} />
           {streaming && parts.length === 0 ? (
             <div className="flex flex-col gap-2" aria-hidden>
               <div className="h-2.5 w-4/5 rounded-sm bg-accent motion-safe:animate-pulse" />
@@ -107,6 +99,13 @@ export function AskPanel({ state, onRetry, onDismiss, onOpen }: Props) {
           />
         ) : null}
       </GrowingAiPanel>
+      {state.status === "complete" && onOpenInAssistant ? (
+        <div className="mt-3">
+          <Button variant="secondary" onClick={onOpenInAssistant}>
+            Open in assistant
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -10,13 +10,14 @@ export const metadata: Metadata = { title: "AI assistant" };
 
 export default async function AiSettingsPage() {
   const user = await requireUser({ redirect: true });
-  const { aiEnabled, timezone } = await getPreferences(user.id);
+  const { aiEnabled, assistantLauncher, timezone } = await getPreferences(user.id);
   const used = await countToday(user.id, timezone);
 
   return (
     <SettingsSection title="AI assistant">
       <AiSettings
         initialEnabled={aiEnabled}
+        initialLauncher={assistantLauncher}
         available={env.aiAvailable}
         provider={env.aiProvider}
         used={used}

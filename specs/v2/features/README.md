@@ -16,7 +16,7 @@ Build them in order. Each feature leaves the app runnable and depends only on fe
 | 08 | [Background Worker & Jobs](08-background-worker-and-jobs.md) | Jobs table, worker process, retries, scheduler, heartbeat (§12 groundwork, tech §12) | V1 |
 | 09 | [Files, Attachments & Bookmarks](09-files-attachments-and-bookmarks.md) | Storage service, uploads, secure downloads, image and file blocks, bookmark cards (§9, §18.6) | 01, 05, 08 |
 | 10 | [Semantic Search](10-semantic-search.md) | pgvector, embeddings, hybrid ranking, exact phrase, recent items, filters (§6, goal 4) | 05, 08 |
-| 11 | [AI Workspace Assistant](11-ai-workspace-assistant.md) | Multi-turn, grounded, tool-based, proposals with confirmation, related items (§7, goal 5) | 10 |
+| 11 | [AI Workspace Assistant](11-ai-workspace-assistant.md) | Multi-turn, grounded, tool-based, proposals with confirmation, related items; a floating chat launcher where a note, task or project can be dropped to ask about it; Ask AI and Update with AI on selected text (§7, goal 5) | 10 |
 | 12 | [Google Calendar](12-google-calendar.md) | OAuth, read events, Today and planning integration, time blocks, create events (§8, goal 6) | 05, 08 |
 | 13 | [Voice Capture](13-voice-capture.md) | Record, transcribe, parse, review, create (§10, goal 8) | 05, 08, 09 |
 | 14 | [Push Notifications & Reminders](14-push-notifications-and-reminders.md) | Web Push, reminders, preferences by category, devices (§12, goal 10) | 03, 05, 08 |
@@ -38,7 +38,7 @@ Every requirement in `../01-product-spec.md` lands in a feature:
 | §4 sync queue, status indicator, retry, conflicts; §5 operation records, diagnostics | 05 |
 | §4 push notifications; §12 smart notifications | 14 (with 03's service worker) |
 | §6 semantic search, exact phrase, recent items, filters | 10 |
-| §7 AI workspace assistant, citations, confirmation, related items, "why retrieved" | 11 (retrieval from 10) |
+| §7 AI workspace assistant, citations, confirmation, related items, "why retrieved", the floating chat launcher with drop-to-ask, Ask AI and Update with AI on selected text | 11 (retrieval from 10) |
 | §8 Google Calendar | 12 |
 | §9 files and attachments, storage interface | 09 |
 | §10 voice capture | 13 |
@@ -121,6 +121,7 @@ Every requirement in `../01-product-spec.md` lands in a feature:
 | 0012 | Transcription provider | 13 |
 | 0013 | Web Push library and VAPID handling | 14 |
 | 0014 | Service worker build (Serwist with Next 16, or a bundled `sw.ts`) | 03 |
+| 0015 | AI assistant surfaces: the floating chat launcher and panel (relaxing the "no chat sidebar or chat page" rule in DESIGN.md and the V1 UI/UX spec) and how an item is dragged onto it (native drag with a custom type, or the dnd-kit droppable of ADR 0008) | 11 |
 
 ## Suggested slicing for a first release
 

@@ -1,3 +1,5 @@
+import { AssistantBoot } from "@/components/assistant/assistant-boot";
+import { AssistantLauncher } from "@/components/assistant/assistant-launcher";
 import { CommandProvider } from "@/components/command/command-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AccountBlock } from "./account-block";
@@ -44,9 +46,11 @@ export function AppShell({ name, email, sidebarCollapsed, children }: Props) {
               </main>
             </div>
           </ShellFrame>
+          <AssistantLauncher />
         </TooltipProvider>
 
         <AppShortcuts />
+        <AssistantBoot />
         <MobileNav />
       </SidebarProvider>
     </CommandProvider>

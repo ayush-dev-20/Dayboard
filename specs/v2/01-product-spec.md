@@ -41,7 +41,7 @@ V2 evolves V1; this table says what V1 already gives each goal so nobody rebuild
 | 2 | Offline create/edit | **Not built** | Pieces to reuse: notes keep a local draft in `localStorage` with a recover/discard banner, show an offline banner, and retry saves; the task description autosave retries and warns before the tab closes | Local database (Dexie), local-first reads and writes for tasks, todos, notes, projects, durable operation queue. Tasks and todos have no offline path at all |
 | 3 | Safe sync | **Not built** | Notes use version numbers (optimistic concurrency) and a "changed in another window" banner. Ids are UUID v7 | Sync protocol, queue retry, idempotency, conflict records, sync status and diagnostics screens |
 | 4 | Semantic search | **Not built.** Keyword search is built | `ILIKE` search over tasks, todos, notes, projects and tags; filters for type, status, project, tag and date range; ranking (prefix, then contains, then recency); highlighted snippets; recent searches (kept in the browser); command menu search | pgvector embeddings, hybrid ranking, "recent items" (recently opened, not only recent searches), an exact-phrase operator (today the whole query is one substring match) |
-| 5 | AI workspace assistant | **Partly built** | "Ask your workspace" (⌘K, Ask tab): lexical retrieval, bounded labelled context, answers with source links and quotes checked against the source text, single question at a time, read-only. Plus propose-then-confirm AI on tasks, notes, inbox and Today, Generate with AI, Plan my day and Writing help | Semantic retrieval, "why was this retrieved", multi-turn conversation, proposing task changes from a conversation, related-item suggestions |
+| 5 | AI workspace assistant | **Partly built** | "Ask your workspace" (⌘K, Ask tab): lexical retrieval, bounded labelled context, answers with source links and quotes checked against the source text, single question at a time, read-only. Plus propose-then-confirm AI on tasks, notes, inbox and Today, Generate with AI, Plan my day and Writing help | Semantic retrieval, "why was this retrieved", multi-turn conversation, proposing task changes from a conversation, related-item suggestions, a floating chat button with drop-a-note-task-or-project-to-ask, and Ask AI / Update with AI on selected text (Writing help today offers only Improve, Shorten, Fix grammar and Continue) |
 | 6 | Google Calendar | **Not built** | Google sign-in exists (identity only, no calendar scopes) | Everything in §8 |
 | 7 | Files and attachments | **Not built** | Nothing: no storage service, no attachment tables, and the V1 editor has no images or files | Everything in §9 |
 | 8 | Voice capture | **Not built** | Quick capture (press C anywhere) and the Inbox for typed capture | Everything in §10 |
@@ -153,6 +153,9 @@ It should be able to:
 - create tasks only after explicit confirmation
 - suggest related notes/tasks
 - explain why a result was retrieved
+- be reachable from anywhere through a **floating chat button** at the bottom right of every screen, which opens a compact chat panel
+- answer questions about **one specific note, task or project** that the person drags onto that button (or picks by a menu or search, for keyboard and touch)
+- on text the person selects in the editor, offer **Ask AI** (a question about the selection) and **Update with AI** (rewrite the selection with the person's own instruction, shown as a before/after and applied only on confirm), next to the existing Improve writing actions
 
 AI responses should cite links/references to the underlying workspace items.
 

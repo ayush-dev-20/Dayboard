@@ -119,6 +119,8 @@ export function DescriptionEditor({
         }}
         surface="task"
         ownerId={taskId}
+        // Ask AI and Update with AI on selected text, like in notes (feature 11 §6B).
+        writingHelp={aiEnabled}
         label="Task description"
         placeholder="Add details…"
       />
