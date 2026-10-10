@@ -172,6 +172,38 @@ test.describe("the Assistant page", () => {
   });
 });
 
+test.describe("the Assistant page layout", () => {
+  for (const size of [
+    { width: 1280, height: 700 },
+    { width: 1280, height: 1100 },
+    { width: 390, height: 780 },
+  ]) {
+    test(`the page does not scroll and the composer stays in view (${size.width}x${size.height}), even with a long conversation`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(size);
+      await newUser(page);
+      await page.goto("/assistant");
+      for (let i = 0; i < 4; i++) await ask(page, `Question number ${i + 1} about my workspace`);
+
+      const box = await composer(page).boundingBox();
+      expect(box!.y + box!.height).toBeLessThanOrEqual(size.height);
+      // Neither the inset panel (desktop) nor the window (phone) has anything to scroll.
+      const overflow = await page.evaluate(() => {
+        const panel = document.getElementById("main-panel")!;
+        const el = window.innerWidth >= 1024 ? panel : document.documentElement;
+        return el.scrollHeight - el.clientHeight;
+      });
+      expect(overflow).toBeLessThanOrEqual(1);
+      // On a short screen the conversation is what scrolls.
+      if (size.height < 1000) {
+        const log = chat(page).getByRole("log", { name: "Conversation" });
+        expect(await log.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+      }
+    });
+  }
+});
+
 test.describe("suggestions: nothing is written until the person confirms", () => {
   test("turn a note into tasks: untick one, edit a title, confirm; exactly those exist, one audit row", async ({
     page,

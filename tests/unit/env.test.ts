@@ -174,3 +174,18 @@ describe("storage settings (V2 feature 09)", () => {
     expect(custom.storageForcePathStyle).toBe(true);
   });
 });
+
+describe("AI_FALLBACK_MODELS", () => {
+  it("is unset by default, so the built-in model list is used", () => {
+    expect(parseEnv(base).aiFallbackModels).toBeNull();
+    expect(parseEnv({ ...base, AI_FALLBACK_MODELS: "  " }).aiFallbackModels).toBeNull();
+  });
+
+  it("reads a comma list in order, and `none` as no fallback at all", () => {
+    expect(
+      parseEnv({ ...base, AI_FALLBACK_MODELS: "gemini-2.5-flash, gemini-2.5-flash-lite" })
+        .aiFallbackModels,
+    ).toEqual(["gemini-2.5-flash", "gemini-2.5-flash-lite"]);
+    expect(parseEnv({ ...base, AI_FALLBACK_MODELS: "none" }).aiFallbackModels).toEqual([]);
+  });
+});

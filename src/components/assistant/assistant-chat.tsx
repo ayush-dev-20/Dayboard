@@ -123,7 +123,7 @@ export function AssistantChat({ variant, className }: Props) {
         }}
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto",
-          variant === "panel" ? "px-4 py-3" : "py-2",
+          variant === "panel" ? "px-4 py-3" : "py-2 pr-4",
         )}
       >
         {empty ? (

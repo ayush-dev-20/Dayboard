@@ -26,3 +26,16 @@ Install `ai` and `@ai-sdk/anthropic` only. `AI_PROVIDER` accepts `anthropic` and
 ## Update (2026-10-03): Gemini added
 
 The owner wants to start on Google's free tier, so `@ai-sdk/google` was added and `AI_PROVIDER=gemini` is accepted (defaults `gemini-3.5-flash` and `gemini-3.5-flash-lite`). This is a second provider package, approved by the owner's request; it is still used only inside `src/lib/ai/providers/sdk.ts`. Gemini's free tier may use prompts to improve Google's products, so Settings → AI says so when it is the provider. `openai` is still not wired.
+
+## Update (2026-10-10): model fallback
+
+A model can fail for a reason that is not the request's fault: the free quota is used up (429), the service is overloaded (5xx), it times out, or the model name is no longer available (404). Free-tier limits belong to each model, so another model usually has its own allowance.
+
+**Decision.** Inside `src/lib/ai/providers/sdk.ts` (rules in `fallback.ts`), a call that fails for one of those reasons moves to the next model in a list, and the model that answered is the one recorded in `ai_usage`. Defaults for Gemini: 3.5 Flash, then 3.5 Flash-Lite, 2.5 Flash, 2.5 Flash-Lite (the fast tier: 3.5 Flash-Lite, 2.5 Flash-Lite, 2.5 Flash). Anthropic: Sonnet, then Haiku. `AI_FALLBACK_MODELS` (comma list, or `none`) replaces the list.
+
+- It does **not** move on for a bad request (400) or a refused key (401, 403): another model would fail the same way.
+- It moves on **only before anything has reached the person**. A streamed answer or assistant turn that has already shown text, or a person who has stopped the call, is never restarted on another model.
+- A model that just failed rests for a while (5 minutes after a quota error, 1 minute after an outage, 1 hour if the model is missing) and goes to the back of the list, so the next calls start with one that works. This is kept in memory per server instance.
+- A model that hangs without an error is not covered: only the existing overall timeouts apply.
+
+**Consequence.** One extra thing to watch: a quality or cost difference between models can appear without a code change, so check `ai_usage.model` if answers change character.

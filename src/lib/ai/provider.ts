@@ -21,12 +21,19 @@ export type CallOptions = {
   fixture?: unknown;
 };
 
-export type StructuredResult = { output: unknown; usage: TokenUsage };
+export type StructuredResult = {
+  output: unknown;
+  usage: TokenUsage;
+  /** The model that answered, when it was not the one asked for first (a fallback). */
+  model?: string;
+};
 
 export type TextStream = {
   chunks: AsyncIterable<string>;
   /** Resolves when the stream has ended. */
   usage: Promise<TokenUsage>;
+  /** The model that answered (a fallback may have taken over). Read after the stream ends. */
+  modelUsed?(): string | undefined;
 };
 
 // ---- The assistant's turn: a model that may call tools (feature 11 §4) -------------------------
@@ -68,6 +75,8 @@ export type AssistantTurn = {
   events: AsyncIterable<AssistantTurnEvent>;
   /** Resolves when the turn has ended. */
   usage: Promise<TokenUsage>;
+  /** The model that answered (a fallback may have taken over). Read after the turn ends. */
+  modelUsed?(): string | undefined;
 };
 
 export interface AIProvider {

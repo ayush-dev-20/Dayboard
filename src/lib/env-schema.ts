@@ -1,3 +1,4 @@
+import { parseFallbackModels } from "./ai/providers/fallback";
 import { z } from "zod";
 
 const blankToUndefined = (value: unknown) =>
@@ -26,6 +27,8 @@ const rawSchema = z.object({
   AI_PROVIDER: z.preprocess(blankToUndefined, z.enum(["anthropic", "gemini", "mock"]).optional()),
   AI_MODEL: optionalString,
   AI_MODEL_FAST: optionalString,
+  // Models to try, in order, when the chosen one cannot answer (quota, outage). `none` turns it off.
+  AI_FALLBACK_MODELS: optionalString,
   AI_API_KEY: optionalString,
   AI_BASE_URL: z.preprocess(blankToUndefined, z.url("must be a full URL").optional()),
   AI_MOCK_MODE: z.preprocess(blankToUndefined, z.enum(["error", "slow"]).optional()),
@@ -150,6 +153,8 @@ export function parseEnv(
     : (v.AI_PROVIDER ?? (v.NODE_ENV === "production" ? "anthropic" : "mock"));
   // A real provider without a key means AI is switched off for everyone; the rest of the app works.
   const aiAvailable = aiProvider === "mock" || Boolean(v.AI_API_KEY);
+  // null means "use the built-in list for this vendor"; an empty list means no fallback at all.
+  const aiFallbackModels = parseFallbackModels(v.AI_FALLBACK_MODELS);
 
   return {
     ...v,
@@ -160,6 +165,7 @@ export function parseEnv(
     emailVerificationRequired: emailProvider === "resend" || e2e,
     aiProvider,
     aiAvailable,
+    aiFallbackModels,
     storageDriver,
     storageAvailable: storageDriver !== null,
     storageForcePathStyle: v.STORAGE_FORCE_PATH_STYLE === "true",
