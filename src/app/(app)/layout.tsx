@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { ThemeSync } from "@/components/layout/theme-sync";
+import { SessionHint } from "@/components/layout/session-hint";
 import { WorkspaceProvider } from "@/components/workspace/workspace-context";
 import { listProjectRefs } from "@/db/queries/projects";
 import { getNavCounts } from "@/db/queries/nav-counts";
@@ -46,6 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         noteTree,
       }}
     >
+      <SessionHint userId={user.id} expiresAt={user.sessionExpiresAt.toISOString()} />
       <AppShell name={user.name} email={user.email} sidebarCollapsed={sidebarCollapsed}>
         <ThemeSync theme={preferences.theme} />
         {children}

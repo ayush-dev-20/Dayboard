@@ -7,6 +7,17 @@ import { TASK_PRIORITIES, TASK_STATUSES } from "@/lib/tasks/status";
 
 export const idSchema = z.uuid("That item isn't valid.");
 
+/**
+ * An id made on the device (UUID version 7, see `uuidv7`). Offline creates use one, so a replayed
+ * create can never make a second copy (V2 feature 04 §2).
+ */
+export const clientIdSchema = z
+  .string()
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    "That item isn't valid.",
+  );
+
 const titleOf = (max: number) =>
   z.string().trim().min(1, "Enter a title.").max(max, `Use ${max} characters or fewer.`);
 export const taskTitleSchema = titleOf(500);
@@ -53,6 +64,8 @@ function dateRules(value: DateFields, ctx: z.RefinementCtx) {
 // Strict: unknown keys (a client-sent userId, projectId before projects exist) are rejected.
 export const createTaskSchema = z
   .strictObject({
+    /** Optional device-made id (feature 04). The server uses it, or makes one. */
+    id: clientIdSchema.optional(),
     title: taskTitleSchema,
     emoji: emojiSchema.nullish(),
     projectId: idSchema.nullish(),
@@ -124,6 +137,12 @@ export const createTasksBatchSchema = z
 
 export const setTaskStatusSchema = z.strictObject({ id: idSchema, status: taskStatusSchema });
 export const idOnlySchema = z.strictObject({ id: idSchema });
+
+/** Completing a repeating task also creates its next occurrence; a device may name that id (feature 04). */
+export const completeTaskSchema = z.strictObject({
+  id: idSchema,
+  nextOccurrenceId: clientIdSchema.optional(),
+});
 
 export const undoCompleteSchema = z.strictObject({
   id: idSchema,

@@ -17,7 +17,11 @@ import { requireUser } from "@/lib/session";
 
 const signedIn = {
   user: { id: "u1", email: "a@b.co", name: "Ayush", image: null, emailVerified: true },
-  session: { id: "s1", createdAt: "2026-10-01T12:00:00.000Z" },
+  session: {
+    id: "s1",
+    createdAt: "2026-10-01T12:00:00.000Z",
+    expiresAt: "2026-10-08T12:00:00.000Z",
+  },
 };
 
 beforeEach(() => {
@@ -35,6 +39,7 @@ describe("requireUser", () => {
       emailVerified: true,
       sessionId: "s1",
       sessionCreatedAt: new Date("2026-10-01T12:00:00.000Z"),
+      sessionExpiresAt: new Date("2026-10-08T12:00:00.000Z"),
     });
   });
 

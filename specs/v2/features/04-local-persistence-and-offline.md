@@ -21,6 +21,8 @@ Checked against the code and `agent_docs/` before any build. Feature 04 was **no
 - Feature 03 is built first, then 04 in slices: (a) ADR 0006, local database, tasks and todos offline, replay, offline Today and Tasks; (b) notes offline, quick capture, projects and tags; (c) sign-out gating, user switch, tab replay locks, quota, Settings counts.
 - **Offline access after the session expires: lock the local data.** Once the session has expired, the offline app shows "Sign in to see your workspace" until the next online sign-in. Local data is never read without a session that has not expired. This keeps the rule of 03 (no indiscriminate caching of account data) on shared devices. Trade-off: a person whose session expires while offline cannot read their data until they reconnect and sign in.
 
+**Progress (2026-10-13, slice a, data layer):** built and tested: the local database, task create/complete/reopen/reschedule/rename with device ids, the queue, bootstrap from `GET /api/sync/snapshot`, replay through the Server Actions, and the session hint. ADR 0006 accepted. Not yet built: the `/local` shell and worker routing, todos, notes, quick capture, projects, tags, sign-out gating, user switching, tab locks, quota. Deviations recorded in `agent_docs/local-persistence-and-offline_v2.md`: acknowledged operations are deleted, no compound index on `[deletedAt+updatedAt]`, and a repeating task with subtasks is completed online only.
+
 **Still to decide in ADR 0006:** how the offline app learns the user key (a non-httpOnly, non-secret hint such as the user id written at sign-in) and how it knows the session's expiry (the cookie's `Expires`, or a timestamp stored at sign-in).
 
 ---

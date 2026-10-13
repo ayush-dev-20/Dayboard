@@ -10,6 +10,7 @@ import type { TaskStatus } from "@/lib/tasks/status";
 import {
   createTaskSchema,
   createTasksBatchSchema,
+  completeTaskSchema,
   idOnlySchema,
   reorderSchema,
   setTaskStatusSchema,
@@ -84,8 +85,8 @@ export async function completeTask(
 ): Promise<ActionResult<mutations.CompleteResult>> {
   return runAction("tasks.complete", async () => {
     const user = await requireUser();
-    const { id } = idOnlySchema.parse(input);
-    return mutations.completeTask(user.id, id);
+    const { id, nextOccurrenceId } = completeTaskSchema.parse(input);
+    return mutations.completeTask(user.id, id, new Date(), { nextOccurrenceId });
   });
 }
 

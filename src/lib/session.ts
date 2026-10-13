@@ -17,6 +17,7 @@ export type CurrentUser = {
   emailVerified: boolean;
   sessionId: string;
   sessionCreatedAt: Date;
+  sessionExpiresAt: Date;
 };
 
 /**
@@ -47,5 +48,6 @@ export async function requireUser(options: { redirect?: boolean } = {}): Promise
     emailVerified: session.user.emailVerified,
     sessionId: session.session.id,
     sessionCreatedAt: new Date(session.session.createdAt),
+    sessionExpiresAt: new Date(session.session.expiresAt),
   };
 }

@@ -13,6 +13,7 @@ Filename: `NNNN-short-title.md` (for example `0001-use-better-auth.md`). Numbers
 | [0003](0003-use-inter-everywhere.md)                 | Use Inter for all interface text                                      | Accepted |
 | [0004](0004-ai-provider-package.md)                  | Anthropic through the Vercel AI SDK, plus a mock                      | Accepted |
 | [0005](0005-modern-calm-ui-direction.md)             | Modern calm UI direction (Option B)                                   | Accepted |
+| [0006](0006-offline-routing-local-app-shell.md)      | Offline routing: one precached local app shell for offline screens    | Accepted |
 | [0008](0008-drag-and-drop-library.md)                | Drag and drop with dnd-kit (core and sortable)                        | Accepted |
 | [0010](0010-object-storage-and-file-policy.md)       | Object storage (S3-compatible, Backblaze B2) and the file type policy | Accepted |
 | [0014](0014-service-worker-built-with-esbuild.md)    | Service worker written by hand and bundled with esbuild               | Accepted |

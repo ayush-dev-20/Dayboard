@@ -3,6 +3,7 @@ import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject } from "@/db/mutations/guards";
+import { rejectReusedId } from "@/db/mutations/reused-id";
 import { projectDoc, syncNoteLinks } from "@/db/mutations/note-links";
 import { taskMetaFor } from "@/db/queries/meta";
 import { inboxItems, taskNotes, tasks, type NewTask, type Task } from "@/db/schema";
@@ -124,25 +125,28 @@ export async function createTask(
       await assertOwnedProject(tx, userId, projectId);
     }
 
-    const [created] = await tx
-      .insert(tasks)
-      .values({
-        userId,
-        projectId,
-        parentTaskId: input.parentTaskId ?? null,
-        title: input.title,
-        emoji: input.emoji ?? null,
-        status: input.status ?? "PLANNED",
-        priority: input.priority ?? defaults.priority,
-        dueDate: input.dueDate ?? null,
-        dueTime: input.dueTime ?? null,
-        startDate: input.startDate ?? null,
-        startTime: input.startTime ?? null,
-        recurrenceRule: input.recurrenceRule ?? null,
-        completedAt: input.status === "DONE" ? new Date() : null,
-        sortOrder,
-      })
-      .returning();
+    const [created] = await rejectReusedId(() =>
+      tx
+        .insert(tasks)
+        .values({
+          ...(input.id ? { id: input.id } : {}),
+          userId,
+          projectId,
+          parentTaskId: input.parentTaskId ?? null,
+          title: input.title,
+          emoji: input.emoji ?? null,
+          status: input.status ?? "PLANNED",
+          priority: input.priority ?? defaults.priority,
+          dueDate: input.dueDate ?? null,
+          dueTime: input.dueTime ?? null,
+          startDate: input.startDate ?? null,
+          startTime: input.startTime ?? null,
+          recurrenceRule: input.recurrenceRule ?? null,
+          completedAt: input.status === "DONE" ? new Date() : null,
+          sortOrder,
+        })
+        .returning(),
+    );
     if (!created) throw new AppError("INTERNAL_ERROR");
     return dto(tx, created);
   });
@@ -295,6 +299,7 @@ export async function completeTask(
   userId: string,
   id: string,
   now: Date = new Date(),
+  options: { nextOccurrenceId?: string } = {},
 ): Promise<CompleteResult> {
   return db.transaction(async (tx) => {
     const [task] = await tx.select().from(tasks).where(owned(userId, id)).for("update").limit(1);
@@ -326,31 +331,34 @@ export async function completeTask(
     if (task.recurrenceRule && task.dueDate && !task.parentTaskId) {
       const nextDue = nextOccurrence(task.recurrenceRule, task.dueDate);
       const shiftDays = daysBetween(task.dueDate, nextDue);
-      nextOccurrenceId = uuidv7();
+      const occurrenceId = options.nextOccurrenceId ?? uuidv7();
+      nextOccurrenceId = occurrenceId;
 
-      await tx.insert(tasks).values({
-        id: nextOccurrenceId,
-        userId,
-        projectId: task.projectId,
-        title: task.title,
-        emoji: task.emoji,
-        descriptionJson: task.descriptionJson,
-        descriptionText: task.descriptionText,
-        status: "PLANNED",
-        priority: task.priority,
-        dueDate: nextDue,
-        dueTime: task.dueTime,
-        startDate: task.startDate ? addDays(task.startDate, shiftDays) : null,
-        startTime: task.startTime,
-        recurrenceRule: task.recurrenceRule,
-        recurrenceParentId: task.recurrenceParentId ?? task.id,
-        sortOrder: task.sortOrder,
-        // Equal on purpose: "created == updated" is how undo knows nobody has edited it yet.
-        createdAt: now,
-        updatedAt: now,
-      });
+      await rejectReusedId(() =>
+        tx.insert(tasks).values({
+          id: occurrenceId,
+          userId,
+          projectId: task.projectId,
+          title: task.title,
+          emoji: task.emoji,
+          descriptionJson: task.descriptionJson,
+          descriptionText: task.descriptionText,
+          status: "PLANNED",
+          priority: task.priority,
+          dueDate: nextDue,
+          dueTime: task.dueTime,
+          startDate: task.startDate ? addDays(task.startDate, shiftDays) : null,
+          startTime: task.startTime,
+          recurrenceRule: task.recurrenceRule,
+          recurrenceParentId: task.recurrenceParentId ?? task.id,
+          sortOrder: task.sortOrder,
+          // Equal on purpose: "created == updated" is how undo knows nobody has edited it yet.
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
       // The copy of the description carries its note links too.
-      await syncNoteLinks(tx, userId, { type: "TASK", id: nextOccurrenceId }, task.descriptionJson);
+      await syncNoteLinks(tx, userId, { type: "TASK", id: occurrenceId }, task.descriptionJson);
 
       const subtasks = await tx
         .select()
@@ -363,7 +371,7 @@ export async function completeTask(
           .values(
             subtasks.map((s) => ({
               userId,
-              parentTaskId: nextOccurrenceId,
+              parentTaskId: occurrenceId,
               title: s.title,
               emoji: s.emoji,
               descriptionJson: s.descriptionJson,
