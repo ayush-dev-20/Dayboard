@@ -78,6 +78,13 @@
       "when": 1791559947888,
       "tag": "0010_assistant-audit-and-launcher",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791903771720,
+      "tag": "0011_sync-engine-expand",
+      "breakpoints": true
     }
   ]
 }

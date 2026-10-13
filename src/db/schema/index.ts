@@ -6,6 +6,7 @@ export * from "./inbox";
 export * from "./notes";
 export * from "./preferences";
 export * from "./projects";
+export * from "./sync";
 export * from "./tags";
 export * from "./tasks";
 export * from "./todos";

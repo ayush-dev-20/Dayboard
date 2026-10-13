@@ -81,6 +81,8 @@ export async function createTask(
       deletedAt: null,
       createdAt: stamp,
       updatedAt: stamp,
+      // 0 means "made here, not on the server yet"; any server version is newer (ADR 0007).
+      version: 0,
     });
     await appendOperation(ctx.db, {
       entityId: id,
@@ -134,6 +136,7 @@ export async function completeTask(ctx: CommandContext, id: string): Promise<voi
         updatedAt: stamp,
         archivedAt: null,
         deletedAt: null,
+        version: 0,
       });
     }
 

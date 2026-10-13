@@ -31,6 +31,8 @@ export type SnapshotTask = {
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Bumped by the server on every write. The newer version wins on a device (ADR 0007). */
+  version: number;
 };
 
 export type SnapshotPreferences = {

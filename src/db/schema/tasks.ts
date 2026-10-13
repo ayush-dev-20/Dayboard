@@ -4,6 +4,7 @@ import {
   date,
   doublePrecision,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -48,6 +49,9 @@ export const tasks = pgTable(
     recurrenceRule: text("recurrence_rule"),
     recurrenceParentId: uuid("recurrence_parent_id"),
     sortOrder: doublePrecision("sort_order").notNull(),
+    // Sync (V2 feature 05): bumped by the server on every write; the device that made the last change.
+    version: integer("version").notNull().default(1),
+    lastModifiedByDeviceId: uuid("last_modified_by_device_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

@@ -1,7 +1,7 @@
 import "server-only";
-import { and, asc, eq, gt, gte, isNull, or } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db/client";
-import { tasks } from "@/db/schema";
+import { changeLog, tasks, type Task } from "@/db/schema";
 import { getPreferences } from "@/lib/preferences";
 import {
   TOMBSTONE_DAYS,
@@ -13,6 +13,42 @@ import {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const iso = (value: Date | null) => (value ? value.toISOString() : null);
+
+/** A task row as the device stores it. Used by the snapshot, the pull and the push results. */
+export function toSnapshotTask(row: Task): SnapshotTask {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    parentTaskId: row.parentTaskId,
+    title: row.title,
+    emoji: row.emoji,
+    status: row.status,
+    priority: row.priority,
+    dueDate: row.dueDate,
+    dueTime: row.dueTime,
+    startDate: row.startDate,
+    startTime: row.startTime,
+    recurrenceRule: row.recurrenceRule,
+    recurrenceParentId: row.recurrenceParentId,
+    sortOrder: row.sortOrder,
+    completedAt: iso(row.completedAt),
+    archivedAt: iso(row.archivedAt),
+    deletedAt: iso(row.deletedAt),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    version: row.version,
+  };
+}
+
+/** One of the person's tasks, or null (another person's, or none). */
+export async function snapshotTaskById(userId: string, id: string): Promise<SnapshotTask | null> {
+  const [row] = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+    .limit(1);
+  return row ? toSnapshotTask(row) : null;
+}
 
 /**
  * One page of the person's tasks, by id, for the offline bootstrap. Owner-scoped. Subtasks are
@@ -38,28 +74,81 @@ export async function snapshotTasks(
 
   const page = rows.slice(0, options.limit);
   return {
-    rows: page.map((row) => ({
-      id: row.id,
-      projectId: row.projectId,
-      parentTaskId: row.parentTaskId,
-      title: row.title,
-      emoji: row.emoji,
-      status: row.status,
-      priority: row.priority,
-      dueDate: row.dueDate,
-      dueTime: row.dueTime,
-      startDate: row.startDate,
-      startTime: row.startTime,
-      recurrenceRule: row.recurrenceRule,
-      recurrenceParentId: row.recurrenceParentId,
-      sortOrder: row.sortOrder,
-      completedAt: iso(row.completedAt),
-      archivedAt: iso(row.archivedAt),
-      deletedAt: iso(row.deletedAt),
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    })),
+    rows: page.map(toSnapshotTask),
     nextCursor: rows.length > options.limit ? (page.at(-1)?.id ?? null) : null,
+  };
+}
+
+/**
+ * The changes after `cursor` (a change-log position), newest per entity, with each entity read fresh.
+ * An entity whose row is gone (permanently deleted) comes back as a DELETE.
+ */
+export async function pullTaskChanges(
+  userId: string,
+  options: { cursor: number; limit: number },
+): Promise<{
+  changes: {
+    entityType: "task";
+    entityId: string;
+    op: "UPSERT" | "DELETE";
+    version: number;
+    entity?: SnapshotTask;
+  }[];
+  nextCursor: number;
+  hasMore: boolean;
+}> {
+  const log = await db
+    .select({
+      seq: changeLog.seq,
+      entityId: changeLog.entityId,
+      op: changeLog.op,
+      version: changeLog.version,
+    })
+    .from(changeLog)
+    .where(and(eq(changeLog.userId, userId), gt(changeLog.seq, options.cursor)))
+    .orderBy(asc(changeLog.seq))
+    .limit(options.limit + 1);
+
+  const page = log.slice(0, options.limit);
+  // Keep the last change for each entity, in the order those last changes happened.
+  const latest = new Map<string, (typeof page)[number]>();
+  for (const row of page) {
+    latest.delete(row.entityId);
+    latest.set(row.entityId, row);
+  }
+
+  const ids = [...latest.keys()];
+  const current = ids.length
+    ? await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), inArray(tasks.id, ids)))
+    : [];
+  const byId = new Map(current.map((row) => [row.id, toSnapshotTask(row)]));
+
+  const changes = [...latest.values()].map((row) => {
+    const entity = byId.get(row.entityId);
+    if (!entity) {
+      return {
+        entityType: "task" as const,
+        entityId: row.entityId,
+        op: "DELETE" as const,
+        version: row.version,
+      };
+    }
+    return {
+      entityType: "task" as const,
+      entityId: row.entityId,
+      op: "UPSERT" as const,
+      version: entity.version,
+      entity,
+    };
+  });
+
+  return {
+    changes,
+    nextCursor: page.at(-1)?.seq ?? options.cursor,
+    hasMore: log.length > options.limit,
   };
 }
 

@@ -25,7 +25,8 @@ export async function seedTasks(db: LocalDatabase, rows: SnapshotTask[]): Promis
     for (const row of rows) {
       if (waiting.has(row.id)) continue;
       const local = await db.tasks.get(row.id);
-      if (!local || local.updatedAt < row.updatedAt) await db.tasks.put(row);
+      // The newer version wins (ADR 0007). A row without a version yet (made here) is always replaced.
+      if (!local || local.version < row.version) await db.tasks.put(row);
     }
   });
 }

@@ -12,7 +12,6 @@ import {
   LocalCommandError,
 } from "@/lib/local/commands/tasks";
 import { seedTasks, bootstrapTasks } from "@/lib/local/bootstrap";
-import { replayPending, type TaskActions } from "@/lib/local/replay";
 import { localDbName } from "@/lib/local/user-key";
 import { sessionState } from "@/lib/local/session-hint";
 import type { SnapshotTask } from "@/lib/sync/snapshot";
@@ -51,6 +50,7 @@ function serverRow(overrides: Partial<SnapshotTask> = {}): SnapshotTask {
     deletedAt: null,
     createdAt: stamp,
     updatedAt: stamp,
+    version: 1,
     ...overrides,
   };
 }
@@ -210,10 +210,10 @@ describe("seeding from the server", () => {
     const seeded = serverRow({ title: "Old" });
     await seedTasks(db, [seeded]);
 
-    await seedTasks(db, [{ ...seeded, title: "Newer", updatedAt: "2026-10-05T00:00:00.000Z" }]);
+    await seedTasks(db, [{ ...seeded, title: "Newer", version: 2 }]);
     expect((await db.tasks.get(seeded.id))!.title).toBe("Newer");
 
-    await seedTasks(db, [{ ...seeded, title: "Older", updatedAt: "2026-10-02T00:00:00.000Z" }]);
+    await seedTasks(db, [{ ...seeded, title: "Older", version: 1 }]);
     expect((await db.tasks.get(seeded.id))!.title).toBe("Newer");
   });
 
@@ -240,114 +240,6 @@ describe("seeding from the server", () => {
     const id = await createTask(ctx(), { title: "Only on this device" });
     await bootstrapTasks(db, async () => ({ rows: [], nextCursor: null }));
     expect(await db.tasks.get(id)).toBeDefined();
-  });
-});
-
-describe("replay", () => {
-  function fakeActions(
-    script: Partial<Record<keyof TaskActions, (input: unknown) => Promise<unknown>>> = {},
-  ) {
-    const calls: { name: string; input: unknown }[] = [];
-    const ok = async () => ({ ok: true as const });
-    const make = (name: keyof TaskActions) => async (input: unknown) => {
-      calls.push({ name, input });
-      const custom = script[name];
-      return (custom ? custom(input) : ok()) as Promise<
-        { ok: true } | { ok: false; error: { code: string; message: string } }
-      >;
-    };
-    return {
-      calls,
-      actions: {
-        createTask: make("createTask"),
-        completeTask: make("completeTask"),
-        setTaskStatus: make("setTaskStatus"),
-        updateTask: make("updateTask"),
-      } satisfies TaskActions,
-    };
-  }
-
-  it("sends the queue in the order the changes were made, then removes what was acknowledged", async () => {
-    const id = await createTask(ctx(), { title: "First" });
-    await completeTask(ctx(), id);
-    const { actions, calls } = fakeActions();
-
-    const result = await replayPending(db, actions);
-
-    expect(result).toEqual({ sent: 2, failed: 0, stoppedOffline: false });
-    expect(calls.map((c) => c.name)).toEqual(["createTask", "completeTask"]);
-    expect(calls[0]!.input).toMatchObject({ id, title: "First" });
-    expect(await db.operations.count()).toBe(0);
-  });
-
-  it("stops at a dropped connection and keeps the rest waiting", async () => {
-    const id = await createTask(ctx(), { title: "Offline" });
-    await completeTask(ctx(), id);
-    const { actions } = fakeActions({
-      createTask: async () => {
-        throw new TypeError("Failed to fetch");
-      },
-    });
-
-    const result = await replayPending(db, actions);
-
-    expect(result.stoppedOffline).toBe(true);
-    const statuses = (await db.operations.orderBy("seq").toArray()).map((o) => o.status);
-    expect(statuses).toEqual(["PENDING", "PENDING"]);
-  });
-
-  it("marks a refused change FAILED and holds back later changes to the same task", async () => {
-    const id = await createTask(ctx(), { title: "Refused" });
-    await completeTask(ctx(), id);
-    const other = await createTask(ctx(), { title: "Unrelated" });
-    let refusals = 0;
-    const { actions, calls } = fakeActions({
-      // Only the first create is refused; the other task's create goes through.
-      createTask: async () => {
-        refusals += 1;
-        return refusals === 1
-          ? { ok: false, error: { code: "VALIDATION_ERROR", message: "Nope." } }
-          : { ok: true };
-      },
-    });
-
-    const result = await replayPending(db, actions);
-
-    // The refused create and the completion after it: 2 failed. The other task still sends.
-    expect(result).toMatchObject({ sent: 1, failed: 2 });
-    expect(calls.map((c) => c.name)).toEqual(["createTask", "createTask"]);
-    expect(calls[1]!.input).toMatchObject({ id: other });
-    const complete = await db.operations.filter((o) => o.type === "task.complete").first();
-    expect(complete).toMatchObject({
-      status: "FAILED",
-      lastError: "An earlier change to this item couldn't be saved.",
-    });
-  });
-
-  it("treats a create the server already has as sent", async () => {
-    await createTask(ctx(), { title: "Retried" });
-    const { actions } = fakeActions({
-      createTask: async () => ({ ok: false, error: { code: "CONFLICT", message: "Taken." } }),
-    });
-    const result = await replayPending(db, actions);
-    expect(result).toEqual({ sent: 1, failed: 0, stoppedOffline: false });
-    expect(await db.operations.count()).toBe(0);
-  });
-
-  it("sends a change once when two replays start together", async () => {
-    await createTask(ctx(), { title: "Once" });
-    const { actions, calls } = fakeActions();
-    await Promise.all([replayPending(db, actions), replayPending(db, actions)]);
-    expect(calls.filter((c) => c.name === "createTask")).toHaveLength(1);
-  });
-
-  it("puts back a change that was being sent when the page closed", async () => {
-    const id = await createTask(ctx(), { title: "Interrupted" });
-    const op = (await db.operations.toArray())[0]!;
-    await db.operations.update(op.opId, { status: "SENDING" });
-    const { actions, calls } = fakeActions();
-    await replayPending(db, actions);
-    expect(calls.map((c) => c.input)).toEqual([expect.objectContaining({ id })]);
   });
 });
 

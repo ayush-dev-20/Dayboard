@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject } from "@/db/mutations/guards";
 import { rejectReusedId } from "@/db/mutations/reused-id";
+import { logTaskDeletes, logTaskUpserts } from "@/lib/sync/change-log";
 import { projectDoc, syncNoteLinks } from "@/db/mutations/note-links";
 import { taskMetaFor } from "@/db/queries/meta";
 import { inboxItems, taskNotes, tasks, type NewTask, type Task } from "@/db/schema";
@@ -148,6 +149,7 @@ export async function createTask(
         .returning(),
     );
     if (!created) throw new AppError("INTERNAL_ERROR");
+    await logTaskUpserts(tx, userId, [created.id], { bump: false });
     return dto(tx, created);
   });
 }
@@ -255,6 +257,7 @@ export async function updateTask(userId: string, input: UpdateTaskInput): Promis
 
     const [updated] = await tx.update(tasks).set(patch).where(owned(userId, input.id)).returning();
     if (!updated) throw new AppError("NOT_FOUND");
+    await logTaskUpserts(tx, userId, [updated.id], { bump: true });
     return dto(tx, updated);
   });
 }
@@ -279,6 +282,7 @@ export async function updateTaskDescription(
       .where(owned(userId, id))
       .returning({ updatedAt: tasks.updatedAt });
     if (!updated) throw new AppError("NOT_FOUND");
+    await logTaskUpserts(tx, userId, [id], { bump: true });
     await syncNoteLinks(tx, userId, { type: "TASK", id }, empty ? null : doc, projected?.titles);
     return { updatedAt: updated.updatedAt.toISOString() };
   });
@@ -333,6 +337,7 @@ export async function completeTask(
       const shiftDays = daysBetween(task.dueDate, nextDue);
       const occurrenceId = options.nextOccurrenceId ?? uuidv7();
       nextOccurrenceId = occurrenceId;
+      const createdIds: string[] = [occurrenceId];
 
       await rejectReusedId(() =>
         tx.insert(tasks).values({
@@ -388,6 +393,7 @@ export async function completeTask(
             })),
           )
           .returning({ id: tasks.id });
+        createdIds.push(...copies.map((copy) => copy.id));
         for (const [index, copy] of copies.entries()) {
           await syncNoteLinks(
             tx,
@@ -400,10 +406,12 @@ export async function completeTask(
 
       // The finished one becomes a plain completed task; the new one carries the repeat.
       patch.recurrenceRule = null;
+      await logTaskUpserts(tx, userId, createdIds, { bump: false });
     }
 
     const [updated] = await tx.update(tasks).set(patch).where(owned(userId, id)).returning();
     if (!updated) throw new AppError("NOT_FOUND");
+    await logTaskUpserts(tx, userId, [updated.id], { bump: true });
     return {
       task: await dto(tx, updated),
       previousStatus: task.status,
@@ -452,6 +460,7 @@ export async function undoCompleteTask(
           );
         if ((edited?.n ?? 0) === 0) {
           patch.recurrenceRule = next.recurrenceRule;
+          await logTaskDeletes(tx, userId, [{ id: next.id, version: next.version + 1 }]);
           await tx.delete(tasks).where(owned(userId, next.id, true));
           removed = true;
         }
@@ -460,6 +469,7 @@ export async function undoCompleteTask(
 
     const [updated] = await tx.update(tasks).set(patch).where(owned(userId, input.id)).returning();
     if (!updated) throw new AppError("NOT_FOUND");
+    await logTaskUpserts(tx, userId, [updated.id], { bump: true });
     return { task: await dto(tx, updated), removedOccurrence: removed };
   });
 }
@@ -480,6 +490,7 @@ export async function setTaskStatus(
       .where(owned(userId, id))
       .returning();
     if (!updated) throw new AppError("NOT_FOUND");
+    await logTaskUpserts(tx, userId, [updated.id], { bump: true });
     return dto(tx, updated);
   });
 }
@@ -528,6 +539,7 @@ export async function reorderTask(
 
     if (!needsRenumber) {
       await tx.update(tasks).set({ sortOrder: order }).where(owned(userId, input.id));
+      await logTaskUpserts(tx, userId, [input.id], { bump: true });
       return { sortOrder: order };
     }
 
@@ -544,6 +556,7 @@ export async function reorderTask(
     for (const [taskId, sortOrder] of fresh) {
       await tx.update(tasks).set({ sortOrder }).where(owned(userId, taskId));
     }
+    await logTaskUpserts(tx, userId, [...fresh.keys()], { bump: true });
     return { sortOrder: fresh.get(input.id) as number };
   });
 }
@@ -557,6 +570,7 @@ export async function archiveTask(userId: string, id: string, archived: boolean)
       .where(owned(userId, id))
       .returning();
     if (!updated) throw new AppError("NOT_FOUND");
+    await logTaskUpserts(tx, userId, [updated.id], { bump: true });
     return dto(tx, updated);
   });
 }
@@ -567,10 +581,12 @@ export async function deleteTask(userId: string, id: string): Promise<{ deletedA
     await loadOwned(tx, userId, id);
     const now = new Date();
     await tx.update(tasks).set({ deletedAt: now }).where(owned(userId, id));
-    await tx
+    const subtasks = await tx
       .update(tasks)
       .set({ deletedAt: now })
-      .where(and(eq(tasks.parentTaskId, id), eq(tasks.userId, userId), isNull(tasks.deletedAt)));
+      .where(and(eq(tasks.parentTaskId, id), eq(tasks.userId, userId), isNull(tasks.deletedAt)))
+      .returning({ id: tasks.id });
+    await logTaskUpserts(tx, userId, [id, ...subtasks.map((s) => s.id)], { bump: true });
     return { deletedAt: now.toISOString() };
   });
 }
@@ -596,7 +612,7 @@ export async function restoreTask(userId: string, id: string): Promise<TaskDTO> 
       .update(tasks)
       .set({ deletedAt: null })
       .where(owned(userId, id, true));
-    await tx
+    const subtasks = await tx
       .update(tasks)
       .set({ deletedAt: null })
       .where(
@@ -605,7 +621,9 @@ export async function restoreTask(userId: string, id: string): Promise<TaskDTO> 
           eq(tasks.userId, userId),
           eq(tasks.deletedAt, task.deletedAt),
         ),
-      );
+      )
+      .returning({ id: tasks.id });
+    await logTaskUpserts(tx, userId, [id, ...subtasks.map((s) => s.id)], { bump: true });
 
     const [restored] = await tx.select().from(tasks).where(owned(userId, id)).limit(1);
     if (!restored) throw new AppError("NOT_FOUND");
@@ -618,6 +636,15 @@ export async function permanentlyDeleteTask(userId: string, id: string): Promise
   await db.transaction(async (tx) => {
     const task = await loadOwned(tx, userId, id, true);
     if (!task.deletedAt) throw new AppError("CONFLICT", "Move it to Trash first.");
+    // Subtasks go with it (cascade), so each one is logged as deleted too.
+    const subtasks = await tx
+      .select({ id: tasks.id, version: tasks.version })
+      .from(tasks)
+      .where(and(eq(tasks.parentTaskId, id), eq(tasks.userId, userId)));
+    await logTaskDeletes(tx, userId, [
+      { id, version: task.version + 1 },
+      ...subtasks.map((s) => ({ id: s.id, version: s.version + 1 })),
+    ]);
     await tx.delete(tasks).where(owned(userId, id, true)); // subtasks cascade
   });
 }

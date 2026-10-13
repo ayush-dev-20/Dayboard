@@ -1,5 +1,22 @@
 # Feature 05 — Sync Engine
 
+## 0. Reality check and progress (2026-10-13)
+
+Checked before building. The spec assumed things that did not exist yet:
+
+| Spec assumes | What the code had | Action |
+|---|---|---|
+| Feature 04 slices (b) and (c): notes, todos, quick capture, sign-out | Only tasks offline (slice a) | Protocol built for tasks; other entities follow as they are added |
+| `version` on syncable tables | Only `notes` had it | Added to tasks by migration 0011 (expand-only) |
+| `change_log` written by every mutation | Nothing written | Written by the 12 task mutations; the rest are listed as gaps and tested |
+| ADR 0007 before the protocol | Missing | Written and accepted |
+| Feature 08 (worker) for pruning and the rate limit | Not built | Pruning and request rate limit deferred |
+| Conflict UI and records | Note conflict banner exists in V1 (stale base version) | Conflict records deferred with notes |
+
+**Progress:** built and tested for tasks: ADR 0007, the change log and versions, push and pull, the device engine and its scheduler, and the coverage test. Not built: the other entities, note content and conflict records, the status indicator, Settings → Sync, and the app-level triggers. See `agent_docs/sync-engine_v2.md`.
+
+---
+
 ## 1. Scope
 
 - A real **sync protocol**: push the operation queue, pull other devices' changes, reconcile
