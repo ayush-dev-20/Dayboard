@@ -30,3 +30,4 @@ public/emojibase
 .claude/
 .next-*
 .storage-dev
+public/sw.js

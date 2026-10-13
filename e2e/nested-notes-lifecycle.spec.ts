@@ -135,7 +135,11 @@ test.describe("Trash and archive follow the hierarchy", () => {
     const f = await family(user.id);
     await page.goto(`/notes/${f.parent}`);
     await moreActions(page).click();
-    await page.getByRole("menuitem", { name: "Move to Trash" }).click();
+    // Wait for the move to finish: navigating first could abandon the request.
+    await Promise.all([
+      page.waitForResponse((r) => r.request().method() === "POST"),
+      page.getByRole("menuitem", { name: "Move to Trash" }).click(),
+    ]);
     await page.goto("/trash?type=note");
     await page
       .locator("li", { hasText: "Parent" })

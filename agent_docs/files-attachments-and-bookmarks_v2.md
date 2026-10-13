@@ -1,7 +1,7 @@
 # Feature: Files, attachments and bookmarks
 
 **Phase:** V2 (feature 09)
-**Status:** In progress. Everything works on the server-backed app against the `memory` driver. `pnpm storage:smoke` passed against the real B2 bucket on 2026-10-09 (region `eu-central-003`, path style off, download header overrides honoured); the app itself has not been exercised against B2 in a browser, and nothing works offline (features 03 to 05 were skipped on purpose).
+**Status:** In progress. Everything works on the server-backed app against the `memory` driver. `pnpm storage:smoke` passed against the real B2 bucket on 2026-10-09 (region `eu-central-003`, path style off, download header overrides honoured); the app itself has not been exercised against B2 in a browser, and nothing works offline (the service worker from feature 03 is built; features 04 and 05 are not).
 **Date:** 2026-10-08
 
 ## What was built
@@ -20,7 +20,7 @@ Notes and tasks need files, and the app runs on Vercel + Neon where a function c
 
 ## What was deferred
 
-- **Offline uploads and "Not available offline"** (§6, §9; E2E case 4 and the offline half of case 6): need features 03 to 05 (Dexie, the sync engine). The upload manager is a plain store with `startUpload/retryUpload/cancelUpload`, so a queue can sit behind it later.
+- **Offline uploads and "Not available offline"** (§6, §9; E2E case 4 and the offline half of case 6): need features 04 and 05 (Dexie, the sync engine). The upload manager is a plain store with `startUpload/retryUpload/cancelUpload`, so a queue can sit behind it later.
 - **Background jobs (feature 08 does not exist):** `cleanupPending` (unfinished uploads after 24 h), `purgeExpired` (rows still `DELETED`/`REJECTED` because storage refused, and files whose owner is gone for good) and `pruneLinkPreviews` are plain functions in `src/db/mutations/`. `cleanupPending` and `purgeExpired` run for the signed-in person when they start an upload intent, and `purgeExpired` also after a `GET /api/files` list (via `after()`). **Correction (2026-10-09): the first build never called `purgeExpired` at all and kept deleted files for 30 days, which is why deleted files stayed in Backblaze.** Register all three as job handlers when feature 08 lands; then the opportunistic calls can go. Until then, files of a note deleted for good are only removed when that person next uploads or opens a note with a file list.
 - **Real B2:** the bucket exists and CORS is applied (done by the owner with `b2 bucket update --cors-rules`; the S3 operation names are `s3_put`, `s3_get`, `s3_head`). Still to confirm by hand: the lifecycle rule "keep only the last version" (a console-made bucket has none, so deleted files keep counting), the $0 caps, the one-bucket key, and the `STORAGE_*` values and production origin on Vercel. The smoke test passed on 2026-10-09; re-run it after any change of key, bucket, SDK version or CORS rule.
 - **Copy out of the app:** a picture or file block copies as nothing into other apps (it holds only an id); a bookmark copies as a link; inside Dayboard the internal flavour keeps the blocks (the spec's "image data when the browser allows it" is not built).

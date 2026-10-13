@@ -10,7 +10,7 @@
   "scripts": {
     "predev": "node scripts/copy-emoji-data.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/copy-emoji-data.mjs",
+    "prebuild": "node scripts/copy-emoji-data.mjs && node scripts/build-sw.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -30,7 +30,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
     "prepare": "husky || true",
-    "build:migrate": "esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/migrate.mjs --log-level=warning \"--banner:js=import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\""
+    "build:migrate": "esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/migrate.mjs --log-level=warning \"--banner:js=import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
+    "build:sw": "node scripts/build-sw.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,json,css,md}": "prettier --write",

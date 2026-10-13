@@ -4,6 +4,8 @@ Each file in this folder is one buildable feature: a technical breakdown of what
 
 Build them in order. Each feature leaves the app runnable and depends only on features before it (plus V1).
 
+> **Moved to V3 (owner, 2026-10-13):** the former feature 17, Canvas with AI Diagrams, is now V3 feature 01 (`../../v3/features/01-canvas-with-ai-diagrams.md`) and is the first thing to build there. It is no longer part of V2.
+
 | # | Feature | Covers (product spec §) | Depends on |
 | --- | --- | --- | --- |
 | 01 | [Editor Blocks & Lists](01-editor-blocks-and-lists.md) | Slash menu, block handles, tables, toggle lists and headings, callouts, table of contents, nested list markers (§18 except images/bookmarks, §19) | V1 |

@@ -1,5 +1,30 @@
 # Feature 04 — Local Persistence & Offline Editing
 
+## 0. Reality check and decisions (2026-10-13)
+
+Checked against the code and `agent_docs/` before any build. Feature 04 was **not** buildable as written, for these reasons:
+
+| Spec assumes | What the code has | Action |
+|---|---|---|
+| Feature 03 (service worker, offline shell) exists | Built now, in `src/sw/` (see `agent_docs/pwa-shell-and-install_v2.md`) | Done first |
+| 03 to 05 "skipped on purpose" (older hand-offs) | The owner chose to un-skip 03 and build 04 in slices | Hand-offs updated |
+| ADR 0006 (offline routing) before the routing model | Not written | Write it before slice 1 |
+| Create actions accept an optional client `id` (§8) | `createTask`, `createTodo`, `createNote`, `createProject`, `createTag`, `captureInboxItem` generate ids on the server | Slice 1 |
+| Server operation names (`task.complete`, `note.saveContent`, …) | Actions are `completeTask`, `setTodoComplete`, `saveNoteContent`, `updateNoteMeta`, … | Map in the command layer |
+| Reuse `src/lib/tasks/*`, `recurrence.ts`, `ordering.ts` | Present and pure (`nextOccurrence`, `statusPatch`, `orderBetween`) | Reuse as is |
+| Reuse `useAutosave` and `useNoteSync` | `src/hooks/use-autosave.ts` and `src/components/notes/use-note-sync.ts` exist; local drafts in `src/lib/notes/draft.ts` (localStorage) | Replace with `useLocalNote`; migrate drafts |
+| Shared components between server and local screens | Pages fetch inside Server Components | A refactor, kept to one screen at a time |
+| TanStack Query listed in packages | No section of this spec uses it | Do not install unless a section needs it (CLAUDE.md §2) |
+| Offline auth: the local app knows which user is signed in | The session cookie is httpOnly, so the client cannot check it offline | Decided below |
+
+**Decisions (owner, 2026-10-13):**
+- Feature 03 is built first, then 04 in slices: (a) ADR 0006, local database, tasks and todos offline, replay, offline Today and Tasks; (b) notes offline, quick capture, projects and tags; (c) sign-out gating, user switch, tab replay locks, quota, Settings counts.
+- **Offline access after the session expires: lock the local data.** Once the session has expired, the offline app shows "Sign in to see your workspace" until the next online sign-in. Local data is never read without a session that has not expired. This keeps the rule of 03 (no indiscriminate caching of account data) on shared devices. Trade-off: a person whose session expires while offline cannot read their data until they reconnect and sign in.
+
+**Still to decide in ADR 0006:** how the offline app learns the user key (a non-httpOnly, non-secret hint such as the user id written at sign-in) and how it knows the session's expiry (the cookie's `Expires`, or a timestamp stored at sign-in).
+
+---
+
 ## 1. Scope
 
 - A **local database** (IndexedDB through Dexie) holding the person's tasks, todos, notes, projects, tags and the links between them

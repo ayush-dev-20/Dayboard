@@ -13,6 +13,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { OfflineIndicator } from "@/components/layout/offline-indicator";
 import { AccountMenu } from "./account-menu";
 import { isNoteEditorPath, pageTitleFor } from "./nav-items";
 import { SidebarNav } from "./sidebar-nav";
@@ -65,6 +66,8 @@ export function TopBar({ name, email }: Props) {
       </button>
 
       <div className="hidden flex-1 md:block" />
+
+      <OfflineIndicator />
 
       <button
         type="button"

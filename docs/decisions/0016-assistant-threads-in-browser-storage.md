@@ -6,7 +6,7 @@
 
 ## Context
 
-V2 feature 11 §3 keeps the assistant's conversations (messages, source cards, proposals, the items a chat is pointed at) **on the device only**, so Dayboard's servers store no prompts or answers, and says they live in **Dexie** (`assistantThreads`, `assistantMessages`). Dexie arrives with the offline features (03 to 05), which were skipped on purpose and are not built. `CLAUDE.md` says not to install it early.
+V2 feature 11 §3 keeps the assistant's conversations (messages, source cards, proposals, the items a chat is pointed at) **on the device only**, so Dayboard's servers store no prompts or answers, and says they live in **Dexie** (`assistantThreads`, `assistantMessages`). Dexie arrives with the offline data features (04 and 05), which are not built yet (03, the service worker, is). `CLAUDE.md` says not to install it early.
 
 ## Decision
 

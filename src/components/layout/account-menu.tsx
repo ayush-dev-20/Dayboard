@@ -13,6 +13,7 @@ import {
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { wipeAllAssistantData } from "@/components/assistant/threads";
 import { authClient } from "@/lib/auth-client";
+import { clearWorkerCaches } from "@/lib/pwa/clear-caches";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -30,6 +31,8 @@ export function AccountMenu({ name, email, variant = "bar", compact }: Props) {
   async function signOut() {
     // Assistant conversations live only in this browser; signing out removes them (feature 11 §3).
     wipeAllAssistantData();
+    // The offline caches hold this person's pages and data (feature 03 §6).
+    await clearWorkerCaches();
     await authClient.signOut();
     router.replace("/sign-in");
     router.refresh();

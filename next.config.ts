@@ -11,6 +11,18 @@ const nextConfig: NextConfig = {
   images: { formats: ["image/avif", "image/webp"] },
   // Stops `next dev` from appending its own rules block to our hand-written CLAUDE.md.
   agentRules: false,
+  async headers() {
+    return [
+      // The offline worker (feature 03): always revalidated, and allowed to control the whole app.
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

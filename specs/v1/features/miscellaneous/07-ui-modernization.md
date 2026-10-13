@@ -482,7 +482,7 @@ Widths: **360, 390, 768, 1024, 1440** (and spot-check 1920). Screens: Today, Tas
 
 ## 14. Out of scope (V1)
 
-- **Pricing, plans, billing and paywalls.** Product spec §3 lists billing as a non-goal. The landing page has no pricing section; add one in V3 with the billing work.
+- **Pricing, plans, billing and paywalls.** Product spec §3 lists billing as a non-goal. The landing page has no pricing section.
 - New AI behavior, a chat interface, "rewrite selection" in the editor, AI weekly review.
 - Teams, sharing, notifications, a calendar view.
 - A service worker or offline mode (V2). The manifest is metadata only.

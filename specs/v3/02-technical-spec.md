@@ -1,4 +1,4 @@
-# V3 Technical Specification — Collaboration, Automation, Integrations, and Scale
+# V3 Technical Specification — Canvas, Collaboration, Automation, and Scale
 
 ## 1. Architecture direction
 
@@ -12,7 +12,20 @@ Introduce dedicated infrastructure only for workloads that benefit from isolatio
 
 Do not split ordinary CRUD into microservices.
 
-## 2. Collaboration architecture
+## 2. Canvas architecture
+
+The first V3 feature ([features/01-canvas-with-ai-diagrams.md](features/01-canvas-with-ai-diagrams.md) holds the full breakdown). A canvas is ordinary CRUD in the monolith: no new service, no real-time transport.
+
+- **Storage:** a `canvases` table (owner, optional project, title, emoji, `scene_json`, a server-built `scene_text` for search, `element_count`, a `version` for optimistic saves, archive and Trash timestamps). The scene is JSON; the drawing library is loaded in the browser only (Excalidraw, MIT, after ADR 0017).
+- **Scene whitelist:** `sanitizeScene` accepts only known element types (`rectangle`, `ellipse`, `diamond`, `arrow`, `line`, `text`, `frame`, `freedraw`), limits size (1,000,000 bytes, 2,000 elements), clamps numbers, allows only safe links and a single `customData` key, and rebuilds the search text on the server. Images, embeds and unknown types are refused.
+- **AI contract:** the model returns a small `DiagramSpec` (sections, nodes, edges), checked with Zod and repaired by `normalizeDiagram`; it never returns coordinates, colours, links or drawing data. Routes `POST /api/ai/generate-diagram` and `POST /api/ai/refine-diagram` go through the existing AI gate (limits, usage row, mock provider, versioned prompts, model fallback) and write nothing; a person's confirm click calls `createCanvas` or `saveCanvas`.
+- **Task links:** a `task_canvases` join table (task, canvas, owner; cascade on both sides), the same shape as `task_notes`, with link, unlink and search actions on both sides.
+- **Layout and scene building** are pure functions that run in the browser (`layoutDiagram`, scene builder), so the server never imports the drawing library and the layout is deterministic and testable.
+- **Audit:** applying an AI diagram writes one `audit_log` row (source `CANVAS`, counts only, once per proposal).
+- **Permissions:** a canvas is private to its owner and every query and action filters by the session user. Sharing a canvas is not part of this feature; it needs an ADR once the permission model (§4) exists.
+- **Not real-time:** collaboration state stays limited to note documents (§3).
+
+## 3. Collaboration architecture
 
 Recommended approach for rich-text collaboration:
 
@@ -39,7 +52,7 @@ PostgreSQL + Object Storage
 
 Only selected note documents use real-time collaboration.
 
-## 3. Permissions model
+## 4. Permissions model
 
 Introduce resource-level ACLs:
 
@@ -50,7 +63,7 @@ Introduce resource-level ACLs:
 
 Authorization must be enforced server-side and independently of UI visibility.
 
-## 4. Event model
+## 5. Event model
 
 Introduce domain events:
 
@@ -61,7 +74,6 @@ note.updated
 project.shared
 comment.created
 calendar.connected
-integration.event.received
 automation.triggered
 ```
 
@@ -69,7 +81,7 @@ Events should be append-only records with payload schemas.
 
 Use an outbox pattern so database mutations and emitted events remain consistent.
 
-## 5. Automation architecture
+## 6. Automation architecture
 
 Create a workflow model with:
 
@@ -92,35 +104,7 @@ Every workflow run should have:
 - retry count
 - approval requests
 
-## 6. Integration platform
-
-Create an integration framework:
-
-```ts
-interface IntegrationProvider {
-  providerKey: string
-  authorize(): Promise<void>
-  handleWebhook(request: Request): Promise<void>
-  listCapabilities(): Capability[]
-}
-```
-
-Store credentials in an encrypted secret store or encrypted database fields with a dedicated key-management strategy.
-
-## 7. Webhooks
-
-Expose signed webhooks for user-defined integrations.
-
-Requirements:
-
-- per-endpoint secret
-- HMAC signature
-- timestamp/replay protection
-- retry policy
-- delivery logs
-- endpoint disablement after repeated failure
-
-## 8. AI agent runtime
+## 7. AI agent runtime
 
 AI agents should use tools through a permissioned tool registry.
 
@@ -132,8 +116,6 @@ Example tools:
 - updateTask
 - createNote
 - createComment
-- sendWebhook
-- createExternalDraft
 
 Every tool definition should include:
 
@@ -142,23 +124,21 @@ Every tool definition should include:
 - approval requirement
 - audit event
 
-## 9. Approval system
+## 8. Approval system
 
 Define action risk classes:
 
 - read-only
 - local reversible
 - local destructive
-- external reversible
-- external side effect
 
 Default policy:
 
 - read-only: automatic
 - local reversible: user setting may permit automatic
-- destructive/external side effect: explicit approval
+- destructive: explicit approval
 
-## 10. Memory architecture
+## 9. Memory architecture
 
 Separate user-controlled memory from raw workspace retrieval.
 
@@ -178,21 +158,21 @@ Every memory item should record:
 
 Allow deletion and source inspection.
 
-## 11. Search architecture
+## 10. Search architecture
 
 V3 search becomes a unified retrieval layer over:
 
 - tasks
 - notes
+- canvases (box and label text)
 - comments
 - calendar events
 - files/metadata
 - memories
-- integration objects where indexed
 
 Keep ACL filtering before result presentation.
 
-## 12. Real-time infrastructure
+## 11. Real-time infrastructure
 
 For moderate scale, a single collaboration service is enough.
 
@@ -205,7 +185,7 @@ If scaling horizontally:
 
 Do not put the entire app behind a WebSocket architecture.
 
-## 13. Database evolution
+## 12. Database evolution
 
 Use PostgreSQL for transactional state.
 
@@ -213,7 +193,7 @@ Add indexes based on real query plans.
 
 Introduce partitioning only for high-volume append-only tables such as event/audit records when metrics demonstrate the need.
 
-## 14. Observability
+## 13. Observability
 
 Use structured logs and traces.
 
@@ -222,23 +202,21 @@ Track:
 - collaboration connection counts
 - document update latency
 - workflow run success/failure
-- webhook delivery latency
 - AI tool calls
 - approval wait times
-- integration token refresh failures
 - database latency
 - queue latency
 
 Create product-level health dashboards separately from infrastructure metrics.
 
-## 15. Security
+## 14. Security
 
 V3 expands the attack surface significantly.
 
 Required:
 
 - RBAC/ACL tests
-- webhook signature verification
+- canvas scene sanitisation tests (forbidden element types, unsafe links, size limits)
 - CSRF protection
 - OAuth state/PKCE where applicable
 - secret rotation
@@ -248,12 +226,11 @@ Required:
 - secure session/device management
 - tenant isolation tests
 
-## 16. Data export and deletion
+## 15. Data export and deletion
 
 Users must be able to:
 
-- export their workspace
-- disconnect integrations
+- export their workspace (canvases included, as Excalidraw files)
 - delete selected data
 - request full account deletion
 

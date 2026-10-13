@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { wipeAllAssistantData } from "@/components/assistant/threads";
 import { authClient } from "@/lib/auth-client";
+import { clearWorkerCaches } from "@/lib/pwa/clear-caches";
 import { cn } from "@/lib/utils";
 
 export function SignOutButton({ className }: { className?: string }) {
@@ -12,6 +13,8 @@ export function SignOutButton({ className }: { className?: string }) {
   async function signOut() {
     // Assistant conversations live only in this browser; signing out removes them (feature 11 §3).
     wipeAllAssistantData();
+    // The offline caches hold this person's pages and data (feature 03 §6).
+    await clearWorkerCaches();
     await authClient.signOut();
     router.replace("/sign-in");
     router.refresh();

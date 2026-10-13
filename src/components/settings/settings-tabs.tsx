@@ -10,6 +10,7 @@ const TABS = [
   { href: "/settings/productivity", label: "Productivity" },
   { href: "/settings/ai", label: "AI" },
   { href: "/settings/tags", label: "Tags" },
+  { href: "/settings/app", label: "App" },
 ] as const;
 
 export function SettingsTabs() {

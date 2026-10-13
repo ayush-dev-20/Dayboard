@@ -1,7 +1,7 @@
 # Feature: Nested notes, links and the sidebar tree
 
 **Phase:** V2 (feature 07)
-**Status:** In progress. Everything works on the server-backed app. Offline use and sync wait for features 04 and 05, which were skipped on purpose.
+**Status:** In progress. Everything works on the server-backed app. Offline use and sync wait for features 04 and 05, which are not built yet (the service worker from 03 is built).
 **Date:** 2026-10-08
 
 ## What was built

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "next-themes";
 import { MotionProvider } from "@/components/motion/motion-provider";
+import { RegisterServiceWorker } from "@/components/pwa/register-service-worker";
+import { UpdateBanner } from "@/components/pwa/update-banner";
 import { Toaster } from "@/components/ui/sonner";
 import "@/styles/globals.css";
 
@@ -38,6 +40,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <MotionProvider>
             {children}
             <Toaster />
+            <RegisterServiceWorker />
+            <UpdateBanner />
           </MotionProvider>
         </ThemeProvider>
       </body>

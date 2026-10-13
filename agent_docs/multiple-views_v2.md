@@ -1,7 +1,7 @@
 # Feature: Multiple views
 
 **Phase:** V2 (feature 06)
-**Status:** In progress. Views work end to end on the server-backed app. The offline and sync parts wait for features 04 and 05, which were skipped on purpose.
+**Status:** In progress. Views work end to end on the server-backed app. The offline and sync parts wait for features 04 and 05, which are not built yet (the service worker from 03 is built).
 **Date:** 2026-10-07
 
 ## What was built

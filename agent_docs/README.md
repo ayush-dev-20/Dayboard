@@ -23,6 +23,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | Nested notes, links and sidebar tree | V2 | In progress | [nested-notes-links-sidebar-tree_v2.md](nested-notes-links-sidebar-tree_v2.md) |
 | Files, attachments and bookmarks | V2 | In progress | [files-attachments-and-bookmarks_v2.md](files-attachments-and-bookmarks_v2.md) |
 | AI workspace assistant | V2 | In progress | [ai-workspace-assistant_v2.md](ai-workspace-assistant_v2.md) |
+| PWA shell and install | V2 | In progress | [pwa-shell-and-install_v2.md](pwa-shell-and-install_v2.md) |
 
 Status is `Done` or `In progress`.
 

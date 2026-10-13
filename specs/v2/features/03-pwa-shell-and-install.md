@@ -134,14 +134,28 @@ On sign-out (and on account deletion):
 
 ## 8. Definition of done
 
-- [ ] The app installs from Chromium and from iOS Safari, launches standalone, and has proper PNG and maskable icons and shortcuts
-- [ ] After one successful load, the installed app launches **offline** and shows the offline shell; it never shows another person's data
-- [ ] A new deployment shows the update banner; reloading is never forced; a failed update never leaves a broken app
-- [ ] The service worker never caches `/api/*`, server actions, `no-store` or authenticated HTML
-- [ ] Sign-out clears the caches
-- [ ] Unsupported browsers see no change and no errors
+- [ ] The app installs from Chromium and from iOS Safari, launches standalone, and has proper PNG and maskable icons and shortcuts _(manifest, icons and shortcuts are tested; a real install is not yet done)_
+- [ ] After one successful load, the installed app launches **offline** and shows the offline shell; it never shows another person's data _(tested in the browser with the network off; not yet as an installed app)_
+- [ ] A new deployment shows the update banner; reloading is never forced; a failed update never leaves a broken app _(the banner's rules are unit-tested; a real redeploy is not yet checked)_
+- [x] The service worker never caches `/api/*`, server actions, `no-store` or authenticated HTML
+- [x] Sign-out clears the caches
+- [ ] Unsupported browsers see no change and no errors _(not yet tested in another browser)_
 - [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build`, `check:bundle` pass; the production build includes `sw.js`
-- [ ] `agent_docs/pwa-shell-and-install_v2.md` written and indexed (including the Serwist-or-custom decision and the manual checklist results)
+- [x] `agent_docs/pwa-shell-and-install_v2.md` written and indexed (including the Serwist-or-custom decision; the manual checklist is not yet done)
+
+---
+
+## As built (2026-10-13)
+
+Built as specified, with these differences. Read `agent_docs/pwa-shell-and-install_v2.md` for the hand-off.
+
+- **Worker:** hand-written and bundled with esbuild (`scripts/build-sw.mjs`), not Serwist. See ADR 0014.
+- **No navigation timeout.** The spec's 3 s timeout is removed. The offline shell appears only when a request fails, so a slow server never looks like an outage (ADR 0014).
+- **Not built:** skew protection (§5, `x-app-version` and `426 APP_OUTDATED`), manifest screenshots (optional in §4), the iOS diagram in Settings → App (text steps only).
+- **Install tip:** shown on the third app open, exactly once (not on every visit after the third), and kept away for 90 days after "Not now".
+- **Tests:** unit (`sw-policy`, `pwa-install`, `pwa-update`, `manifest`); E2E `offline-shell.spec.ts` (5 cases) and `pwa-install.spec.ts` (4 cases) against the production build. Simulated install offers are used because Chromium offers none in automation.
+- **Found while building:** the chat button sat over the last item on phone pages, so the phone bottom padding now clears it (`app-shell.tsx`).
+- **Manual checks still to do** (spec §7): Chrome desktop install, Android install and shortcuts, iOS Add to Home Screen, an installed app opening offline, and a real redeploy showing the update banner.
 
 ---
 

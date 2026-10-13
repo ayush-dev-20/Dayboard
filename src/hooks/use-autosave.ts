@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { setUnsaved } from "@/lib/pwa/unsaved";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "failed";
 
@@ -29,6 +30,8 @@ export function useAutosave<T>({ save, delayMs = 800 }: Options<T>) {
   const inFlight = useRef(false);
   const saveRef = useRef(save);
   const dirty = useRef(false);
+  // Tells the app that this editor holds changes not yet saved (the update banner waits on it).
+  const id = useId();
   // `run` calls itself again (more typing arrived, or a retry). Going through a ref keeps the
   // callback from referring to itself while it is being declared.
   const runRef = useRef<() => Promise<void>>(async () => {});
@@ -56,6 +59,7 @@ export function useAutosave<T>({ save, delayMs = 800 }: Options<T>) {
       if (latest.current === sending) {
         latest.current = null;
         dirty.current = false;
+        setUnsaved(id, false);
         setStatus("saved");
         if (savedTimer.current) clearTimeout(savedTimer.current);
         savedTimer.current = setTimeout(() => setStatus("idle"), SAVED_VISIBLE_MS);
@@ -70,7 +74,7 @@ export function useAutosave<T>({ save, delayMs = 800 }: Options<T>) {
     attempts.current += 1;
     if (retryTimer.current) clearTimeout(retryTimer.current);
     retryTimer.current = setTimeout(() => void runRef.current(), delay);
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     runRef.current = run;
@@ -80,12 +84,13 @@ export function useAutosave<T>({ save, delayMs = 800 }: Options<T>) {
     (value: T) => {
       latest.current = { value };
       dirty.current = true;
+      setUnsaved(id, true);
       if (savedTimer.current) clearTimeout(savedTimer.current);
       if (retryTimer.current) clearTimeout(retryTimer.current);
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => void run(), delayMs);
     },
-    [delayMs, run],
+    [delayMs, run, id],
   );
 
   /** Save right now (for example when the editor loses focus or the sheet closes). */
@@ -106,13 +111,14 @@ export function useAutosave<T>({ save, delayMs = 800 }: Options<T>) {
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("beforeunload", onBeforeUnload);
+      setUnsaved(id, false);
       // Unmounting with unsaved text: send it now rather than dropping it.
       if (timer.current) clearTimeout(timer.current);
       if (retryTimer.current) clearTimeout(retryTimer.current);
       if (savedTimer.current) clearTimeout(savedTimer.current);
       if (latest.current && !inFlight.current) void saveRef.current(latest.current.value);
     };
-  }, [run]);
+  }, [run, id]);
 
   return { status, schedule, flush };
 }

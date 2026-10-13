@@ -12,6 +12,7 @@ import { DayProgress } from "@/components/today/day-progress";
 import { FocusHero } from "@/components/today/focus-hero";
 import { PlanDay } from "@/components/today/plan-day";
 import { TodayCapture } from "@/components/today/today-capture";
+import { InstallTip } from "@/components/pwa/install-tip";
 import {
   SectionHeading,
   TodayCompleted,
@@ -83,6 +84,8 @@ export default async function TodayPage() {
               <PlanDay focusId={data.focus?.id ?? null} />
               <DayProgress done={data.progress.done} total={data.progress.total} />
             </PageHeader>
+
+            <InstallTip />
 
             <TodayCapture />
 

@@ -52,7 +52,7 @@ This stack is fixed. Use it for every iteration, in every phase. Do not swap a p
 **Added only in later phases** (do not install early; leave a clean extension point):
 
 - **V2:** Serwist (PWA), Dexie (IndexedDB), TanStack Query, pgvector, a background worker, S3-compatible object storage, Web Push. Provider code (calendar, storage, AI) lives behind adapters.
-- **V3:** the module layout in [specs/v3/Agent.md](specs/v3/Agent.md) section 3, with collaboration, automation and integrations kept out of ordinary business modules.
+- **V3:** the module layout in [specs/v3/Agent.md](specs/v3/Agent.md) section 3, with collaboration and automation kept out of ordinary business modules. The canvas (V3 feature 01, built first) adds `@excalidraw/excalidraw`, loaded in the browser on demand, after ADR 0017.
 
 **Commands every project must support** (names may be refined, the capability may not): `pnpm dev`, `lint`, `typecheck`, `test`, `test:e2e`, `build`, `db:generate`, `db:migrate`, `db:studio`, `db:seed`.
 
@@ -64,7 +64,7 @@ The specs in `specs/` are authoritative. Each version has the same five files pl
 | --- | --- | --- |
 | V1 | [specs/v1/](specs/v1/) | Tasks, todos, notes, projects, inbox, search, AI, Docker deploy. Build one feature at a time using [specs/v1/features/](specs/v1/features/README.md). |
 | V2 | [specs/v2/](specs/v2/) | Offline/PWA, sync, semantic search, calendar, files, voice, weekly review. Evolves V1; do not rewrite it. |
-| V3 | [specs/v3/](specs/v3/) | Collaboration, permissions, automation, integrations, agent tools. Extends the V1/V2 monolith. |
+| V3 | [specs/v3/](specs/v3/) | Canvas with AI diagrams (built first, [specs/v3/features/](specs/v3/features/README.md)), collaboration, permissions, automation, agent tools. Extends the V1/V2 monolith. |
 
 ### Every iteration reads the V1 specs
 

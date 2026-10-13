@@ -1,4 +1,5 @@
 import { AssistantBoot } from "@/components/assistant/assistant-boot";
+import { RecordVisit } from "@/components/pwa/record-visit";
 import { AssistantLauncher } from "@/components/assistant/assistant-launcher";
 import { CommandProvider } from "@/components/command/command-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -40,7 +41,9 @@ export function AppShell({ name, email, sidebarCollapsed, children }: Props) {
               <TopBar name={name} email={email} />
               <main
                 id="main"
-                className="px-4 pt-6 pb-[calc(56px+env(safe-area-inset-bottom)+24px)] md:px-8 md:pt-8 md:pb-12"
+                // On a phone the bottom padding also clears the chat button, which sits above the nav (about 160px
+                // from the bottom), so the last thing on a page can always be tapped.
+                className="px-4 pt-6 pb-[calc(56px+env(safe-area-inset-bottom)+7.5rem)] md:px-8 md:pt-8 md:pb-12"
               >
                 {children}
               </main>
@@ -51,6 +54,7 @@ export function AppShell({ name, email, sidebarCollapsed, children }: Props) {
 
         <AppShortcuts />
         <AssistantBoot />
+        <RecordVisit />
         <MobileNav />
       </SidebarProvider>
     </CommandProvider>

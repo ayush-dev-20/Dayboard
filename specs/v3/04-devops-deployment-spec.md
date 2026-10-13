@@ -68,6 +68,8 @@ Tag using:
 
 Do not rely on mutable `latest` for rollback.
 
+The canvas (feature 01) serves the whiteboard's fonts and assets from our own origin. A build step (`scripts/copy-excalidraw-assets.mjs`) copies them into `public/excalidraw/` before `dev` and `build`, so the image must contain them and nothing is fetched from a third-party CDN at runtime.
+
 ## 6. Deployment strategy
 
 Use staged deployment:
@@ -122,7 +124,6 @@ Minimum production alerts:
 - queue backlog
 - worker dead/heartbeat missing
 - collaboration service unavailable
-- webhook delivery failure spike
 - storage failure spike
 
 ## 11. Rollback
@@ -150,7 +151,7 @@ Track:
 - queue usage
 - observability spend
 
-AI cost should have per-user and per-feature accounting.
+AI cost should have per-user and per-feature accounting. Diagram generation (up to 6,000 output tokens and a 60 second timeout per call) is its own feature in that accounting.
 
 ## 13. Production readiness review
 
@@ -159,6 +160,6 @@ Before enabling collaboration and automations broadly:
 - load test critical endpoints
 - test websocket reconnects
 - test queue retries
-- test webhook replay protection
 - test permission boundaries
+- check that a canvas page loads its drawing library on demand and from our own origin
 - perform database restore drill

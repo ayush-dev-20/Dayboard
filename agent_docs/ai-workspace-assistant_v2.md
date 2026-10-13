@@ -20,7 +20,7 @@ Feature 10 is not built, and the owner asked for 11 first with 10 added later. S
 ## What was deferred
 
 - **Feature 10 (semantic search)** and what depends on it: hybrid retrieval, "closeness of meaning" in Why, meaning-based Related. Related and `findRelated` use shared words (at least two, or one when the item has one distinctive word). **Seam:** `src/db/queries/assistant.ts` `searchItems` and `findRelatedItems` are the only retrieval code; replace their bodies with `searchWorkspace` (feature 10) and keep their return shape. Reasons are made by `src/lib/ai/assistant/reasons.ts`.
-- **Dexie** (features 03 to 05): threads use `localStorage` behind `threads.ts` (ADR 0016). Confirming a suggestion needs a connection; it does not go through the offline operation queue (feature 04/05).
+- **Dexie** (features 04 and 05): threads use `localStorage` behind `threads.ts` (ADR 0016). Confirming a suggestion needs a connection; it does not go through the offline operation queue (features 04 and 05).
 - `summarizeItems` and `extractActionItems` from the spec are **not separate tools**: the model summarises and extracts from what `getItem` returns, in the same single action. `findRelated` is keyword-based.
 - No mockup exists in `designs/v2/` for the button, panel or drop zone (built from DESIGN.md).
 - Not done: a real-provider run (the SDK path is tested with the SDK's mock model, `tests/unit/assistant-sdk.test.ts`); a settings page for the audit log (it is write-only); editing a proposal row's project or priority (they are shown; only title and date are editable).

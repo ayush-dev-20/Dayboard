@@ -171,7 +171,7 @@ Do these in order. Each step leaves the app working.
 3. **Onboarding:** a short checklist ("Create your first task", "Capture a thought", "Try ⌘K") and optional sample data, so a new user never sees a blank app.
 4. **Empty states** with a small illustration or animation, plus a clear action.
 5. Smaller things people notice: favicon and share image, a nicer 404 page, styled emails, "Help" and "Keyboard shortcuts" in one place.
-6. **Pricing and billing** are explicitly _out of scope for V1_ (they belong to V3). Build the pages so a pricing section can be added later.
+6. **Pricing and billing** are explicitly _out of scope for V1_. Build the pages so a pricing section can be added later.
 
 ### Step 7: Check quality before calling it done
 
