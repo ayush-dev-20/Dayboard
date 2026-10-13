@@ -1,7 +1,7 @@
 import "server-only";
-import { and, asc, eq, gt, gte, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { changeLog, tasks, type Task } from "@/db/schema";
+import { changeLog, syncRetention, tasks, type Task } from "@/db/schema";
 import { getPreferences } from "@/lib/preferences";
 import {
   TOMBSTONE_DAYS,
@@ -86,17 +86,35 @@ export async function snapshotTasks(
 export async function pullTaskChanges(
   userId: string,
   options: { cursor: number; limit: number },
-): Promise<{
-  changes: {
-    entityType: "task";
-    entityId: string;
-    op: "UPSERT" | "DELETE";
-    version: number;
-    entity?: SnapshotTask;
-  }[];
-  nextCursor: number;
-  hasMore: boolean;
-}> {
+): Promise<
+  | {
+      snapshotRequired: false;
+      changes: {
+        entityType: "task";
+        entityId: string;
+        op: "UPSERT" | "DELETE";
+        version: number;
+        entity?: SnapshotTask;
+      }[];
+      nextCursor: number;
+      hasMore: boolean;
+    }
+  | { snapshotRequired: true; headCursor: number }
+> {
+  // Rows at or below the retention floor were pruned (feature 08). A cursor below it may have missed
+  // changes, so the device takes a fresh snapshot instead.
+  const [retention] = await db
+    .select({ value: syncRetention.value })
+    .from(syncRetention)
+    .where(eq(syncRetention.key, "change_log"));
+  const floor = retention?.value ?? 0;
+  if (options.cursor < floor) {
+    const [head] = await db
+      .select({ head: sql<number>`coalesce(max(${changeLog.seq}), 0)::bigint` })
+      .from(changeLog);
+    return { snapshotRequired: true, headCursor: Number(head?.head ?? 0) };
+  }
+
   const log = await db
     .select({
       seq: changeLog.seq,
@@ -146,6 +164,7 @@ export async function pullTaskChanges(
   });
 
   return {
+    snapshotRequired: false,
     changes,
     nextCursor: page.at(-1)?.seq ?? options.cursor,
     hasMore: log.length > options.limit,

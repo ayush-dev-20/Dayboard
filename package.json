@@ -31,7 +31,9 @@
     "db:seed": "tsx scripts/seed.ts",
     "prepare": "husky || true",
     "build:migrate": "esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/migrate.mjs --log-level=warning \"--banner:js=import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
-    "build:sw": "node scripts/build-sw.mjs"
+    "build:sw": "node scripts/build-sw.mjs",
+    "worker": "tsx --conditions=react-server src/worker/index.ts",
+    "build:worker": "esbuild src/worker/index.ts --bundle --platform=node --format=esm --target=node24 --conditions=react-server --outfile=dist/worker.mjs --log-level=warning \"--banner:js=import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\""
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,json,css,md}": "prettier --write",

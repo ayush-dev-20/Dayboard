@@ -17,7 +17,7 @@ Build them in order. Each feature leaves the app runnable and depends only on fe
 | 07 | [Nested Notes, Links & Sidebar Tree](07-nested-notes-links-sidebar-tree.md) | Sub-notes, note links, backlinks, breadcrumbs, sidebar tree, Tree view, cascades (§16, goal 13) | 01, 04, 05, 06 |
 | 08 | [Background Worker & Jobs](08-background-worker-and-jobs.md) | Jobs table, worker process, retries, scheduler, heartbeat (§12 groundwork, tech §12) | V1 |
 | 09 | [Files, Attachments & Bookmarks](09-files-attachments-and-bookmarks.md) | Storage service, uploads, secure downloads, image and file blocks, bookmark cards (§9, §18.6) | 01, 05, 08 |
-| 10 | [Semantic Search](10-semantic-search.md) | pgvector, embeddings, hybrid ranking, exact phrase, recent items, filters (§6, goal 4) | 05, 08 |
+| 10 | [Semantic Search](10-semantic-search.md) | pgvector (installed first), embeddings, a scheduled indexing scan, hybrid ranking, exact phrase, recent items (opened, kept in the browser), filters (§6, goal 4) | 08 |
 | 11 | [AI Workspace Assistant](11-ai-workspace-assistant.md) | Multi-turn, grounded, tool-based, proposals with confirmation, related items; a floating chat launcher where a note, task or project can be dropped to ask about it; Ask AI and Update with AI on selected text (§7, goal 5) | 10 |
 | 12 | [Google Calendar](12-google-calendar.md) | OAuth, read events, Today and planning integration, time blocks, create events (§8, goal 6) | 05, 08 |
 | 13 | [Voice Capture](13-voice-capture.md) | Record, transcribe, parse, review, create (§10, goal 8) | 05, 08, 09 |

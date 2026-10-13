@@ -87,7 +87,12 @@ function deps(transport: Partial<Transport>): EngineDeps {
     appVersion: "test",
     transport: {
       push: vi.fn(async () => ({ results: [] })),
-      pull: vi.fn(async () => ({ changes: [], nextCursor: 0, hasMore: false })),
+      pull: vi.fn(async () => ({
+        snapshotRequired: false as const,
+        changes: [],
+        nextCursor: 0,
+        hasMore: false,
+      })),
       ...transport,
     } as Transport,
   };
@@ -347,7 +352,16 @@ describe("pulling changes", () => {
         entity: serverRow({ version: 4, title: "New from elsewhere" }),
       },
     ];
-    await pullChanges(deps({ pull: async () => ({ changes, nextCursor: 10, hasMore: false }) }));
+    await pullChanges(
+      deps({
+        pull: async () => ({
+          snapshotRequired: false as const,
+          changes,
+          nextCursor: 10,
+          hasMore: false,
+        }),
+      }),
+    );
 
     expect((await db.tasks.get(kept.id))!.title).toBe("Local v2");
     expect(await db.tasks.get(gone.id)).toBeUndefined();
@@ -359,6 +373,7 @@ describe("pulling changes", () => {
     await pullChanges(
       deps({
         pull: async () => ({
+          snapshotRequired: false as const,
           changes: [
             {
               entityType: "task",
@@ -383,7 +398,12 @@ describe("pulling changes", () => {
       deps({
         pull: async (cursor) => {
           asked.push(cursor);
-          return { changes: [], nextCursor: cursor, hasMore: false };
+          return {
+            snapshotRequired: false as const,
+            changes: [],
+            nextCursor: cursor,
+            hasMore: false,
+          };
         },
       }),
     );
@@ -391,10 +411,25 @@ describe("pulling changes", () => {
     expect((await db.meta.get("lastPullCursor"))!.value).toBe(1000);
   });
 
+  it("takes a snapshot when the server says the log was pruned past this device, and continues from its head", async () => {
+    await db.meta.put({ key: "lastPullCursor", value: 40 });
+    const snapshot = vi.fn(async () => undefined);
+    const pull = vi.fn(async () => ({ snapshotRequired: true as const, headCursor: 900 }));
+    await pullChanges({ ...deps({ pull }), snapshot });
+    expect(snapshot).toHaveBeenCalledTimes(1);
+    expect((await db.meta.get("lastPullCursor"))!.value).toBe(900);
+  });
+
+  it("cannot continue without a way to take a snapshot, and says so", async () => {
+    await expect(
+      pullChanges(deps({ pull: async () => ({ snapshotRequired: true as const, headCursor: 5 }) })),
+    ).rejects.toThrow(/snapshot/);
+  });
+
   it("pages until nothing is left, and stores where it got to", async () => {
     const pages = [
-      { changes: [], nextCursor: 300, hasMore: true },
-      { changes: [], nextCursor: 450, hasMore: false },
+      { snapshotRequired: false as const, changes: [], nextCursor: 300, hasMore: true },
+      { snapshotRequired: false as const, changes: [], nextCursor: 450, hasMore: false },
     ];
     const asked: number[] = [];
     await pullChanges(
@@ -413,7 +448,12 @@ describe("pulling changes", () => {
 describe("one run: push, then pull, one at a time", () => {
   it("skips the pull when the push got no answer, and keeps the pulled cursor where it was", async () => {
     await createTask(ctx(), { title: "Offline" });
-    const pull = vi.fn(async () => ({ changes: [], nextCursor: 0, hasMore: false }));
+    const pull = vi.fn(async () => ({
+      snapshotRequired: false as const,
+      changes: [],
+      nextCursor: 0,
+      hasMore: false,
+    }));
     const report = await runSync(
       deps({
         push: async () => {

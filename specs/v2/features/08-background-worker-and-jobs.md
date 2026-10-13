@@ -1,5 +1,21 @@
 # Feature 08 — Background Worker & Jobs
 
+## 0. Reality check and progress (2026-10-13)
+
+| Spec assumes | What the project has | Action |
+|---|---|---|
+| A long-running worker process in production | Production is Vercel + Neon; no process can run a loop there | Tick mode (§4) is the production path; the worker serves local, Docker and any long-lived host |
+| ADR 0009 before building | Missing | Written and accepted |
+| `prune_sync` and `prune_conflicts` (05) | Sync tables exist; conflict records do not | `prune_sync` built (with a retention floor and a snapshot signal); `prune_conflicts` deferred |
+| Settings → Sync → Background work | Settings → Sync does not exist yet | Deferred with the feature 05 UI |
+| Compose `worker` service, `pnpm worker` | `docker-compose.yml` has db, migrate and web (full profile) | Added; not run, Docker is not installed here |
+| GitHub Actions schedule for tick mode | No workflows exist | `.github/workflows/jobs-tick.yml` added; inert until two secrets are set |
+| Worker bundled like `build:migrate` | `migrate.ts` has no `@/` imports; the worker needs the app's database code | Bundled with esbuild's `react-server` condition (as `storage:smoke` does) so `server-only` resolves |
+
+**Progress:** the queue, runner, retries, dead letters, crash recovery, scheduler, worker process, tick mode, health and the three maintenance jobs are built and tested. See `agent_docs/background-worker-and-jobs_v2.md` for what is deferred and the deviations.
+
+---
+
 ## 1. Scope
 
 - A database-backed **job queue** and a separate **worker process** in the same image
@@ -145,16 +161,16 @@ Local `docker-compose.yml` gains a `worker` service (profile `full`, same image,
 
 ## 9. Definition of done
 
-- [ ] A worker process runs independently of the web app, from the same image, and processes jobs from the database
-- [ ] Jobs are claimed exactly once, retried with backoff, dead-lettered with a redacted error, and recovered after a crash
-- [ ] Scheduled jobs fire once per window even with several workers
-- [ ] Health shows worker status without affecting the web health result
-- [ ] Tick mode runs the same handlers on a serverless host through an authenticated endpoint
-- [ ] Logs carry job and correlation ids and never content
+- [x] A worker process runs independently of the web app, from the same image, and processes jobs from the database _(run as a separate process against the test database; the Docker image itself is not built here)_
+- [x] Jobs are claimed exactly once, retried with backoff, dead-lettered with a redacted error, and recovered after a crash
+- [x] Scheduled jobs fire once per window even with several workers
+- [x] Health shows worker status without affecting the web health result
+- [x] Tick mode runs the same handlers on a serverless host through an authenticated endpoint _(tested through the route; not yet scheduled on the real host)_
+- [ ] Logs carry job and correlation ids and never content _(ids are logged; no handler logs content yet, but nothing enforces it)_
 - [ ] Settings → Sync → Background work shows the person's own backlog only
-- [ ] ADR 0009 written before building
+- [x] ADR 0009 written before building
 - [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build`, `build:worker` pass
-- [ ] `agent_docs/background-worker-and-jobs_v2.md` written and indexed
+- [x] `agent_docs/background-worker-and-jobs_v2.md` written and indexed
 
 ---
 

@@ -4,10 +4,12 @@ import Dexie from "dexie";
 import { beforeAll, describe, expect, it } from "vitest";
 import { deleteTask, permanentlyDeleteTask, updateTask } from "@/actions/tasks";
 import { db } from "@/db/client";
-import { tasks } from "@/db/schema";
+import { syncRetention, tasks } from "@/db/schema";
 import { POST as pushRoute } from "@/app/api/sync/push/route";
 import { GET as pullRoute } from "@/app/api/sync/pull/route";
+import { GET as snapshotRoute } from "@/app/api/sync/snapshot/route";
 import { completeTask, createTask, renameTask } from "@/lib/local/commands/tasks";
+import { bootstrapTasks } from "@/lib/local/bootstrap";
 import { LocalDatabase } from "@/lib/local/db";
 import { runSync, type Transport } from "@/lib/local/engine";
 import { uuidv7 } from "@/lib/ids";
@@ -177,6 +179,59 @@ describe("two devices of one person", () => {
     expect(nextRows[0]?.dueDate).toBe("2026-10-14");
     await phone.close();
     await laptop.close();
+  });
+});
+
+describe("a device that fell behind a pruned log", () => {
+  it("takes a fresh snapshot and carries on, with nothing lost", async () => {
+    const phone = await device("pruned-phone");
+    const laptop = await device("pruned-laptop");
+    const id = await createTask(commandCtx(phone), { title: "Made before the prune" });
+    await phone.sync(alice);
+    await laptop.sync(alice);
+    await renameTask(commandCtx(phone), id, "Renamed while the laptop was away");
+    await phone.sync(alice);
+
+    // The log is pruned past the laptop's cursor: the floor now sits above it.
+    const laptopCursor = Number((await laptop.db.meta.get("lastPullCursor"))?.value ?? 0);
+    const [before] = await db
+      .select()
+      .from(syncRetention)
+      .where(eq(syncRetention.key, "change_log"));
+    await db
+      .update(syncRetention)
+      .set({ value: laptopCursor + 1 })
+      .where(eq(syncRetention.key, "change_log"));
+
+    try {
+      const report = await runSync({
+        db: laptop.db,
+        deviceId: laptop.deviceId,
+        appVersion: "test",
+        transport: serverAs(alice),
+        snapshot: () =>
+          bootstrapTasks(laptop.db, async (cursor) => {
+            actAs(alice);
+            const url = new URL("http://localhost/api/sync/snapshot");
+            url.searchParams.set("entity", "tasks");
+            if (cursor) url.searchParams.set("cursor", cursor);
+            return (await (await snapshotRoute(new Request(url))).json()) as never;
+          }),
+      });
+      expect(report.stoppedOffline).toBe(false);
+      expect((await laptop.db.tasks.get(id))?.title).toBe("Renamed while the laptop was away");
+      // It continues from the log's head, so the next pull asks for nothing it already has.
+      expect(Number((await laptop.db.meta.get("lastPullCursor"))?.value)).toBeGreaterThanOrEqual(
+        laptopCursor,
+      );
+    } finally {
+      await db
+        .update(syncRetention)
+        .set({ value: before?.value ?? 0 })
+        .where(eq(syncRetention.key, "change_log"));
+      await phone.close();
+      await laptop.close();
+    }
   });
 });
 

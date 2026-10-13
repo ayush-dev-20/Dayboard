@@ -17,13 +17,13 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
-# Build the app and the migration runner. `next build` needs no runtime secrets: lib/env.ts uses
+# Build the app, the migration runner and the background worker. `next build` needs no runtime secrets: lib/env.ts uses
 # placeholders during the build phase.
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm build && pnpm build:migrate
+RUN pnpm build && pnpm build:migrate && pnpm build:worker
 
 FROM node:${NODE_VERSION}-alpine AS runtime
 ARG APP_VERSION=dev
@@ -41,6 +41,8 @@ COPY --from=builder --chown=app:app /app/.next/static ./.next/static
 COPY --from=builder --chown=app:app /app/public ./public
 # One-shot migration step: `docker compose run --rm migrate` runs this same image with a different command.
 COPY --from=builder --chown=app:app /app/dist/migrate.mjs ./migrate.mjs
+# The background worker (V2 feature 08): the same image, run as `node worker.mjs` (see docker-compose.yml).
+COPY --from=builder --chown=app:app /app/dist/worker.mjs ./worker.mjs
 COPY --from=builder --chown=app:app /app/drizzle/migrations ./drizzle/migrations
 
 USER app

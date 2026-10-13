@@ -23,7 +23,7 @@ Replaying through Server Actions (feature 04) cannot tell a retry from a new cha
 - **Note content and conflicts** (`NOTE_CONTENT`, edit against delete, the compare and keep-both flows): not built. Notes go offline in feature 04 slices (b) and (c).
 - **Conflict records and the conflict UI, Settings → Sync, the status indicator** (the spec's §6): not built.
 - **Triggers in the app:** the scheduler and engine exist, but no component starts them yet. Bootstrap is not run by the app either.
-- **Pruning** change-log and operation rows (feature 08 worker). Until then a device whose cursor is older than the kept rows is not told to take a fresh snapshot.
+- **Pruning** is done by feature 08 (`maintenance.prune_sync`, `background-worker-and-jobs_v2.md`). A device whose cursor is below the retention floor is told to take a snapshot (`snapshotRequired`), and the engine does so.
 - **Request rate limit** (120 pushes a minute): needs a per-request log.
 - **Subtask ordering** has a test (the child waits for its parent), but no offline command creates subtasks yet.
 

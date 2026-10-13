@@ -3,6 +3,7 @@ export * from "./attachments";
 export * from "./auth";
 export * from "./enums";
 export * from "./inbox";
+export * from "./jobs";
 export * from "./notes";
 export * from "./preferences";
 export * from "./projects";

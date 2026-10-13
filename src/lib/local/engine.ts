@@ -41,7 +41,10 @@ export type PullChange = {
   entity?: SnapshotTask;
 };
 
-export type PullPage = { changes: PullChange[]; nextCursor: number; hasMore: boolean };
+export type PullPage =
+  | { snapshotRequired: false; changes: PullChange[]; nextCursor: number; hasMore: boolean }
+  /** The log was pruned past this device's cursor: take a snapshot, then continue from `headCursor`. */
+  | { snapshotRequired: true; headCursor: number };
 
 /** The network. `push` and `pull` throw when the request does not get an answer. */
 export type Transport = {
@@ -58,6 +61,8 @@ export type EngineDeps = {
   deviceId: string;
   appVersion: string;
   transport: Transport;
+  /** Fills the local tasks from the snapshot. Needed only when the server asks for a fresh one. */
+  snapshot?: () => Promise<unknown>;
 };
 
 export type SyncReport = {
@@ -260,6 +265,13 @@ export async function pullChanges(deps: EngineDeps): Promise<number> {
 
   for (let page = 0; page < MAX_PULL_PAGES; page++) {
     const result = await deps.transport.pull(from, PULL_PAGE);
+    if (result.snapshotRequired) {
+      // The changes this device missed were pruned. A snapshot brings every row up to date instead.
+      if (!deps.snapshot) throw new Error("A snapshot is needed, and this device cannot take one.");
+      await deps.snapshot();
+      await db.meta.put({ key: "lastPullCursor", value: result.headCursor });
+      return applied;
+    }
     applied += await applyPulled(db, result.changes);
     from = result.nextCursor;
     // The stored cursor only moves forward: a re-read behind it must not move it back.

@@ -26,6 +26,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | PWA shell and install | V2 | In progress | [pwa-shell-and-install_v2.md](pwa-shell-and-install_v2.md) |
 | Local persistence and offline editing | V2 | In progress | [local-persistence-and-offline_v2.md](local-persistence-and-offline_v2.md) |
 | Sync engine | V2 | In progress | [sync-engine_v2.md](sync-engine_v2.md) |
+| Background worker and jobs | V2 | In progress | [background-worker-and-jobs_v2.md](background-worker-and-jobs_v2.md) |
 
 Status is `Done` or `In progress`.
 

@@ -27,6 +27,8 @@ export default defineConfig({
       NEXT_PUBLIC_APP_URL: "http://localhost:3000",
       // Files (feature 09): the in-memory store, and a 1 MB allowance per person so a quota is easy
       // to reach with small files.
+      // Tick mode (feature 08): the endpoint is on, with a known secret.
+      JOBS_TICK_SECRET: "integration-tick-secret-0123456789abcdef",
       STORAGE_DRIVER: "memory",
       STORAGE_QUOTA_MB: "1",
     },

@@ -52,7 +52,13 @@ export async function openWorkspace(userId: string): Promise<Workspace> {
       return bootstrapTasks(db, fetchTaskPage);
     },
     sync(transport = httpTransport) {
-      return runSync({ db, deviceId, appVersion: APP_VERSION, transport });
+      return runSync({
+        db,
+        deviceId,
+        appVersion: APP_VERSION,
+        transport,
+        snapshot: () => bootstrapTasks(db, fetchTaskPage),
+      });
     },
   };
 }

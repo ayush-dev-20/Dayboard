@@ -1,0 +1,36 @@
+# Runs the app's due background jobs on hosts with no long-lived worker, such as Vercel (V2 feature 08,
+# docs/decisions/0009). GitHub's free schedule is the caller; Vercel's free cron runs only once a day.
+#
+# It does nothing until two repository secrets exist:
+#   APP_URL            the app's public origin, e.g. https://dayboard.example.com (no trailing slash)
+#   JOBS_TICK_SECRET   the same value as the app's JOBS_TICK_SECRET (openssl rand -base64 32)
+name: Jobs tick
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: jobs-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Run due jobs
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          JOBS_TICK_SECRET: ${{ secrets.JOBS_TICK_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$JOBS_TICK_SECRET" ]; then
+            echo "APP_URL and JOBS_TICK_SECRET are not set; skipping."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 45 \
+            -X POST -H "Authorization: Bearer $JOBS_TICK_SECRET" \
+            "$APP_URL/api/jobs/tick"

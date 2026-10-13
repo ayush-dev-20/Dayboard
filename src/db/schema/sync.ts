@@ -71,3 +71,12 @@ export const syncOperations = pgTable(
     index("sync_operations_received_idx").on(t.receivedAt),
   ],
 );
+
+/**
+ * How far the change log has been pruned (V2 feature 08). `change_log` rows at or below `value` are gone, so a
+ * device whose cursor is below it must take a fresh snapshot instead of pulling (ADR 0007).
+ */
+export const syncRetention = pgTable("sync_retention", {
+  key: text("key").primaryKey(),
+  value: bigint("value", { mode: "number" }).notNull().default(0),
+});

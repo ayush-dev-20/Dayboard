@@ -23,6 +23,25 @@ const rawSchema = z.object({
   RESEND_API_KEY: optionalString,
   EMAIL_FROM: optionalString,
   E2E: optionalString,
+  // Background jobs (V2 feature 08). Concurrency and polling apply to the worker process only.
+  WORKER_CONCURRENCY: z.preprocess(
+    blankToUndefined,
+    z.coerce.number().int().min(1).max(16).default(4),
+  ),
+  WORKER_POLL_MS: z.preprocess(
+    blankToUndefined,
+    z.coerce.number().int().min(200).max(60000).default(2000),
+  ),
+  // Comma-separated subset of the queues; empty means all of them.
+  WORKER_QUEUES: optionalString,
+  // Tick mode only (docs/decisions/0009). Unset means the tick endpoint answers 404.
+  JOBS_TICK_SECRET: z.preprocess(
+    blankToUndefined,
+    z
+      .string()
+      .min(32, "must be at least 32 characters (generate one with: openssl rand -base64 32)")
+      .optional(),
+  ),
   // AI (feature 05). `mock` needs no key and is the default outside production.
   AI_PROVIDER: z.preprocess(blankToUndefined, z.enum(["anthropic", "gemini", "mock"]).optional()),
   AI_MODEL: optionalString,
@@ -139,6 +158,16 @@ export function parseEnv(
 
   if (problems.length > 0) throw new EnvError(problems);
 
+  // Unknown queue names are refused at startup, so a typo never leaves a queue unserved.
+  const queueNames = ["default", "ai", "notifications"];
+  const workerQueues = (v.WORKER_QUEUES ?? "")
+    .split(",")
+    .map((q) => q.trim())
+    .filter(Boolean);
+  for (const name of workerQueues) {
+    if (!queueNames.includes(name)) problems.push(`WORKER_QUEUES: unknown queue "${name}"`);
+  }
+
   const emailProvider: "resend" | "console" = v.RESEND_API_KEY ? "resend" : "console";
 
   // An E2E run never reaches a real bucket. No driver means no files anywhere in the app.
@@ -158,6 +187,7 @@ export function parseEnv(
 
   return {
     ...v,
+    workerQueues: workerQueues.length > 0 ? workerQueues : queueNames,
     e2e,
     isProduction: v.NODE_ENV === "production",
     emailProvider,

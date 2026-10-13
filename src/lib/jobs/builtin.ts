@@ -1,0 +1,48 @@
+import "server-only";
+import { z } from "zod";
+import { logger } from "@/lib/logger";
+import { pruneJobs, pruneSync } from "./maintenance";
+import { findHandler, registerHandler } from "./registry";
+
+// The job types this release ships (V2 feature 08 §5). Later features register theirs in their own modules.
+// Each entry point calls `ensureBuiltinHandlers` once before it runs jobs.
+
+let registered = false;
+
+export function ensureBuiltinHandlers(): void {
+  if (registered) return;
+  registered = true;
+  if (!findHandler("system.ping")) {
+    registerHandler({
+      type: "system.ping",
+      queue: "default",
+      schema: z.object({ message: z.string().max(200).optional() }).strict(),
+      run: async (ctx, payload) => {
+        ctx.log("ping", { message: payload.message ?? null });
+      },
+    });
+  }
+  if (!findHandler("maintenance.prune_jobs")) {
+    registerHandler({
+      type: "maintenance.prune_jobs",
+      queue: "default",
+      schema: z.object({}).strict(),
+      run: async (ctx) => {
+        const removed = await pruneJobs();
+        ctx.log("pruned finished jobs", removed);
+      },
+    });
+  }
+  if (!findHandler("maintenance.prune_sync")) {
+    registerHandler({
+      type: "maintenance.prune_sync",
+      queue: "default",
+      schema: z.object({}).strict(),
+      run: async (ctx) => {
+        const removed = await pruneSync();
+        ctx.log("pruned sync log", removed);
+        logger.info("sync log pruned", removed);
+      },
+    });
+  }
+}

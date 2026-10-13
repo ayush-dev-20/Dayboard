@@ -8,6 +8,7 @@
 #   BETTER_AUTH_SECRET=$(openssl rand -base64 32) docker compose --profile full up --build
 #
 # Production uses docker-compose.prod.yml (added with feature 06).
+# The full profile also runs the background worker (feature 08).
 
 name: dayboard
 
@@ -64,6 +65,31 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  # Background jobs (V2 feature 08): the same image, a different command. Runs beside `web` in the full profile.
+  # Without Docker: `pnpm worker` runs it natively next to `pnpm dev`.
+  worker:
+    profiles: ["full"]
+    build:
+      context: .
+      args:
+        APP_VERSION: local
+    command: ["node", "worker.mjs"]
+    environment:
+      DATABASE_URL: postgres://dayboard:dayboard@db:5432/dayboard
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET (openssl rand -base64 32)}
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      E2E: "true"
+    # The image's health check calls the web server, which this container does not run.
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # Longer than the worker's 30 second drain, so a stop finishes running jobs instead of killing them.
+    stop_grace_period: 40s
 
 volumes:
   dayboard-db-dev:

@@ -61,7 +61,7 @@ Database name `dayboard-local-<userKey>` where `userKey` is a SHA-256 prefix of 
 | `inbox` | `id` | captured text, status, `createdAt` | `status` |
 | `operations` | `opId` | per product spec §5: `entityType`, `entityId`, `type`, `clientTimestamp`, `deviceId`, `payload`, `baseVersion`, `status` (`PENDING \| SENDING \| ACKED \| FAILED \| CONFLICT`), `attempts`, `lastError`, `ack` | `status`, `[entityType+entityId]`, `clientTimestamp` |
 | `drafts` | `noteId` | replaces the V1 `localStorage` drafts (migrated on first run) | — |
-| `uiState` | `key` | toggle open/closed (feature 01), sidebar open branches (07), last view per collection (06), recent items (10) | — |
+| `uiState` | `key` | toggle open/closed (feature 01), sidebar open branches (07), last view per collection (06) | — |
 
 Rows keep the server's field names so the same Zod schemas and DTO mappers apply. Soft-deleted rows stay (tombstones) so deletions sync.
 
