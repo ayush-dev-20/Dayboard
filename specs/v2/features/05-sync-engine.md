@@ -46,6 +46,8 @@ Syncable tables: `tasks`, `todos`, `notes`, `projects`, `tags`, `task_tags`, `no
 | `deleted_at` | timestamptz NULL | Already present on tasks, todos, notes, projects, inbox. Add to tags and link tables so removals sync as tombstones |
 | `updated_at` | timestamptz | Server-set (already present) |
 
+**Not syncable:** tables that are built from the person's items or belong to the server only: the search index of feature 10 (`search_documents`, `embedding_chunks`, `embedding_usage_days`), the job tables of feature 08, `ai_usage` and `audit_log`. They are never in a snapshot, a push or a pull, and feature 10 does not read the change log (it scans the item tables on a schedule).
+
 The migration backfills `version = 1` and is expand-only (nullable or defaulted), so the previous release keeps working (rollback rule).
 
 ### `sync_operations` (idempotency and audit of applied work)

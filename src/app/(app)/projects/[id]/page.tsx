@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { AttachmentsSection } from "@/components/files/attachments-section";
+import { RecordOpened } from "@/components/search/record-opened";
 import { ProjectHeader } from "@/components/projects/project-header";
 import { ProjectQuickAdd } from "@/components/projects/project-quick-add";
 import { TaskContextProvider } from "@/components/tasks/task-context";
@@ -83,6 +84,7 @@ export default async function ProjectPage({
 
   return (
     <TaskContextProvider value={context}>
+      <RecordOpened type="project" id={id} />
       <PageContainer width="wide">
         {/* Keyed by project and values, so edits made elsewhere show up after a refresh. */}
         <ProjectHeader

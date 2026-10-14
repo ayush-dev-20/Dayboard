@@ -14,7 +14,8 @@ name: dayboard
 
 services:
   db:
-    image: postgres:17
+    # pgvector is needed for searching by meaning (V2 feature 10, docs/decisions/0011).
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: dayboard
       POSTGRES_PASSWORD: dayboard

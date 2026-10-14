@@ -58,6 +58,8 @@ export default defineConfig({
       AI_MOCK_MODE: "",
       AI_LIMIT_PER_MINUTE: "10",
       AI_LIMIT_PER_DAY: "100",
+      // Tick mode (feature 08) is how a test runs the background jobs, such as the search index (feature 10).
+      JOBS_TICK_SECRET: "e2e-tick-secret-0123456789abcdefghijkl",
       DATABASE_URL: E2E_DATABASE_URL,
       BETTER_AUTH_SECRET: "e2e-only-secret-not-used-anywhere-else-0123456789",
       BETTER_AUTH_URL: baseURL,

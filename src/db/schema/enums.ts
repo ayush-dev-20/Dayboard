@@ -52,6 +52,9 @@ export const aiFeatureEnum = pgEnum("ai_feature", [
   // V2 feature 11: the assistant (one action per turn) and a question about selected text.
   "ASSISTANT",
   "ASK_SELECTION",
+  // V2 feature 10: building the search index, and embedding a search query.
+  "EMBED",
+  "EMBED_QUERY",
 ]);
 
 export const aiUsageStatusEnum = pgEnum("ai_usage_status", [

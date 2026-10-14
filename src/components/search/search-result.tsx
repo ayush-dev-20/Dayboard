@@ -35,7 +35,24 @@ function Marked({ text, q }: { text: string; q: string }) {
 }
 
 /** One result: icon, title (match highlighted), a line of context, and its type on the right. */
-export function SearchResult({ hit, q, today }: { hit: SearchHit; q: string; today: string }) {
+const KIND_LABEL = {
+  keyword: "Matches your words",
+  semantic: "Related meaning",
+  both: "Matches words and meaning",
+} as const;
+
+export function SearchResult({
+  hit,
+  q,
+  today,
+  showWhy = false,
+}: {
+  hit: SearchHit;
+  q: string;
+  today: string;
+  /** Meaning-based search is on: show how each result matched, and why (feature 10 §7). */
+  showWhy?: boolean;
+}) {
   const Icon = ICONS[hit.type];
   const context: string[] = [];
   if (hit.type === "task" && hit.status && hit.status !== "PLANNED" && hit.status !== "INBOX") {
@@ -80,9 +97,11 @@ export function SearchResult({ hit, q, today }: { hit: SearchHit; q: string; tod
           {hit.snippet ? (
             <span className="mt-0.5 block type-body-sm text-muted-foreground">
               {hit.snippet.before}
-              <mark className="rounded-sm bg-primary-subtle px-0.5 text-foreground">
-                {hit.snippet.match}
-              </mark>
+              {hit.snippet.match ? (
+                <mark className="rounded-sm bg-primary-subtle px-0.5 text-foreground">
+                  {hit.snippet.match}
+                </mark>
+              ) : null}
               {hit.snippet.after}
             </span>
           ) : context.length > 0 || hit.project ? (
@@ -94,10 +113,33 @@ export function SearchResult({ hit, q, today }: { hit: SearchHit; q: string; tod
             </span>
           ) : null}
         </span>
-        <span className="mt-1 shrink-0 type-label-caps text-muted-foreground">
-          {TYPE_LABELS[hit.type]}
+        <span className="mt-1 flex shrink-0 flex-col items-end gap-0.5 text-muted-foreground">
+          <span className="type-label-caps">{TYPE_LABELS[hit.type]}</span>
+          {showWhy && hit.type !== "tag" ? (
+            <span className="type-body-sm" data-testid="match-kind">
+              {hit.reasons?.phrase ? "Phrase" : KIND_LABEL[hit.matchKind]}
+            </span>
+          ) : null}
         </span>
       </Link>
+      {showWhy && hit.type !== "tag" && hit.reasons ? (
+        <details className="pr-2 pb-3 pl-10 type-body-sm text-muted-foreground">
+          <summary className="cursor-pointer">Why this result</summary>
+          <div className="mt-1 space-y-1">
+            {hit.matchKind !== "semantic" && hit.reasons.terms.length > 0 ? (
+              <p>Contains {hit.reasons.terms.map((t) => `“${t}”`).join(", ")}.</p>
+            ) : null}
+            {hit.matchKind !== "keyword" ? (
+              <p>
+                Found because its meaning is close to your search.
+                {hit.reasons.passage ? (
+                  <> Closest passage, as last indexed: “{hit.reasons.passage}”</>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
     </li>
   );
 }

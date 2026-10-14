@@ -2,6 +2,21 @@
 
 > **Revised 2026-10-13 (owner).** Four changes to the first draft, made after checking the spec against the built project: (1) indexing is driven by a **scheduled scan**, not by hooks in the task, todo, note and project mutations; (2) **recent items** are kept in the browser's `localStorage`, not Dexie; (3) the index **does not keep a second copy of each note's full text**, only hashes and the chunk text; (4) **pgvector must be installed first**. Offline search is deferred. This feature no longer depends on features 04 or 05.
 
+## Progress and deviations (2026-10-14)
+
+**Built and tested with the mock embedder:** the migration (`0014`, applied to the test database only), the scan and index jobs, hybrid search on the Search page, recent items, the Settings switch and status, and the unit, integration and end-to-end tests. See `agent_docs/semantic-search_v2.md`. **Not done:** a real embedding call (so ADR 0011 is Proposed), migration `0014` on the dev database and Neon, and the items below.
+
+What differs from the text below, and why:
+
+- **Two usage types.** Indexing is `EMBED` and a search query is `EMBED_QUERY`. Only `EMBED_QUERY` counts toward the person's daily AI actions; indexing has its own cap (`EMBED_DAILY_LIMIT`), kept in a small `embedding_usage_days` table. Without this a backfill would use up the day's AI actions.
+- **Semantic search runs on the Search page, not as you type in ⌘K** (one AI action per search, and ⌘K searches on every keystroke). ⌘K still lists recently opened items.
+- **Results are merged per result type**, because the Search page is grouped by type.
+- **The meaning side has a two-second budget** and is skipped when it runs over; the "append when ready" behaviour of §8 is not built.
+- **Not built yet:** the once-per-hour limit on Re-index, recent items on the `/search` page when the box is empty, and switching the assistant's `searchItems` and `findRelatedItems` to hybrid search.
+- Actions are in `src/actions/semantic-search.ts`.
+
+---
+
 ## Prerequisites (check before starting)
 
 - **Feature 08 is built:** the `jobs` table, `enqueue`, the handler registry, the scheduler (`job_schedules`) and tick mode. This feature adds job types to it and does not change its code.
@@ -111,7 +126,7 @@ embed(input: string[], opts: { dimensions: 768; task: "document" | "query"; sign
 ## 4. Indexing pipeline (a scheduled scan)
 
 ```text
-job_schedules: embedding.scan (every 300 s)
+job_schedules: embedding.scan (every 5m)
   -> embedding.scan        lists people who turned semantic search on, enqueues one embedding.scan_user each
   -> embedding.scan_user   finds changed, new and gone entities for that person, enqueues embedding.index
   -> embedding.index       loads the entity fresh -> hashes -> chunks -> embeds changed chunks -> upserts
@@ -123,7 +138,7 @@ job_schedules: embedding.scan (every 300 s)
 
 | Type | Runs | Does |
 |---|---|---|
-| `embedding.scan` | every 300 s (a `job_schedules` row; the cron form follows feature 08's) | Lists people with `semantic_search_enabled`, and enqueues one `embedding.scan_user` per person (`dedupe_key` `embedding.scan_user:<user>:<window>`). Nothing is read or sent for a person who has not opted in |
+| `embedding.scan` | every 5 minutes (a `job_schedules` row, cadence `every 5m`) | Lists people with `semantic_search_enabled`, and enqueues one `embedding.scan_user` per person (`dedupe_key` `embedding.scan_user:<user>:<window>`). Nothing is read or sent for a person who has not opted in |
 | `embedding.scan_user` | per person (job `user_id` set) | Runs the three queries below, enqueues up to **200** `embedding.index` jobs and removes gone documents. The rest are picked up on the next scan, because an indexed item drops out of the "changed" list. This is the backfill: turning the switch on needs nothing more |
 | `embedding.index` | per entity (payload: `{ entityType, entityId }`; ownership comes from `jobs.user_id`) | Indexes one entity (below). `dedupe_key` `embedding.index:<type>:<id>` so two scans never queue the same item twice |
 

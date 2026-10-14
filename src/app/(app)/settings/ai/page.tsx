@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { AiSettings } from "@/components/settings/ai-settings";
+import { SemanticSearchSettings } from "@/components/settings/semantic-search-settings";
 import { SettingsSection } from "@/components/settings/settings-ui";
 import { countToday, getLimits } from "@/lib/ai/usage";
 import { env } from "@/lib/env";
 import { getPreferences } from "@/lib/preferences";
+import { indexStatus } from "@/lib/search/semantic/status";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "AI assistant" };
@@ -12,6 +14,7 @@ export default async function AiSettingsPage() {
   const user = await requireUser({ redirect: true });
   const { aiEnabled, assistantLauncher, timezone } = await getPreferences(user.id);
   const used = await countToday(user.id, timezone);
+  const semantic = await indexStatus(user.id);
 
   return (
     <SettingsSection title="AI assistant">
@@ -22,6 +25,11 @@ export default async function AiSettingsPage() {
         provider={env.aiProvider}
         used={used}
         limit={getLimits().perDay}
+      />
+      <SemanticSearchSettings
+        initial={semantic}
+        aiEnabled={aiEnabled}
+        providerName={env.aiProvider === "gemini" ? "Google (Gemini)" : "the AI provider"}
       />
     </SettingsSection>
   );

@@ -20,6 +20,9 @@ export const PROMPT_VERSIONS = {
   EDIT_SELECTION: "EDIT_SELECTION_V2",
   ASSISTANT: "ASSISTANT_V1",
   ASK_SELECTION: "ASK_SELECTION_V1",
+  // Embedding has no prompt; the label records which version of the chunking and model setup ran.
+  EMBED: "EMBED_V1",
+  EMBED_QUERY: "EMBED_QUERY_V1",
 } as const satisfies Record<AIFeature, string>;
 
 const DATA_RULE =

@@ -366,6 +366,10 @@ Agent may:
 
 High-impact actions such as deleting records or changing many items at once require explicit approval.
 
+### 11.1 External AI tools
+
+A person may let their own AI tool (for example Claude Code or the Gemini CLI) work in their Dayboard through an MCP connection they set up and can revoke. The external tool can read within the access the person grants and can **propose** changes; nothing it proposes is written until the person approves it in Dayboard, and the connection cannot approve anything itself. The connection is off until the person turns it on, uses narrow scopes (journal and memory separately), is limited and logged without content, and discloses that what the tool reads goes to that tool's AI service. Behaviour: `features/09-ai-agent-runtime.md` §7A.
+
 ## 12. Personal memory
 
 The workspace may build a user-controlled memory layer from explicitly selected information.

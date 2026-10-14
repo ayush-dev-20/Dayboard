@@ -113,6 +113,7 @@ Next's App Router needs the server for every navigation and Server Component ren
 - A **local app** (`/offline/*` shell, a client-only React app) renders the **offline-capable screens** from Dexie using the same presentational components: Today, Tasks (list), Todos, Notes list, Note editor, Task detail (panel), Inbox with quick capture, Projects list (read-only), Search (local keyword), Settings → App.
 - The service worker (03) answers a failed navigation to any of those paths with the local app shell, which reads the original path and renders the matching local screen. A small client router handles navigation inside it.
 - When the connection returns, a quiet "Back online" message offers to **Continue**, which navigates to the server-rendered route.
+- The local **Search** screen is a keyword search over the Dexie data and is built here, with notes offline (slice b). It is separate from feature 10: meaning-based search needs the server, and the recently opened items of feature 10 are kept in `localStorage`, not in this database.
 - Screens that need the server (Settings account pages, AI surfaces, Trash restore of items not downloaded, Calendar, Files) show a friendly "Needs a connection" state in the local app.
 - Components are shared: `TaskRow`, `NoteCard`, `TaskDetail` etc. take data props; the server routes pass server data, the local app passes live local data. No second copy of any component.
 

@@ -40,6 +40,8 @@ export const projects = pgTable(
     index("projects_user_status_idx").on(t.userId, t.status),
     index("projects_user_name_idx").on(t.userId, sql`lower(${t.name})`),
     index("projects_user_deleted_at_idx").on(t.userId, t.deletedAt),
+    // The search index scan (V2 feature 10) looks for what changed since it last ran.
+    index("projects_user_updated_at_idx").on(t.userId, t.updatedAt),
   ],
 );
 

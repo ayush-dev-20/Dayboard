@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { EmbedTask } from "./embedding";
 import type { AIFeature, ModelTier, TokenUsage } from "./types";
 import type { ChatTurnMessage } from "./assistant-types";
 
@@ -79,9 +80,31 @@ export type AssistantTurn = {
   modelUsed?(): string | undefined;
 };
 
+// ---- Embeddings: text in, vectors out (feature 10 §3) -------------------------------------------
+
+export type EmbedOptions = {
+  /** `document` for text being indexed, `query` for what the person typed. */
+  task: EmbedTask;
+  signal: AbortSignal;
+};
+
+export type EmbedResult = {
+  /** One vector per input text, in the same order, each `EMBED_DIMENSIONS` long. */
+  vectors: number[][];
+  /** What to store next to each vector, for example `gemini-embedding-001@768`. */
+  model: string;
+  usage: TokenUsage;
+};
+
 export interface AIProvider {
   readonly id: "anthropic" | "gemini" | "mock";
+  /** False for a vendor with no embedding model (Anthropic). Meaning-based search is then unavailable. */
+  readonly supportsEmbeddings: boolean;
   modelName(tier: ModelTier): string;
+  /** The embedding model in use, without the size (`gemini-embedding-001`). */
+  embeddingModelName(): string;
+  /** Turns texts into vectors. At most `EMBED_BATCH` texts per call. */
+  embed(input: string[], options: EmbedOptions): Promise<EmbedResult>;
   /** The raw model answer. The caller validates it; a provider only has to return JSON-shaped data. */
   generateStructured(options: CallOptions, schema: z.ZodType): Promise<StructuredResult>;
   streamText(options: CallOptions): TextStream;

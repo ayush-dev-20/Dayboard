@@ -17,7 +17,22 @@ export const TYPE_LABELS: Record<SearchType, string> = {
   tag: "Tag",
 };
 
+/** Why a result was found. Built by the server from facts, never written by a model (feature 10 §5). */
+export type SearchReasons = {
+  /** Words and phrases from the search that the item matched. */
+  terms: string[];
+  /** For a meaning match: the passage that was closest, as last indexed. */
+  passage: string | null;
+  /** The search had a quoted phrase and the item contains it. */
+  phrase: boolean;
+};
+
+export type MatchKind = "keyword" | "semantic" | "both";
+
 export type SearchHit = {
+  /** How it was found. Plain keyword search is always `keyword`. */
+  matchKind: MatchKind;
+  reasons: SearchReasons | null;
   type: SearchType;
   id: string;
   title: string;

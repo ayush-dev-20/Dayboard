@@ -14,7 +14,9 @@ export function getLimits(): Limits {
 
 // Rate-limited attempts are written down too, but they never count toward a limit: otherwise
 // pressing the button again while waiting would make the wait longer.
-const counted = ne(aiUsage.status, "RATE_LIMITED");
+// Indexing runs in the background (feature 10), so it never counts as one of the person's AI actions:
+// it has its own daily cap. A search query's embedding (`EMBED_QUERY`) does count.
+const counted = and(ne(aiUsage.status, "RATE_LIMITED"), ne(aiUsage.feature, "EMBED"));
 
 export async function countToday(userId: string, timezone: string, now = new Date()) {
   const { start } = localDay(timezone, now);

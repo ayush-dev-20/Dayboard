@@ -16,6 +16,9 @@ export const AI_FEATURES = [
   // V2 feature 11.
   "ASSISTANT",
   "ASK_SELECTION",
+  // V2 feature 10: indexing (background, not counted as a person's AI action) and a search query.
+  "EMBED",
+  "EMBED_QUERY",
 ] as const;
 export type AIFeature = (typeof AI_FEATURES)[number];
 

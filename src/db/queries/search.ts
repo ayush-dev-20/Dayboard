@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { projectRefsFor } from "@/db/queries/meta";
@@ -42,6 +42,8 @@ function hit(
   partial: Partial<SearchHit> & Pick<SearchHit, "type" | "id" | "title" | "href" | "updatedAt">,
 ): SearchHit {
   return {
+    matchKind: "keyword",
+    reasons: null,
     emoji: null,
     archived: false,
     project: null,
@@ -56,7 +58,12 @@ function hit(
   };
 }
 
-async function searchTasks(userId: string, p: SearchParams, limit: number): Promise<SearchHit[]> {
+async function searchTasks(
+  userId: string,
+  p: SearchParams,
+  limit: number,
+  only?: string[],
+): Promise<SearchHit[]> {
   const q = p.q;
   const projectCond =
     p.projectId === "none"
@@ -83,10 +90,12 @@ async function searchTasks(userId: string, p: SearchParams, limit: number): Prom
       and(
         eq(tasks.userId, userId),
         isNull(tasks.deletedAt),
-        or(
-          ilike(tasks.title, containsPattern(q)),
-          ilike(tasks.descriptionText, containsPattern(q)),
-        ),
+        only
+          ? inArray(tasks.id, only)
+          : or(
+              ilike(tasks.title, containsPattern(q)),
+              ilike(tasks.descriptionText, containsPattern(q)),
+            ),
         p.status ? eq(tasks.status, p.status as TaskStatus) : undefined,
         projectCond,
         p.tagId
@@ -122,7 +131,12 @@ async function searchTasks(userId: string, p: SearchParams, limit: number): Prom
   );
 }
 
-async function searchTodos(userId: string, p: SearchParams, limit: number): Promise<SearchHit[]> {
+async function searchTodos(
+  userId: string,
+  p: SearchParams,
+  limit: number,
+  only?: string[],
+): Promise<SearchHit[]> {
   const q = p.q;
   const projectCond =
     p.projectId === "none"
@@ -146,7 +160,7 @@ async function searchTodos(userId: string, p: SearchParams, limit: number): Prom
       and(
         eq(todos.userId, userId),
         isNull(todos.deletedAt),
-        ilike(todos.title, containsPattern(q)),
+        only ? inArray(todos.id, only) : ilike(todos.title, containsPattern(q)),
         projectCond,
         p.from ? sql`${todos.dueDate} >= ${p.from}` : undefined,
         p.to ? sql`${todos.dueDate} <= ${p.to}` : undefined,
@@ -180,6 +194,7 @@ async function searchNotes(
   p: SearchParams,
   prefs: DayPrefs,
   limit: number,
+  only?: string[],
 ): Promise<SearchHit[]> {
   const q = p.q;
   const { from, toExclusive } = instants(p, prefs);
@@ -205,7 +220,12 @@ async function searchNotes(
       and(
         eq(notes.userId, userId),
         isNull(notes.deletedAt),
-        or(ilike(notes.title, containsPattern(q)), ilike(notes.contentText, containsPattern(q))),
+        only
+          ? inArray(notes.id, only)
+          : or(
+              ilike(notes.title, containsPattern(q)),
+              ilike(notes.contentText, containsPattern(q)),
+            ),
         projectCond,
         p.tagId
           ? sql`exists (select 1 from note_tags nt where nt.note_id = ${notes.id} and nt.tag_id = ${p.tagId} and nt.user_id = ${userId})`
@@ -250,6 +270,7 @@ async function searchProjects(
   p: SearchParams,
   prefs: DayPrefs,
   limit: number,
+  only?: string[],
 ): Promise<SearchHit[]> {
   const q = p.q;
   const { from, toExclusive } = instants(p, prefs);
@@ -269,10 +290,12 @@ async function searchProjects(
       and(
         eq(projects.userId, userId),
         isNull(projects.deletedAt),
-        or(
-          ilike(projects.name, containsPattern(q)),
-          ilike(projects.description, containsPattern(q)),
-        ),
+        only
+          ? inArray(projects.id, only)
+          : or(
+              ilike(projects.name, containsPattern(q)),
+              ilike(projects.description, containsPattern(q)),
+            ),
         p.projectId && p.projectId !== "none" ? eq(projects.id, p.projectId) : undefined,
         from ? sql`${projects.updatedAt} >= ${from.toISOString()}::timestamptz` : undefined,
         toExclusive
@@ -361,6 +384,39 @@ export async function searchWorkspace(
 
 export { EMPTY as NO_RESULTS };
 
+/**
+ * The same items `searchWorkspace` would return, but chosen by id instead of by words in the text: the
+ * filters, project labels and Trash rule are identical. Used for items found by meaning (feature 10), which
+ * are then merged with the keyword results. Types with no ids are skipped.
+ */
+export async function searchByIds(
+  userId: string,
+  params: SearchParams,
+  prefs: DayPrefs,
+  ids: { task: string[]; todo: string[]; note: string[]; project: string[] },
+): Promise<SearchResults> {
+  const [t, d, n, pr] = await Promise.all([
+    ids.task.length > 0 ? searchTasks(userId, params, ids.task.length, ids.task) : [],
+    ids.todo.length > 0 && !params.status && !params.tagId
+      ? searchTodos(userId, params, ids.todo.length, ids.todo)
+      : [],
+    ids.note.length > 0 && !params.status
+      ? searchNotes(userId, params, prefs, ids.note.length, ids.note)
+      : [],
+    ids.project.length > 0 && !params.status && !params.tagId
+      ? searchProjects(userId, params, prefs, ids.project.length, ids.project)
+      : [],
+  ]);
+  return {
+    task: t,
+    todo: d,
+    note: n,
+    project: pr,
+    tag: [],
+    total: t.length + d.length + n.length + pr.length,
+  };
+}
+
 /** What the command menu shows before anything is typed: the five most recently updated tasks and notes. */
 export async function recentItems(userId: string, limit = 5): Promise<SearchHit[]> {
   const [t, n] = await Promise.all([
@@ -428,4 +484,36 @@ export async function recentItems(userId: string, limit = 5): Promise<SearchHit[
     ),
   ];
   return all.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, limit);
+}
+
+/**
+ * The items the person opened last, in the order given, as search hits (V2 feature 10 §6). Only items that
+ * belong to this person and are not in Trash come back; a ref to anything else is silently left out.
+ */
+export async function openedItems(
+  userId: string,
+  refs: { type: "task" | "note" | "project"; id: string }[],
+): Promise<SearchHit[]> {
+  if (refs.length === 0) return [];
+  const idsOf = (type: "task" | "note" | "project") =>
+    refs.filter((r) => r.type === type).map((r) => r.id);
+  const params: SearchParams = {
+    q: "",
+    tab: "all",
+    status: null,
+    projectId: null,
+    tagId: null,
+    from: null,
+    to: null,
+  };
+  const found = await searchByIds(
+    userId,
+    params,
+    { timezone: "UTC", startOfDay: "06:00" },
+    { task: idsOf("task"), todo: [], note: idsOf("note"), project: idsOf("project") },
+  );
+  const byKey = new Map(
+    [...found.task, ...found.note, ...found.project].map((h) => [`${h.type}:${h.id}`, h]),
+  );
+  return refs.flatMap((r) => byKey.get(`${r.type}:${r.id}`) ?? []);
 }

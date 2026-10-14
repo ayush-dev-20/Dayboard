@@ -48,6 +48,13 @@ const rawSchema = z.object({
   AI_MODEL_FAST: optionalString,
   // Models to try, in order, when the chosen one cannot answer (quota, outage). `none` turns it off.
   AI_FALLBACK_MODELS: optionalString,
+  // Meaning-based search (V2 feature 10, docs/decisions/0011). The embedding model, and the most chunks of
+  // text one person's items may send to it for indexing in a day.
+  AI_EMBEDDING_MODEL: optionalString,
+  EMBED_DAILY_LIMIT: z.preprocess(
+    blankToUndefined,
+    z.coerce.number().int().min(0).max(1_000_000).default(2000),
+  ),
   AI_API_KEY: optionalString,
   AI_BASE_URL: z.preprocess(blankToUndefined, z.url("must be a full URL").optional()),
   AI_MOCK_MODE: z.preprocess(blankToUndefined, z.enum(["error", "slow"]).optional()),
@@ -182,6 +189,8 @@ export function parseEnv(
     : (v.AI_PROVIDER ?? (v.NODE_ENV === "production" ? "anthropic" : "mock"));
   // A real provider without a key means AI is switched off for everyone; the rest of the app works.
   const aiAvailable = aiProvider === "mock" || Boolean(v.AI_API_KEY);
+  // Only Google (and the mock) can embed text. With Anthropic, search stays keyword-only.
+  const embeddingsAvailable = aiAvailable && (aiProvider === "gemini" || aiProvider === "mock");
   // null means "use the built-in list for this vendor"; an empty list means no fallback at all.
   const aiFallbackModels = parseFallbackModels(v.AI_FALLBACK_MODELS);
 
@@ -195,6 +204,7 @@ export function parseEnv(
     emailVerificationRequired: emailProvider === "resend" || e2e,
     aiProvider,
     aiAvailable,
+    embeddingsAvailable,
     aiFallbackModels,
     storageDriver,
     storageAvailable: storageDriver !== null,

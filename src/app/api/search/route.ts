@@ -1,6 +1,7 @@
 import { getPreferences } from "@/lib/preferences";
 import { parseQuery } from "@/lib/search/query";
-import { recentItems, searchWorkspace } from "@/db/queries/search";
+import { openedItems, recentItems, searchWorkspace } from "@/db/queries/search";
+import { parseOpenParam } from "@/lib/search/recent-items";
 import { requireUser } from "@/lib/session";
 import { toErrorResponse } from "@/lib/errors";
 import { logger } from "@/lib/logger";
@@ -18,7 +19,14 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
 
     if (url.searchParams.get("recent") === "1") {
-      return Response.json({ recent: await recentItems(user.id, MENU_LIMIT) });
+      // The items the person opened last (kept in their browser) when it sent any; otherwise the
+      // five most recently updated, as before. Refs for anything gone or not theirs are left out.
+      const open = parseOpenParam(url.searchParams.get("open"));
+      const opened = await openedItems(user.id, open);
+      return Response.json({
+        recent: open.length > 0 ? opened : await recentItems(user.id, MENU_LIMIT),
+        kept: opened.map((h) => ({ type: h.type, id: h.id })),
+      });
     }
 
     const parsed = parseQuery(url.searchParams.get("q"));

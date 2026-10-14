@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { rememberOpened } from "@/lib/search/recent-items";
 import type { TaskDetailDTO } from "@/lib/tasks/dto";
 import { TaskDetail } from "./task-detail";
 import { PageContainer } from "@/components/layout/page-container";
@@ -10,6 +12,7 @@ import { PageContainer } from "@/components/layout/page-container";
 /** The full-page view used below 1024px (and by direct links). */
 export function TaskDetailPage({ detail }: { detail: TaskDetailDTO }) {
   const router = useRouter();
+  useEffect(() => rememberOpened("task", detail.id), [detail.id]);
 
   return (
     <PageContainer>

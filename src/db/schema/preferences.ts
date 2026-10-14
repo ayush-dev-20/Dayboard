@@ -28,6 +28,9 @@ export const userPreferences = pgTable(
     aiEnabled: boolean("ai_enabled").notNull().default(true),
     // V2 feature 11 §6A: the floating chat button. On by default; off hides only the button.
     assistantLauncher: boolean("assistant_launcher").notNull().default(true),
+    // V2 feature 10: meaning-based search. Off by default, because turning it on sends the person's notes
+    // and tasks to the embedding provider to build the index.
+    semanticSearchEnabled: boolean("semantic_search_enabled").notNull().default(false),
     // Today's focus (feature 04). Cleared if the task is permanently deleted.
     focusTaskId: uuid("focus_task_id").references(() => tasks.id, { onDelete: "set null" }),
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),

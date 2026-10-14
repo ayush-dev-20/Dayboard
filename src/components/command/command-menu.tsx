@@ -27,6 +27,7 @@ import { useWorkspace } from "@/components/workspace/workspace-context";
 import { ProjectToken } from "@/components/workspace/tokens";
 import { COPY_NOTE_EVENT } from "@/lib/shortcuts";
 import { forgetSearches, readRecentSearches, rememberSearch } from "@/lib/search/recent";
+import { openParam, pruneRecentItems, readRecentItems } from "@/lib/search/recent-items";
 import { looksLikeQuestion, parseQuery } from "@/lib/search/query";
 import {
   SEARCH_TYPES,
@@ -129,9 +130,24 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
   // Recent items are loaded as soon as the menu opens.
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/search?recent=1", { signal: controller.signal })
+    // The items opened last live in this browser; the server keeps only the ones that still exist.
+    const open = openParam(readRecentItems());
+    const url = open
+      ? `/api/search?recent=1&open=${encodeURIComponent(open)}`
+      : "/api/search?recent=1";
+    void fetch(url, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
-      .then((body: { recent?: SearchHit[] } | null) => setRecent(body?.recent ?? []))
+      .then(
+        (
+          body: {
+            recent?: SearchHit[];
+            kept?: { type: "task" | "note" | "project"; id: string }[];
+          } | null,
+        ) => {
+          setRecent(body?.recent ?? []);
+          if (open && body?.kept) pruneRecentItems(body.kept);
+        },
+      )
       .catch(() => {});
     return () => controller.abort();
   }, []);

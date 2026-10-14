@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import { gentle } from "@/lib/motion";
+import { rememberOpened } from "@/lib/search/recent-items";
 import { Maximize2, Minimize2, Minus, X, ChevronsLeft } from "lucide-react";
 import { DESKTOP_QUERY } from "@/hooks/use-media-query";
 import type { TaskDetailDTO } from "@/lib/tasks/dto";
@@ -34,6 +35,8 @@ export function TaskDetailSheet({ detail }: { detail: TaskDetailDTO }) {
   const reduce = useReducedMotion();
   // The floating chat button keeps to the left of this panel (feature 11 §6A).
   useTaskPanelPresence(true);
+  // Recently opened items (feature 10): kept in this browser only.
+  useEffect(() => rememberOpened("task", detail.id), [detail.id]);
 
   useEffect(() => {
     if (!window.matchMedia(DESKTOP_QUERY).matches) router.replace(`/tasks/${detail.id}`);

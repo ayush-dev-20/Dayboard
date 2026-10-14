@@ -1,7 +1,15 @@
 import "server-only";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText, Output, stepCountIs, streamText, tool, type LanguageModel } from "ai";
+import {
+  embedMany,
+  generateText,
+  Output,
+  stepCountIs,
+  streamText,
+  tool,
+  type LanguageModel,
+} from "ai";
 import type { z } from "zod";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -16,6 +24,7 @@ import {
   type StructuredResult,
   type TextStream,
 } from "../provider";
+import { DEFAULT_EMBEDDING_MODEL, EMBED_DIMENSIONS, embeddingLabel } from "../embedding";
 import type { ModelTier, TokenUsage } from "../types";
 import {
   canFallBack,
@@ -192,9 +201,42 @@ export function createSdkProvider(): AIProvider {
   const chainFor = (tier: ModelTier) =>
     modelChain(modelName(tier), env.aiFallbackModels ?? DEFAULT_FALLBACKS[vendor][tier]);
 
+  const embeddingModelName = () => env.AI_EMBEDDING_MODEL ?? DEFAULT_EMBEDDING_MODEL;
+
   return {
     id: vendor,
     modelName,
+    // Only Google offers an embedding model through this adapter (Anthropic has none).
+    supportsEmbeddings: vendor === "gemini",
+    embeddingModelName,
+
+    async embed(input, options) {
+      if (vendor !== "gemini") {
+        throw new ProviderError("This AI provider has no embedding model.", false);
+      }
+      const name = embeddingModelName();
+      try {
+        const result = await embedMany({
+          model: google.embeddingModel(name),
+          values: input,
+          abortSignal: options.signal,
+          maxRetries: 0,
+          providerOptions: {
+            google: {
+              outputDimensionality: EMBED_DIMENSIONS,
+              taskType: options.task === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
+            },
+          },
+        });
+        return {
+          vectors: result.embeddings,
+          model: embeddingLabel(name),
+          usage: { inputTokens: result.usage?.tokens },
+        };
+      } catch (error) {
+        throw new ProviderError("The AI service failed.", isRetryable(error), { cause: error });
+      }
+    },
 
     async generateStructured(options: CallOptions, schema: z.ZodType): Promise<StructuredResult> {
       try {

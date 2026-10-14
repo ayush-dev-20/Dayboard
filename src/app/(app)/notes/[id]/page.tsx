@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { NoteEditor } from "@/components/notes/note-editor";
+import { RecordOpened } from "@/components/search/record-opened";
 import { getBacklinks } from "@/db/queries/note-tree";
 import { getNote } from "@/db/queries/notes";
 import { requireUser } from "@/lib/session";
@@ -18,5 +19,10 @@ export default async function NotePage({ params }: { params: Promise<{ id: strin
   if (!note) notFound();
 
   // Keyed by id, so moving from one note to another never carries state over.
-  return <NoteEditor key={note.id} note={note} backlinks={backlinks} />;
+  return (
+    <>
+      <RecordOpened type="note" id={note.id} />
+      <NoteEditor key={note.id} note={note} backlinks={backlinks} />
+    </>
+  );
 }

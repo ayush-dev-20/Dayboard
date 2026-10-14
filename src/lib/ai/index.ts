@@ -11,6 +11,7 @@ import {
   type AssistantTurnEvent,
 } from "./provider";
 import type { ChatTurnMessage } from "./assistant-types";
+import { EMBED_BATCH, EMBED_DIMENSIONS, type EmbedTask } from "./embedding";
 import { createMockProvider } from "./providers/mock";
 import { createSdkProvider } from "./providers/sdk";
 import { recordUsage } from "./usage";
@@ -232,6 +233,81 @@ export function runAssistantTurn(args: {
       });
     },
   };
+}
+
+export const EMBED_TIMEOUT_MS = 30_000;
+
+/** True when the provider can embed text and has what it needs (a key, a Google provider or the mock). */
+export function areEmbeddingsAvailable(): boolean {
+  return env.embeddingsAvailable && getProvider().supportsEmbeddings;
+}
+
+/**
+ * Turns texts into vectors (V2 feature 10 §3), in batches of `EMBED_BATCH`. A provider outage or timeout
+ * gets one retry per batch. Records one `ai_usage` row per batch under `feature` (`EMBED` for indexing,
+ * `EMBED_QUERY` for a search), never the text. Throws `AI_PROVIDER_ERROR` when it cannot finish.
+ */
+export async function embedTexts(args: {
+  userId: string;
+  feature: "EMBED" | "EMBED_QUERY";
+  task: EmbedTask;
+  texts: string[];
+  signal?: AbortSignal;
+}): Promise<{ vectors: number[][]; model: string }> {
+  const provider = getProvider();
+  if (!provider.supportsEmbeddings) throw providerFailure();
+
+  const vectors: number[][] = [];
+  let model = "";
+  for (let from = 0; from < args.texts.length; from += EMBED_BATCH) {
+    const batch = args.texts.slice(from, from + EMBED_BATCH);
+    const started = Date.now();
+    let lastError: unknown;
+    let done = false;
+    for (let attempt = 1; attempt <= 2 && !done; attempt += 1) {
+      const timeout = AbortSignal.timeout(EMBED_TIMEOUT_MS);
+      const signal = args.signal ? AbortSignal.any([args.signal, timeout]) : timeout;
+      try {
+        const result = await provider.embed(batch, { task: args.task, signal });
+        const wellFormed =
+          result.vectors.length === batch.length &&
+          result.vectors.every(
+            (v) => v.length === EMBED_DIMENSIONS && v.every((x) => Number.isFinite(x)),
+          );
+        if (!wellFormed) throw new ProviderError("The embedding had the wrong shape.", false);
+        vectors.push(...result.vectors);
+        model = result.model;
+        await recordUsage({
+          userId: args.userId,
+          feature: args.feature,
+          provider: provider.id,
+          model: result.model,
+          promptVersion: PROMPT_VERSIONS[args.feature],
+          status: "SUCCESS",
+          latencyMs: Date.now() - started,
+          tokens: result.usage,
+        });
+        done = true;
+      } catch (error) {
+        lastError = error;
+        if (args.signal?.aborted || !(error instanceof ProviderError) || !error.retryable) break;
+      }
+    }
+    if (!done) {
+      logger.warn("embedding call failed", { feature: args.feature, error: lastError });
+      await recordUsage({
+        userId: args.userId,
+        feature: args.feature,
+        provider: provider.id,
+        model: provider.embeddingModelName(),
+        promptVersion: PROMPT_VERSIONS[args.feature],
+        status: "PROVIDER_ERROR",
+        latencyMs: Date.now() - started,
+      });
+      throw providerFailure(lastError);
+    }
+  }
+  return { vectors, model };
 }
 
 export { PROMPT_VERSIONS };

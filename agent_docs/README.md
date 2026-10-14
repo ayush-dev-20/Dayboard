@@ -8,25 +8,26 @@ Read this index first, then open the files for features you depend on. How and w
 
 Add one line per feature when you create its file. Keep it sorted by phase, then build order.
 
-| Feature | Phase | Status | File |
-|---|---|---|---|
-| Foundation & auth | V1 | Done | [foundation-and-auth_v1.md](foundation-and-auth_v1.md) |
-| Tasks & todos | V1 | Done | [tasks-and-todos_v1.md](tasks-and-todos_v1.md) |
-| Notes, projects & tags | V1 | Done | [notes-projects-tags_v1.md](notes-projects-tags_v1.md) |
-| Inbox, Today, Search & Trash | V1 | Done | [inbox-today-search-trash_v1.md](inbox-today-search-trash_v1.md) |
-| AI assistant | V1 | Done | [ai-assistant_v1.md](ai-assistant_v1.md) |
-| UI modernization | V1 | Done | [ui-modernization_v1.md](ui-modernization_v1.md) |
-| AI writing and planning | V1 | Done | [ai-writing-and-planning_v1.md](ai-writing-and-planning_v1.md) |
-| Editor blocks and lists | V2 | Done | [editor-blocks-and-lists_v2.md](editor-blocks-and-lists_v2.md) |
-| Clipboard fidelity | V2 | In progress | [clipboard-fidelity_v2.md](clipboard-fidelity_v2.md) |
-| Multiple views | V2 | In progress | [multiple-views_v2.md](multiple-views_v2.md) |
-| Nested notes, links and sidebar tree | V2 | In progress | [nested-notes-links-sidebar-tree_v2.md](nested-notes-links-sidebar-tree_v2.md) |
-| Files, attachments and bookmarks | V2 | In progress | [files-attachments-and-bookmarks_v2.md](files-attachments-and-bookmarks_v2.md) |
-| AI workspace assistant | V2 | In progress | [ai-workspace-assistant_v2.md](ai-workspace-assistant_v2.md) |
-| PWA shell and install | V2 | In progress | [pwa-shell-and-install_v2.md](pwa-shell-and-install_v2.md) |
-| Local persistence and offline editing | V2 | In progress | [local-persistence-and-offline_v2.md](local-persistence-and-offline_v2.md) |
-| Sync engine | V2 | In progress | [sync-engine_v2.md](sync-engine_v2.md) |
-| Background worker and jobs | V2 | In progress | [background-worker-and-jobs_v2.md](background-worker-and-jobs_v2.md) |
+| Feature                               | Phase | Status      | File                                                                           |
+| ------------------------------------- | ----- | ----------- | ------------------------------------------------------------------------------ |
+| Foundation & auth                     | V1    | Done        | [foundation-and-auth_v1.md](foundation-and-auth_v1.md)                         |
+| Tasks & todos                         | V1    | Done        | [tasks-and-todos_v1.md](tasks-and-todos_v1.md)                                 |
+| Notes, projects & tags                | V1    | Done        | [notes-projects-tags_v1.md](notes-projects-tags_v1.md)                         |
+| Inbox, Today, Search & Trash          | V1    | Done        | [inbox-today-search-trash_v1.md](inbox-today-search-trash_v1.md)               |
+| AI assistant                          | V1    | Done        | [ai-assistant_v1.md](ai-assistant_v1.md)                                       |
+| UI modernization                      | V1    | Done        | [ui-modernization_v1.md](ui-modernization_v1.md)                               |
+| AI writing and planning               | V1    | Done        | [ai-writing-and-planning_v1.md](ai-writing-and-planning_v1.md)                 |
+| Editor blocks and lists               | V2    | Done        | [editor-blocks-and-lists_v2.md](editor-blocks-and-lists_v2.md)                 |
+| Clipboard fidelity                    | V2    | In progress | [clipboard-fidelity_v2.md](clipboard-fidelity_v2.md)                           |
+| Multiple views                        | V2    | In progress | [multiple-views_v2.md](multiple-views_v2.md)                                   |
+| Nested notes, links and sidebar tree  | V2    | In progress | [nested-notes-links-sidebar-tree_v2.md](nested-notes-links-sidebar-tree_v2.md) |
+| Files, attachments and bookmarks      | V2    | In progress | [files-attachments-and-bookmarks_v2.md](files-attachments-and-bookmarks_v2.md) |
+| AI workspace assistant                | V2    | In progress | [ai-workspace-assistant_v2.md](ai-workspace-assistant_v2.md)                   |
+| PWA shell and install                 | V2    | In progress | [pwa-shell-and-install_v2.md](pwa-shell-and-install_v2.md)                     |
+| Local persistence and offline editing | V2    | In progress | [local-persistence-and-offline_v2.md](local-persistence-and-offline_v2.md)     |
+| Sync engine                           | V2    | In progress | [sync-engine_v2.md](sync-engine_v2.md)                                         |
+| Semantic search                       | V2    | In progress | [semantic-search_v2.md](semantic-search_v2.md)                                 |
+| Background worker and jobs            | V2    | In progress | [background-worker-and-jobs_v2.md](background-worker-and-jobs_v2.md)           |
 
 Status is `Done` or `In progress`.
 
@@ -53,17 +54,22 @@ These names come from [specs/v1/features/](../specs/v1/features/README.md). Use 
 **Date:** YYYY-MM-DD (completed or handed off)
 
 ## What was built
+
 - 2–3 short bullets or sentences, in plain words.
 
 ## Why
+
 The problem this solves and why it was done this way.
 
 ## What was deferred
+
 Known limits, and anything pushed to a later phase. Say which phase if known.
 
 ## Related files
+
 - `path/to/key-file.ts`: one line on what it does
 
 ## Hand-off notes
+
 Dependencies, gotchas, and links to related features or ADRs.
 ```

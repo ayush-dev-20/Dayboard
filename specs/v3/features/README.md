@@ -14,7 +14,7 @@ Build them in order. Each feature leaves the app runnable and depends only on fe
 | 06 | [Comments, Mentions & Notifications](06-comments-and-mentions.md) | Threads on notes and tasks, mentions, notification centre, mention email (§9) | 04; 05 (soft: instant refresh) |
 | 07 | [Domain Events & Outbox](07-domain-events-and-outbox.md) | Event catalogue, outbox in transactions, dispatch with retries, correlation ids, loop guard (technical §5) | V2 08 (worker) |
 | 08 | [Automation Engine](08-automation-engine.md) | Triggers, conditions, actions, preview and test, runs, approvals (§10, goal 7) | 07; 03 (note from template), 06 (notify me) |
-| 09 | [AI Agent Runtime & Approvals](09-ai-agent-runtime.md) | Tool registry, staged changes, approvals, execution timeline, limits (§11, goal 8) | 04, 08 (approvals), V2 11 |
+| 09 | [AI Agent Runtime & Approvals](09-ai-agent-runtime.md) | Tool registry, staged changes, approvals, execution timeline, limits, and an MCP server so external AI tools (Claude Code, Gemini CLI) can use the same tools (§11, goal 8) | 04, 08 (approvals), V2 11 |
 | 10 | [Memory Controls](10-memory-controls.md) | Explicit memories, categories, sources, use shown, forget (§12) | V2 11; 09 (agent tool, soft) |
 | 11 | [Unified Command Center](11-unified-command-center.md) | Command registry, navigate / create / AI / automate / context commands, mobile sheet (§13) | V1; each feature adds its commands; 08, 09 for slice C |
 | 12 | [Account & Device Center](12-account-and-device-center.md) | Devices, security activity, data export, safe account deletion, notification devices (§14, goal 9) | V1 sessions (built); V2 08 (jobs); V2 09, 14 (files, push) as available |
@@ -109,6 +109,7 @@ These V2 features are not done today (see `agent_docs/README.md`). V3 features t
 | 0022 | Agent runtime: tool registry declarations, staged operations and hash-bound approvals, worker-run loop, limits | 09 |
 | 0023 | Account: device model, export format and ZIP library, deletion with grace period and ledger | 12 |
 | 0024 | Observability and topology: OpenTelemetry, Prometheus-format metrics, staging isolation, scaling stance | 13 |
+| 0025 | MCP server: SDK or hand-written layer, personal access tokens, stdio launcher, OAuth through Better Auth or not | 09 (slice D) |
 
 Numbers 0006 to 0013 are reserved by the V2 docs and may still be unwritten; take the next free number if one of these is reached first.
 

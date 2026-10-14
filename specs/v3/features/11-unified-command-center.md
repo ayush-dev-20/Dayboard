@@ -68,7 +68,7 @@ type CommandContext = {
 
 | Group | Commands |
 |---|---|
-| Navigate | Today, Inbox, Tasks, Notes, Journal, Canvases, Projects, Templates, Assistant, Automations, Search, Trash, Settings (each its own tab), Settings → Memory, Settings → Devices |
+| Navigate | Today, Inbox, Tasks, Notes, Journal, Canvases, Projects, Templates, Assistant, Automations, Search, Trash, Settings (each its own tab), Settings → Memory, Settings → Devices, Settings → Connections (only when MCP is on, feature 09 §7A) |
 | Create | New task, New todo, New note, New note from template…, New journal entry (today's), New canvas, Draw a diagram with AI…, New project, New template, New automation |
 | AI | Ask your workspace (switches to Ask), Run the assistant on a goal… (feature 09), Summarise this note (context), Open in assistant |
 | Automate | Run automation…, Turn automation on…, Turn automation off…, Open automation activity, Review approvals (with the count) |
@@ -168,4 +168,4 @@ Existing command menu tests (search, ask, create, capture) pass unchanged.
 - User-defined commands, macros or key bindings.
 - A server-side command history or usage analytics.
 - A command to delete anything permanently, to change permissions in bulk, or to edit settings.
-- Plugins or third-party commands.
+- Plugins or third-party commands. External AI tools reach the app through feature 09's MCP server (§7A), not through the command menu.

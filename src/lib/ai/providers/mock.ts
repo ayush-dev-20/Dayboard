@@ -6,7 +6,9 @@ import {
   type TextStream,
 } from "../provider";
 import type { AIFeature, ModelTier } from "../types";
+import { embeddingLabel } from "../embedding";
 import { mockAssistantTurn } from "./mock-assistant";
+import { mockEmbedStats, mockVector } from "./mock-embed";
 
 // Deterministic fixtures for development, tests and CI. No network, no key, no cost. Each feature
 // builds its answer from the plain-data `fixture` the caller passes, so tests can predict it.
@@ -432,8 +434,22 @@ function structured(feature: AIFeature, fixture: Obj): unknown {
 export function createMockProvider(): AIProvider {
   return {
     id: "mock",
+    supportsEmbeddings: true,
     runAssistantTurn: mockAssistantTurn,
     modelName: (tier: ModelTier) => (tier === "fast" ? "mock-fast" : "mock"),
+    embeddingModelName: () => "mock-embedding",
+
+    async embed(input, options) {
+      mockEmbedStats.calls += 1;
+      mockEmbedStats.texts += input.length;
+      // `[mock:error]` anywhere in a text makes this call fail, `[mock:slow]` makes it wait.
+      await applyBehaviour({ fixture: input, signal: options.signal });
+      return {
+        vectors: input.map(mockVector),
+        model: embeddingLabel("mock-embedding"),
+        usage: { inputTokens: input.reduce((n, t) => n + Math.ceil(t.length / 4), 0) },
+      };
+    },
 
     async generateStructured(options): Promise<StructuredResult> {
       await applyBehaviour(options);
