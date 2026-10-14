@@ -30,7 +30,9 @@ import type { AnyItem, ViewTask, ViewTodo } from "@/lib/views/items";
 import type { MoveCommand } from "@/lib/views/move-card";
 import { cn } from "@/lib/utils";
 import { applyEdit } from "./apply";
-import { overlayEvents } from "./calendar-overlay";
+import "@/components/calendar/google-overlay";
+import type { OverlayEvent } from "./calendar-overlay";
+import { useCalendarOverlay } from "./use-calendar-overlay";
 import { DatePopover } from "./date-popover";
 import {
   announcements,
@@ -79,7 +81,7 @@ export function CalendarView({ state }: { state: ViewState }) {
   const items = (result.items as Dated[]).filter((i) => showCompleted || !isClosed(i));
   const dated = itemsByDay(items, range);
   const undated = items.filter((i) => !i.dueDate);
-  const overlay = overlayEvents(range);
+  const overlay = useCalendarOverlay(range);
   const weekdays = daysOf(
     startOfWeek(today, ctx.weekStart),
     addDays(startOfWeek(today, ctx.weekStart), 6),
@@ -245,10 +247,24 @@ export function CalendarView({ state }: { state: ViewState }) {
                 {(overlay.get(day) ?? []).map((event) => (
                   <li
                     key={event.id}
-                    className="border-b border-border px-2 py-2 type-body-sm text-muted-foreground"
+                    aria-label={event.label ?? event.title}
+                    data-testid="overlay-event"
+                    className={cn(
+                      "flex items-center gap-2 border-b border-border px-2 py-2 type-body-sm text-muted-foreground",
+                      event.tentative && "italic",
+                    )}
                   >
-                    {event.time ? `${event.time} ` : ""}
-                    {event.title}
+                    {event.color ? (
+                      <span
+                        aria-hidden
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: event.color }}
+                      />
+                    ) : null}
+                    <span>
+                      {event.time ? `${event.time} ` : ""}
+                      {event.title}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -378,7 +394,7 @@ function DayCell({
   today: string;
   outside: boolean;
   items: Dated[];
-  overlay: { id: string; title: string; time?: string }[];
+  overlay: OverlayEvent[];
   isOver: boolean;
   tall: boolean;
 }) {
@@ -416,10 +432,24 @@ function DayCell({
         {overlay.map((event) => (
           <li
             key={event.id}
-            className="truncate rounded-sm bg-secondary/60 px-1.5 py-0.5 type-body-sm text-muted-foreground"
+            aria-label={event.label ?? event.title}
+            data-testid="overlay-event"
+            className={cn(
+              "flex items-center gap-1.5 truncate rounded-sm bg-secondary/60 px-1.5 py-0.5 type-body-sm text-muted-foreground",
+              event.tentative && "italic",
+            )}
           >
-            {event.time ? `${event.time} ` : ""}
-            {event.title}
+            {event.color ? (
+              <span
+                aria-hidden
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: event.color }}
+              />
+            ) : null}
+            <span className="truncate">
+              {event.time ? `${event.time} ` : ""}
+              {event.title}
+            </span>
           </li>
         ))}
       </ul>

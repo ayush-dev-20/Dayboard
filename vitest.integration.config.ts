@@ -29,6 +29,9 @@ export default defineConfig({
       // to reach with small files.
       // Tick mode (feature 08): the endpoint is on, with a known secret.
       JOBS_TICK_SECRET: "integration-tick-secret-0123456789abcdef",
+      // Calendar (feature 12): the mock provider, and a fixed test key (32 bytes, base64).
+      CALENDAR_PROVIDER: "mock",
+      TOKEN_ENCRYPTION_KEY: "dGVzdC1vbmx5LWtleS0zMi1ieXRlcy1sb25nLTEyMzQ=",
       STORAGE_DRIVER: "memory",
       STORAGE_QUOTA_MB: "1",
     },

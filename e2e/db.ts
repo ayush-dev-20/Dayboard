@@ -572,3 +572,22 @@ export async function taskTitlesOf(userId: string) {
 export async function setAssistantLauncher(userId: string, enabled: boolean) {
   await sql`update user_preferences set assistant_launcher = ${enabled} where user_id = ${userId}`;
 }
+
+// Calendar (V2 feature 12). The mock calendar's sample events sit at fixed times of day in UTC, so a test sets its
+// person to UTC with a midnight rollover and "today" is the same date for both.
+export async function setDayPrefs(userId: string, timezone: string, startOfDay: string) {
+  await sql`update user_preferences set timezone = ${timezone}, start_of_day = ${startOfDay} where user_id = ${userId}`;
+}
+
+export async function calendarCounts(userId: string) {
+  const [row] = await sql<{ accounts: number; sources: number; events: number }[]>`
+    select
+      (select count(*)::int from calendar_accounts where user_id = ${userId}) as accounts,
+      (select count(*)::int from calendar_sources where user_id = ${userId}) as sources,
+      (select count(*)::int from calendar_events where user_id = ${userId}) as events`;
+  return row!;
+}
+
+export async function setCalendarStatus(userId: string, status: "ACTIVE" | "NEEDS_RECONNECT") {
+  await sql`update calendar_accounts set status = ${status} where user_id = ${userId}`;
+}

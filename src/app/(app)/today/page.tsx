@@ -13,6 +13,9 @@ import { FocusHero } from "@/components/today/focus-hero";
 import { PlanDay } from "@/components/today/plan-day";
 import { TodayCapture } from "@/components/today/today-capture";
 import { InstallTip } from "@/components/pwa/install-tip";
+import { TodayEvents } from "@/components/calendar/today-events";
+import { refreshCalendarsInBackground } from "@/lib/calendar/freshen";
+import { env } from "@/lib/env";
 import {
   SectionHeading,
   TodayCompleted,
@@ -25,6 +28,7 @@ import { getTodayData } from "@/db/queries/today";
 import { GettingStarted } from "@/components/today/checklist";
 import { deriveChecklist } from "@/lib/onboarding/checklist";
 import { formatLongDate, greetingFor } from "@/lib/dates/greeting";
+import { getUserToday } from "@/lib/dates/today";
 import { getPreferences } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
 import { loadTaskContext } from "@/lib/tasks/context";
@@ -58,6 +62,8 @@ export default async function TodayPage() {
     prefs.checklistDismissedAt ? Promise.resolve(null) : checklistCounts(user.id),
   ]);
   const checklist = counts ? deriveChecklist(counts) : null;
+  // Calendar (V2 feature 12): refresh a stale calendar after the page is sent. Nothing when it is not set up.
+  refreshCalendarsInBackground(user.id);
   const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
 
   const completedCount = data.completedTasks.length + data.completedTodos.length;
@@ -88,6 +94,14 @@ export default async function TodayPage() {
             <InstallTip />
 
             <TodayCapture />
+
+            {env.calendarAvailable ? (
+              <TodayEvents
+                userId={user.id}
+                today={getUserToday(dayPrefs, now)}
+                timeZone={dayPrefs.timezone}
+              />
+            ) : null}
 
             <div className="mt-6 flex flex-col gap-4">
               <FocusHero

@@ -188,4 +188,66 @@ describe("AI_FALLBACK_MODELS", () => {
     ).toEqual(["gemini-2.5-flash", "gemini-2.5-flash-lite"]);
     expect(parseEnv({ ...base, AI_FALLBACK_MODELS: "none" }).aiFallbackModels).toEqual([]);
   });
+
+  describe("calendar (feature 12)", () => {
+    const key = Buffer.alloc(32, 7).toString("base64");
+    const google = {
+      GOOGLE_CALENDAR_CLIENT_ID: "id",
+      GOOGLE_CALENDAR_CLIENT_SECRET: "secret",
+      GOOGLE_CALENDAR_REDIRECT_URI: "http://localhost:3000/api/calendar/google/callback",
+    };
+
+    it("is off with nothing set, so the calendar UI is hidden and the app is unchanged", () => {
+      const env = parseEnv(base);
+      expect(env.calendarAvailable).toBe(false);
+      expect(env.calendarProvider).toBeNull();
+    });
+
+    it("is on with every Google value and a key, and off with Google but no key", () => {
+      expect(parseEnv({ ...base, ...google, TOKEN_ENCRYPTION_KEY: key })).toMatchObject({
+        calendarAvailable: true,
+        calendarProvider: "google",
+      });
+      expect(parseEnv({ ...base, ...google }).calendarAvailable).toBe(false);
+    });
+
+    it("refuses a half-set Google client, and a key that is not 32 bytes", () => {
+      expect(
+        problems({ ...base, GOOGLE_CALENDAR_CLIENT_ID: "id", TOKEN_ENCRYPTION_KEY: key }),
+      ).toEqual([
+        expect.stringContaining(
+          "set GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET and GOOGLE_CALENDAR_REDIRECT_URI together",
+        ),
+      ]);
+      expect(
+        problems({ ...base, ...google, TOKEN_ENCRYPTION_KEY: Buffer.alloc(16).toString("base64") }),
+      ).toEqual([expect.stringContaining("TOKEN_ENCRYPTION_KEY: must be 32 bytes")]);
+      expect(
+        problems({
+          ...base,
+          ...google,
+          TOKEN_ENCRYPTION_KEY: key,
+          TOKEN_ENCRYPTION_KEY_PREVIOUS: "nope",
+        }),
+      ).toEqual([expect.stringContaining("TOKEN_ENCRYPTION_KEY_PREVIOUS")]);
+    });
+
+    it("uses the mock when asked, and always in an E2E run", () => {
+      expect(
+        parseEnv({ ...base, CALENDAR_PROVIDER: "mock", TOKEN_ENCRYPTION_KEY: key }),
+      ).toMatchObject({
+        calendarAvailable: true,
+        calendarProvider: "mock",
+      });
+      expect(
+        parseEnv({ ...base, ...google, E2E: "true", TOKEN_ENCRYPTION_KEY: key }).calendarProvider,
+      ).toBe("mock");
+    });
+
+    it("reports a bad worker queue as a startup problem (it used to be ignored)", () => {
+      expect(problems({ ...base, WORKER_QUEUES: "default,nope" })).toEqual([
+        expect.stringContaining('unknown queue "nope"'),
+      ]);
+    });
+  });
 });

@@ -4,6 +4,7 @@ import { PlanCollector, type PlanRecord } from "@/lib/ai/plan";
 import { planDayPrompt, planDaySystem } from "@/lib/ai/prompts";
 import { AppError } from "@/lib/errors";
 import { loadPlanCandidates } from "@/db/queries/ai";
+import { planningCalendar } from "@/lib/calendar/planning";
 import { planDayRequestSchema } from "@/lib/validations/ai";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,14 @@ export async function POST(request: Request) {
     const { ctx } = await openGate(request, "PLAN_DAY", planDayRequestSchema);
     const prefs = { timezone: ctx.timezone, startOfDay: ctx.prefs.startOfDay.slice(0, 5) };
     const candidates = await loadPlanCandidates(ctx.user.id, prefs);
+    // The calendar (feature 12): free time in the working day, never event titles unless the person allows it.
+    const calendar = await planningCalendar(ctx.user.id, {
+      today: ctx.today,
+      timeZone: ctx.timezone,
+      workStart: ctx.prefs.workStart,
+      workEnd: ctx.prefs.workEnd,
+      seesTitles: ctx.prefs.planningSeesTitles,
+    });
 
     return ndjsonResponse(async (send) => {
       // A clear day needs no model and uses no quota: the stream just ends with no proposals.
@@ -62,6 +71,7 @@ export async function POST(request: Request) {
           })),
           ctx.today,
           ctx.timezone,
+          calendar,
         ),
         fixture: {
           today: ctx.today,

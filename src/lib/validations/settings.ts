@@ -33,6 +33,10 @@ export const updatePreferencesSchema = z.strictObject({
   aiEnabled: z.boolean().optional(),
   // V2 feature 11 §6A: show the floating chat button.
   assistantLauncher: z.boolean().optional(),
+  // V2 feature 12: working hours (for free slots and planning) and whether planning may see event titles.
+  workStart: startOfDaySchema.optional(),
+  workEnd: startOfDaySchema.optional(),
+  planningSeesTitles: z.boolean().optional(),
 });
 
 export const changeEmailSchema = z.object({

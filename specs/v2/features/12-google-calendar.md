@@ -1,5 +1,23 @@
 # Feature 12 — Google Calendar
 
+## 0. Reality check and progress (2026-10-14)
+
+Checked against the code and `agent_docs/` before building:
+
+| Spec assumes | What the project had | Action |
+|---|---|---|
+| Feature 08 jobs, scheduler, tick mode | Built | Reused: `calendar.sync_all` is a seeded schedule, handlers live in `src/lib/calendar/handlers.ts` |
+| Feature 06 overlay slot | An empty slot, synchronous | Added a subscription and `prepare` hook; filled by `google-overlay.ts` |
+| Feature 05 data (tasks have `start_*`, `due_*`) | Fields exist | Not needed for this slice |
+| A Dexie `calendarEvents` store (04) | Dexie holds tasks only, and its file is being changed by another agent | Deferred |
+| `PLAN_DAY_V2` | Prompt was `PLAN_DAY_V1` | Bumped; free windows added; titles only on opt-in |
+| Task detail screens (time block, create event) | Being refactored by feature 04 | Server side built; screens deferred |
+| Google Cloud OAuth client and `TOKEN_ENCRYPTION_KEY` | Not configured | Calendar UI is hidden until they are set |
+
+**Progress:** built and tested with the mock provider: connect and disconnect, encrypted tokens, sync (incremental, 410, `invalid_grant`, lease), Settings → Calendar, Today's events, the Calendar view overlay, work hours, busy windows and free slots, the planning context, and the server side of creating an event from a task. **Not run against real Google.** See `agent_docs/google-calendar_v2.md` for what is deferred and the deviations.
+
+---
+
 ## 1. Scope
 
 - **Connect and disconnect** a Google account for calendar access (separate from sign-in), with least-privilege scopes
@@ -207,15 +225,15 @@ Connect button with a plain permission explanation ("Dayboard will read your eve
 
 ## 12. Definition of done
 
-- [ ] A person can connect and disconnect Google Calendar; tokens are encrypted and never reach the browser
-- [ ] Events from selected calendars show in Today, the calendar view and planning (busy windows) and stay fresh through the worker
-- [ ] A task can get a time block, and an event can be created from a task only after confirmation; no event is ever moved automatically
-- [ ] Expired or revoked access is recoverable in one click and breaks nothing else
-- [ ] Event titles are private: not logged, not sent to AI unless the person opts in
-- [ ] Without configuration, calendar UI is hidden and the app is unchanged
-- [ ] CI runs on the mock provider; no Google calls
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build`, `check:bundle` pass (no calendar secrets in the bundle)
-- [ ] `agent_docs/google-calendar_v2.md` written and indexed
+- [x] A person can connect and disconnect Google Calendar; tokens are encrypted and never reach the browser _(tested with the mock; not yet with real Google)_
+- [x] Events from selected calendars show in Today, the calendar view and planning (busy windows) and stay fresh through the worker
+- [ ] A task can get a time block, and an event can be created from a task only after confirmation; no event is ever moved automatically _(server side done and tested; the screens are not built)_
+- [x] Expired or revoked access is recoverable in one click and breaks nothing else
+- [x] Event titles are private: not logged, not sent to AI unless the person opts in
+- [x] Without configuration, calendar UI is hidden and the app is unchanged _(unit-tested through the environment check; E2E always runs configured)_
+- [x] CI runs on the mock provider; no Google calls
+- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build`, `check:bundle` pass (no calendar secrets in the bundle) _(all pass except a full E2E run, which was not done; the affected specs pass)_
+- [x] `agent_docs/google-calendar_v2.md` written and indexed
 
 ---
 

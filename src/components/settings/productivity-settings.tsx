@@ -17,6 +17,9 @@ type Values = {
   startOfDay: string;
   weekStart: number;
   defaultTaskPriority: Priority;
+  /** "HH:MM". Used to suggest free slots and for planning (V2 feature 12). */
+  workStart: string;
+  workEnd: string;
 };
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -32,7 +35,14 @@ export const START_TIMES = Array.from({ length: 48 }, (_, i) => {
   return `${h}:${i % 2 === 0 ? "00" : "30"}`;
 });
 
-export function ProductivitySettings({ initial }: { initial: Values }) {
+export function ProductivitySettings({
+  initial,
+  showWorkHours = false,
+}: {
+  initial: Values;
+  /** Only shown when the calendar is set up on this server. */
+  showWorkHours?: boolean;
+}) {
   const [values, setValues] = useState<Values>(initial);
   const [, startTransition] = useTransition();
   // The server renders just the saved zone; the full list is built in the browser after hydration.
@@ -98,6 +108,44 @@ export function ProductivitySettings({ initial }: { initial: Values }) {
           ))}
         </NativeSelect>
       </SettingsRow>
+
+      {showWorkHours ? (
+        <>
+          <SettingsRow
+            title="Work starts"
+            description="Free time between your work hours is what suggested slots and planning use."
+          >
+            <NativeSelect
+              appearance="inline"
+              icon={Clock}
+              aria-label="Work starts"
+              value={values.workStart}
+              onChange={(e) => change("workStart", e.target.value)}
+            >
+              {START_TIMES.map((time) => (
+                <option key={time} value={time}>
+                  {time}
+                </option>
+              ))}
+            </NativeSelect>
+          </SettingsRow>
+          <SettingsRow title="Work ends">
+            <NativeSelect
+              appearance="inline"
+              icon={Clock}
+              aria-label="Work ends"
+              value={values.workEnd}
+              onChange={(e) => change("workEnd", e.target.value)}
+            >
+              {START_TIMES.map((time) => (
+                <option key={time} value={time}>
+                  {time}
+                </option>
+              ))}
+            </NativeSelect>
+          </SettingsRow>
+        </>
+      ) : null}
 
       <SettingsRow title="Week starts on">
         <NativeSelect

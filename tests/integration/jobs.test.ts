@@ -1,4 +1,4 @@
-import { eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createTask } from "@/actions/tasks";
@@ -155,8 +155,15 @@ describe("claiming and running", () => {
     const a = createWorker({ ...config, workerId: "race-a" });
     const b = createWorker({ ...config, workerId: "race-b" });
     await Promise.all([a.start(), b.start()]);
+    // Only this test's own jobs: other test files leave finished jobs of their own types in the shared database.
     await waitFor(
-      async () => (await db.select().from(jobs).where(eq(jobs.status, "SUCCEEDED"))).length === 50,
+      async () =>
+        (
+          await db
+            .select()
+            .from(jobs)
+            .where(and(eq(jobs.status, "SUCCEEDED"), eq(jobs.type, "test.count")))
+        ).length === 50,
     );
     await Promise.all([a.stop(), b.stop()]);
 

@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { pruneJobs, pruneSync } from "./maintenance";
 import { findHandler, registerHandler } from "./registry";
 import { ensureEmbeddingHandlers } from "@/lib/search/semantic/handlers";
+import { ensureCalendarHandlers } from "@/lib/calendar/handlers";
 
 // The job types this release ships (V2 feature 08 §5). Later features register theirs in their own modules.
 // Each entry point calls `ensureBuiltinHandlers` once before it runs jobs.
@@ -15,6 +16,8 @@ export function ensureBuiltinHandlers(): void {
   registered = true;
   // The search index jobs (V2 feature 10) live in their own module.
   ensureEmbeddingHandlers();
+  // The calendar sync jobs (V2 feature 12) live in their own module.
+  ensureCalendarHandlers();
   if (!findHandler("system.ping")) {
     registerHandler({
       type: "system.ping",

@@ -60,6 +60,12 @@ export default defineConfig({
       AI_LIMIT_PER_DAY: "100",
       // Tick mode (feature 08) is how a test runs the background jobs, such as the search index (feature 10).
       JOBS_TICK_SECRET: "e2e-tick-secret-0123456789abcdefghijkl",
+      // Calendar (feature 12): the mock provider, never Google, and a fixed test key (32 bytes, base64).
+      CALENDAR_PROVIDER: "mock",
+      GOOGLE_CALENDAR_CLIENT_ID: "",
+      GOOGLE_CALENDAR_CLIENT_SECRET: "",
+      GOOGLE_CALENDAR_REDIRECT_URI: "",
+      TOKEN_ENCRYPTION_KEY: "dGVzdC1vbmx5LWtleS0zMi1ieXRlcy1sb25nLTEyMzQ=",
       DATABASE_URL: E2E_DATABASE_URL,
       BETTER_AUTH_SECRET: "e2e-only-secret-not-used-anywhere-else-0123456789",
       BETTER_AUTH_URL: baseURL,

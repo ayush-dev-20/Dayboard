@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ProductivitySettings } from "@/components/settings/productivity-settings";
 import { SettingsSection } from "@/components/settings/settings-ui";
+import { env } from "@/lib/env";
 import { getPreferences } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
 
@@ -18,7 +19,10 @@ export default async function ProductivitySettingsPage() {
           startOfDay: prefs.startOfDay.slice(0, 5),
           weekStart: prefs.weekStart,
           defaultTaskPriority: prefs.defaultTaskPriority,
+          workStart: prefs.workStart.slice(0, 5),
+          workEnd: prefs.workEnd.slice(0, 5),
         }}
+        showWorkHours={env.calendarAvailable}
       />
     </SettingsSection>
   );

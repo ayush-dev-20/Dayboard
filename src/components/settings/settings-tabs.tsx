@@ -10,16 +10,18 @@ const TABS = [
   { href: "/settings/productivity", label: "Productivity" },
   { href: "/settings/ai", label: "AI" },
   { href: "/settings/tags", label: "Tags" },
+  { href: "/settings/calendar", label: "Calendar" },
   { href: "/settings/app", label: "App" },
 ] as const;
 
-export function SettingsTabs() {
+export function SettingsTabs({ showCalendar = false }: { showCalendar?: boolean }) {
   const pathname = usePathname();
+  const tabs = TABS.filter((tab) => showCalendar || tab.href !== "/settings/calendar");
 
   return (
     <nav aria-label="Settings sections" className="border-b border-border">
       <ul className="-mb-px flex gap-5 overflow-x-auto">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = pathname === tab.href;
           return (
             <li key={tab.href}>

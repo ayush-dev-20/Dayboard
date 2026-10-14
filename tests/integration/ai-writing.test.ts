@@ -334,7 +334,7 @@ describe("Plan my day", () => {
     expect(rows[0]).toMatchObject({
       feature: "PLAN_DAY",
       status: "SUCCESS",
-      promptVersion: "PLAN_DAY_V1",
+      promptVersion: "PLAN_DAY_V2",
     });
   });
 

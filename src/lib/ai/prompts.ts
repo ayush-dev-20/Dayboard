@@ -16,7 +16,8 @@ export const PROMPT_VERSIONS = {
   TASK_ASSIST: "TASK_ASSIST_V1",
   CLASSIFY_INBOX: "CLASSIFY_INBOX_V1",
   GENERATE_CONTENT: "GENERATE_CONTENT_V2",
-  PLAN_DAY: "PLAN_DAY_V1",
+  // V2 (feature 12): may be given the free time of the working day, and, if the person allows, event titles.
+  PLAN_DAY: "PLAN_DAY_V2",
   EDIT_SELECTION: "EDIT_SELECTION_V2",
   ASSISTANT: "ASSISTANT_V1",
   ASK_SELECTION: "ASK_SELECTION_V1",
@@ -162,7 +163,7 @@ export const generatePrompt = (opts: {
   return parts.join("\n\n");
 };
 
-export const planDaySystem = `You help someone plan today. From the tasks provided, choose 3 to 5 that they should do today, in the order to do them: the oldest overdue ones that are still plausible, then ones due today, then high-priority ones. ${DATA_RULE} Use only the task ids provided. Reply with JSON Lines and nothing else: first one line {"summary":"one calm sentence about the day"}, then one line per chosen task, in order, {"taskId":"<id>","reason":"why today, under 100 characters"}. No code fences, no extra text. ${STYLE}`;
+export const planDaySystem = `You help someone plan today. From the tasks provided, choose 3 to 5 that they should do today, in the order to do them: the oldest overdue ones that are still plausible, then ones due today, then high-priority ones. ${DATA_RULE} Use only the task ids provided. Reply with JSON Lines and nothing else: first one line {"summary":"one calm sentence about the day"}, then one line per chosen task, in order, {"taskId":"<id>","reason":"why today, under 100 characters"}. No code fences, no extra text. If a "free_time" block is given, it lists the stretches of the working day with nothing booked: choose fewer tasks when there is little free time, say so in the summary, and never invent times or events you were not given. ${STYLE}`;
 
 export type PlanCandidate = {
   id: string;
@@ -175,7 +176,19 @@ export type PlanCandidate = {
   subtasksTotal: number;
 };
 
-export const planDayPrompt = (candidates: PlanCandidate[], today: string, timezone: string) => {
+export type PlanCalendarContext = {
+  /** "HH:MM–HH:MM" stretches of the working day with nothing booked. Empty: fully booked. */
+  freeWindows: string[];
+  /** Today's events as "HH:MM title" lines. Only when the person allowed planning to see titles. */
+  events?: string[];
+};
+
+export const planDayPrompt = (
+  candidates: PlanCandidate[],
+  today: string,
+  timezone: string,
+  calendar?: PlanCalendarContext,
+) => {
   const rows = candidates
     .map(
       (t) =>
@@ -186,7 +199,13 @@ export const planDayPrompt = (candidates: PlanCandidate[], today: string, timezo
     weekday: "long",
     timeZone: "UTC",
   });
-  return `${todayLine(today, timezone)} Today is a ${weekday}.\n\n${dataBlock("tasks", rows)}`;
+  const free = calendar
+    ? `\n\n${dataBlock("free_time", calendar.freeWindows.length > 0 ? calendar.freeWindows.join("\n") : "none")}`
+    : "";
+  const events = calendar?.events
+    ? `\n\n${dataBlock("events", calendar.events.join("\n") || "none")}`
+    : "";
+  return `${todayLine(today, timezone)} Today is a ${weekday}.\n\n${dataBlock("tasks", rows)}${free}${events}`;
 };
 
 const EDIT_RULES =

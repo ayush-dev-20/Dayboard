@@ -23,6 +23,19 @@ const rawSchema = z.object({
   RESEND_API_KEY: optionalString,
   EMAIL_FROM: optionalString,
   E2E: optionalString,
+  // Google Calendar (V2 feature 12). With none of these set, all calendar UI is hidden. The client can be the
+  // sign-in client with one more redirect URI. TOKEN_ENCRYPTION_KEY is 32 bytes, base64.
+  GOOGLE_CALENDAR_CLIENT_ID: optionalString,
+  GOOGLE_CALENDAR_CLIENT_SECRET: optionalString,
+  GOOGLE_CALENDAR_REDIRECT_URI: z.preprocess(
+    blankToUndefined,
+    z.url("must be a full URL").optional(),
+  ),
+  TOKEN_ENCRYPTION_KEY: optionalString,
+  // The key used before a rotation, so tokens saved with it can still be read.
+  TOKEN_ENCRYPTION_KEY_PREVIOUS: optionalString,
+  // `mock` is for tests and local work without Google. E2E runs always use it.
+  CALENDAR_PROVIDER: z.preprocess(blankToUndefined, z.enum(["google", "mock"]).optional()),
   // Background jobs (V2 feature 08). Concurrency and polling apply to the worker process only.
   WORKER_CONCURRENCY: z.preprocess(
     blankToUndefined,
@@ -163,8 +176,6 @@ export function parseEnv(
     }
   }
 
-  if (problems.length > 0) throw new EnvError(problems);
-
   // Unknown queue names are refused at startup, so a typo never leaves a queue unserved.
   const queueNames = ["default", "ai", "notifications"];
   const workerQueues = (v.WORKER_QUEUES ?? "")
@@ -174,6 +185,39 @@ export function parseEnv(
   for (const name of workerQueues) {
     if (!queueNames.includes(name)) problems.push(`WORKER_QUEUES: unknown queue "${name}"`);
   }
+
+  // Calendar: the key must be 32 bytes of base64, and a real provider needs every Google value.
+  const decodesTo32 = (value: string | undefined) =>
+    value === undefined || Buffer.from(value, "base64").length === 32;
+  if (!decodesTo32(v.TOKEN_ENCRYPTION_KEY)) {
+    problems.push("TOKEN_ENCRYPTION_KEY: must be 32 bytes, base64 (openssl rand -base64 32)");
+  }
+  if (!decodesTo32(v.TOKEN_ENCRYPTION_KEY_PREVIOUS)) {
+    problems.push("TOKEN_ENCRYPTION_KEY_PREVIOUS: must be 32 bytes, base64");
+  }
+  const googleCalendarConfigured = Boolean(
+    v.GOOGLE_CALENDAR_CLIENT_ID &&
+    v.GOOGLE_CALENDAR_CLIENT_SECRET &&
+    v.GOOGLE_CALENDAR_REDIRECT_URI,
+  );
+  if (v.GOOGLE_CALENDAR_CLIENT_ID && !googleCalendarConfigured) {
+    problems.push(
+      "Google Calendar: set GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET and GOOGLE_CALENDAR_REDIRECT_URI together",
+    );
+  }
+
+  // Every problem found above is reported together, before anything is built from the values.
+  if (problems.length > 0) throw new EnvError(problems);
+
+  // E2E runs never reach Google. Otherwise the provider is the one asked for, or Google when it is set up.
+  const calendarProvider: "google" | "mock" | null = e2e
+    ? "mock"
+    : (v.CALENDAR_PROVIDER ?? (googleCalendarConfigured ? "google" : null));
+  // Calendar needs a provider and a key to encrypt refresh tokens with. Without both, the UI is hidden.
+  const calendarAvailable =
+    calendarProvider !== null &&
+    Boolean(v.TOKEN_ENCRYPTION_KEY) &&
+    (calendarProvider === "mock" || googleCalendarConfigured);
 
   const emailProvider: "resend" | "console" = v.RESEND_API_KEY ? "resend" : "console";
 
@@ -205,6 +249,8 @@ export function parseEnv(
     aiProvider,
     aiAvailable,
     embeddingsAvailable,
+    calendarProvider,
+    calendarAvailable,
     aiFallbackModels,
     storageDriver,
     storageAvailable: storageDriver !== null,

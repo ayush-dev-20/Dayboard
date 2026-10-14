@@ -31,6 +31,11 @@ export const userPreferences = pgTable(
     // V2 feature 10: meaning-based search. Off by default, because turning it on sends the person's notes
     // and tasks to the embedding provider to build the index.
     semanticSearchEnabled: boolean("semantic_search_enabled").notNull().default(false),
+    // V2 feature 12: working hours, for free-slot suggestions and planning; and whether planning may see event
+    // titles (off: it only sees when the person is busy).
+    workStart: time("work_start").notNull().default("09:00:00"),
+    workEnd: time("work_end").notNull().default("18:00:00"),
+    planningSeesTitles: boolean("planning_sees_titles").notNull().default(false),
     // Today's focus (feature 04). Cleared if the task is permanently deleted.
     focusTaskId: uuid("focus_task_id").references(() => tasks.id, { onDelete: "set null" }),
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),

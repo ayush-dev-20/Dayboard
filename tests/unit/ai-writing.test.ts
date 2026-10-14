@@ -219,7 +219,7 @@ describe("writing help: replacement planning", () => {
 describe("prompts", () => {
   it("each feature has its own version id", () => {
     expect(PROMPT_VERSIONS.GENERATE_CONTENT).toBe("GENERATE_CONTENT_V2");
-    expect(PROMPT_VERSIONS.PLAN_DAY).toBe("PLAN_DAY_V1");
+    expect(PROMPT_VERSIONS.PLAN_DAY).toBe("PLAN_DAY_V2");
     expect(PROMPT_VERSIONS.EDIT_SELECTION).toBe("EDIT_SELECTION_V2");
   });
 
@@ -248,6 +248,38 @@ describe("prompts", () => {
     expect(both).toContain('name="context"');
     expect(both).toContain('name="request"');
     expect(generatePrompt({ prompt: "Write it", context: "  " })).not.toContain('name="context"');
+  });
+
+  it("plan adds the free time of the working day, and event titles only when they are given", () => {
+    const task = {
+      id: A,
+      title: "Pay rent",
+      dueDate: null,
+      priority: "NONE",
+      status: "PLANNED",
+      project: null,
+      subtasksDone: 0,
+      subtasksTotal: 0,
+    };
+    const plain = planDayPrompt([task], "2026-10-03", "UTC");
+    expect(plain).not.toContain("free_time");
+
+    const busy = planDayPrompt([task], "2026-10-03", "UTC", {
+      freeWindows: ["09:00–10:00", "15:00–18:00"],
+    });
+    expect(busy).toContain('name="free_time"');
+    expect(busy).toContain("09:00–10:00");
+    expect(busy).not.toContain('name="events"');
+
+    const full = planDayPrompt([task], "2026-10-03", "UTC", { freeWindows: [] });
+    expect(full).toMatch(/name="free_time"[^]*none/);
+
+    const titled = planDayPrompt([task], "2026-10-03", "UTC", {
+      freeWindows: ["09:00–18:00"],
+      events: ["10:00 Standup"],
+    });
+    expect(titled).toContain("10:00 Standup");
+    expect(planDaySystem).toContain("free_time");
   });
 
   it("plan lists every candidate with its id, and the date", () => {

@@ -45,11 +45,31 @@ export async function updatePreferences(input: unknown): Promise<ActionResult> {
   return runAction("settings.updatePreferences", async () => {
     const user = await requireUser();
     const values = updatePreferencesSchema.parse(input);
-    const { startOfDay, ...rest } = values;
+    const { startOfDay, workStart, workEnd, ...rest } = values;
+
+    // Work has to end after it starts. One of the two may change alone, so compare with what is saved.
+    if (workStart || workEnd) {
+      const [current] = await db
+        .select({ start: userPreferences.workStart, end: userPreferences.workEnd })
+        .from(userPreferences)
+        .where(eq(userPreferences.userId, user.id));
+      const start = workStart ?? current?.start.slice(0, 5) ?? "09:00";
+      const end = workEnd ?? current?.end.slice(0, 5) ?? "18:00";
+      if (end <= start) {
+        throw new AppError("VALIDATION_ERROR", "Work should end after it starts.", {
+          fieldErrors: { workEnd: "Work should end after it starts." },
+        });
+      }
+    }
 
     await db
       .update(userPreferences)
-      .set({ ...rest, ...(startOfDay ? { startOfDay: `${startOfDay}:00` } : {}) })
+      .set({
+        ...rest,
+        ...(startOfDay ? { startOfDay: `${startOfDay}:00` } : {}),
+        ...(workStart ? { workStart: `${workStart}:00` } : {}),
+        ...(workEnd ? { workEnd: `${workEnd}:00` } : {}),
+      })
       .where(eq(userPreferences.userId, user.id));
 
     revalidatePath("/", "layout");

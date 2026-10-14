@@ -22,12 +22,26 @@ const patterns = [
     test: (text) => text.includes("STORAGE_ACCESS_KEY_ID"),
   },
   { name: "the S3 client", test: (text) => text.includes("@aws-sdk/client-s3") },
+  // Calendar (feature 12): the token key and the Google client secret never reach the browser.
+  {
+    name: "the TOKEN_ENCRYPTION_KEY variable name",
+    test: (text) => text.includes("TOKEN_ENCRYPTION_KEY"),
+  },
+  {
+    name: "the GOOGLE_CALENDAR_CLIENT_SECRET variable name",
+    test: (text) => text.includes("GOOGLE_CALENDAR_CLIENT_SECRET"),
+  },
 ];
 const secret = process.env.AI_API_KEY;
 if (secret && secret.length >= 8) {
   patterns.push({ name: "the value of AI_API_KEY", test: (text) => text.includes(secret) });
 }
-for (const name of ["STORAGE_SECRET_ACCESS_KEY", "STORAGE_ACCESS_KEY_ID"]) {
+for (const name of [
+  "STORAGE_SECRET_ACCESS_KEY",
+  "STORAGE_ACCESS_KEY_ID",
+  "TOKEN_ENCRYPTION_KEY",
+  "GOOGLE_CALENDAR_CLIENT_SECRET",
+]) {
   const value = process.env[name];
   if (value && value.length >= 8) {
     patterns.push({ name: `the value of ${name}`, test: (text) => text.includes(value) });
