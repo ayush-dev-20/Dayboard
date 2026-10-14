@@ -24,6 +24,8 @@ export const PROMPT_VERSIONS = {
   // Embedding has no prompt; the label records which version of the chunking and model setup ran.
   EMBED: "EMBED_V1",
   EMBED_QUERY: "EMBED_QUERY_V1",
+  TRANSCRIBE: "TRANSCRIBE_V1",
+  VOICE_PARSE: "VOICE_PARSE_V1",
 } as const satisfies Record<AIFeature, string>;
 
 const DATA_RULE =
@@ -44,7 +46,12 @@ export function todayLine(today: string, timezone: string): string {
 const TASK_RULES =
   'Only include a dueDate if the text states one explicitly. Only include an owner if one is named explicitly. Do not invent tasks. Each title is a short imperative phrase. evidence is under 80 characters, such as "Found in paragraph 3".';
 
+/** What the transcribe call is told. The reply must be the words only, so nothing else is stored. */
+export const NO_SPEECH = "[no speech]";
+export const TRANSCRIBE_SYSTEM = `You write down exactly what is said in a short audio recording. Reply with the words spoken and nothing else: no title, no labels, no commentary. Keep the speaker's own language. Add normal punctuation. If you cannot hear any intelligible speech, reply with exactly: ${NO_SPEECH}`;
+
 export const systemPrompts = {
+  VOICE_PARSE: `You turn a spoken note into things the person meant to capture. The transcript may be rough, with false starts and filler words. ${DATA_RULE} Return the language of the transcript (a short code such as "en"), an optional short title for a note of the whole recording, and at most 10 items. Each item is a TASK (one action worth tracking), a TODO (a quick errand), or a NOTE (information to keep, with the text in body). Titles are short imperative phrases for TASK and TODO. Only include a dueDate if the person clearly said when, and write it as YYYY-MM-DD, or leave it out. Only include a priority if they clearly said it matters or is urgent. projectMention is the project name exactly as spoken, only if they named one; never invent one. people lists names that were spoken. confidence is high when the item and any date were clear, medium when partly clear, low when you are guessing. Do not invent items that were not said. ${STYLE}`,
   EXTRACT_TASKS: `You find the actions a person means to do in their own text. ${DATA_RULE} ${TASK_RULES} Return at most 15 items. ${STYLE}`,
   ACTION_ITEMS: `You find action items in a note. ${DATA_RULE} ${TASK_RULES} Return at most 15 items. ${STYLE}`,
   SUBTASKS: `You break a task into 3 to 8 concrete subtasks, in the order they would be done. ${DATA_RULE} Each title is a short imperative phrase. Do not repeat the task title or existing subtasks. ${STYLE}`,

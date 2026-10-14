@@ -11,6 +11,7 @@ const PROTECTED_PREFIXES = [
   "/trash",
   "/settings",
   "/more",
+  "/capture",
   "/onboarding",
 ];
 

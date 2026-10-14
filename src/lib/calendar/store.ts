@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gt, inArray, like, lt, ne, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, like, lt, ne, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   calendarAccounts,
@@ -298,7 +298,12 @@ export async function staleAccounts(userId: string, maxAgeMs: number, now = new 
       and(
         eq(calendarAccounts.userId, userId),
         eq(calendarAccounts.status, "ACTIVE"),
-        sql`(${calendarAccounts.lastSyncedAt} is null or ${calendarAccounts.lastSyncedAt} < ${new Date(now.getTime() - maxAgeMs)})`,
+        // `lt` (not a raw `sql` fragment) so the Date is bound with the column's type: a bare Date in a
+        // `sql` template is refused by the driver, which made the refresh-on-open fail every time.
+        or(
+          isNull(calendarAccounts.lastSyncedAt),
+          lt(calendarAccounts.lastSyncedAt, new Date(now.getTime() - maxAgeMs)),
+        ),
       ),
     );
 }

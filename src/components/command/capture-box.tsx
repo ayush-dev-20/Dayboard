@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { saveToInbox } from "./capture";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { MicButton } from "@/components/voice/mic-button";
 import { INBOX_TEXT_MAX } from "@/lib/validations/inbox";
 
 /**
@@ -45,7 +46,10 @@ export function CaptureBox({
     <div className="p-4">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="type-label-md text-foreground">Quick capture</h2>
-        <span className="type-body-sm text-muted-foreground">To Inbox</span>
+        <span className="flex items-center gap-1 type-body-sm text-muted-foreground">
+          To Inbox
+          <MicButton onBefore={onClose} className="-my-2 -mr-2" />
+        </span>
       </div>
       <textarea
         autoFocus

@@ -235,6 +235,61 @@ export function runAssistantTurn(args: {
   };
 }
 
+export const TRANSCRIBE_TIMEOUT_MS = 60_000;
+
+/** True when the provider can take audio. Voice capture (feature 13) is hidden otherwise. */
+export function isTranscriptionAvailable(): boolean {
+  return isAIAvailable() && getProvider().supportsTranscription;
+}
+
+/**
+ * Turns a recording into text (V2 feature 13 §4). A provider outage or timeout gets one retry. Records one
+ * `TRANSCRIBE` row (never the audio or the text), which does not count against a person's AI actions: the
+ * parse that follows (`VOICE_PARSE`) is the one counted action. Throws `AI_PROVIDER_ERROR` when it cannot finish.
+ */
+export async function transcribeAudio(args: {
+  userId: string;
+  audio: { bytes: Uint8Array; mime: string };
+  signal?: AbortSignal;
+}): Promise<{ text: string; model: string }> {
+  const provider = getProvider();
+  if (!provider.supportsTranscription) throw providerFailure();
+  const started = Date.now();
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const timeout = AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS);
+    const signal = args.signal ? AbortSignal.any([args.signal, timeout]) : timeout;
+    try {
+      const result = await provider.transcribe(args.audio, { signal });
+      await recordUsage({
+        userId: args.userId,
+        feature: "TRANSCRIBE",
+        provider: provider.id,
+        model: result.model,
+        promptVersion: PROMPT_VERSIONS.TRANSCRIBE,
+        status: "SUCCESS",
+        latencyMs: Date.now() - started,
+        tokens: result.usage,
+      });
+      return { text: result.text, model: result.model };
+    } catch (error) {
+      lastError = error;
+      if (args.signal?.aborted || !(error instanceof ProviderError) || !error.retryable) break;
+    }
+  }
+  logger.warn("transcription failed", { error: lastError });
+  await recordUsage({
+    userId: args.userId,
+    feature: "TRANSCRIBE",
+    provider: provider.id,
+    model: provider.modelName("fast"),
+    promptVersion: PROMPT_VERSIONS.TRANSCRIBE,
+    status: "PROVIDER_ERROR",
+    latencyMs: Date.now() - started,
+  });
+  throw providerFailure(lastError);
+}
+
 export const EMBED_TIMEOUT_MS = 30_000;
 
 /** True when the provider can embed text and has what it needs (a key, a Google provider or the mock). */

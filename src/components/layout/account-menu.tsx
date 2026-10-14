@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { wipeAllAssistantData } from "@/components/assistant/threads";
+import { useWorkspace } from "@/components/workspace/workspace-context";
 import { authClient } from "@/lib/auth-client";
+import { confirmAndWipeRecordings } from "@/lib/voice/client/sign-out";
 import { clearWorkerCaches } from "@/lib/pwa/clear-caches";
 import { cn } from "@/lib/utils";
 
@@ -27,8 +29,11 @@ type Props = {
 
 export function AccountMenu({ name, email, variant = "bar", compact }: Props) {
   const router = useRouter();
+  const { userId } = useWorkspace();
 
   async function signOut() {
+    // Voice recordings waiting on this device are removed too (feature 13 §9), after asking if any are unsent.
+    if (!(await confirmAndWipeRecordings(userId))) return;
     // Assistant conversations live only in this browser; signing out removes them (feature 11 §3).
     wipeAllAssistantData();
     // The offline caches hold this person's pages and data (feature 03 §6).

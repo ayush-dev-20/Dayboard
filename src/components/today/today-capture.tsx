@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Kbd } from "@/components/ui/kbd";
 import { saveToInbox } from "@/components/command/capture";
+import { MicButton } from "@/components/voice/mic-button";
 import { INBOX_TEXT_MAX } from "@/lib/validations/inbox";
 
 /** A quiet one-line "Capture to Inbox" under the greeting: type, Enter, done. Failure keeps the text. */
@@ -42,6 +43,7 @@ export function TodayCapture() {
         autoComplete="off"
         className="h-12 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground md:h-11 md:text-[14px]"
       />
+      <MicButton className="-mr-2" />
       <span className="hidden shrink-0 items-center gap-1.5 type-body-sm text-muted-foreground md:inline-flex">
         <Kbd>C</Kbd> from anywhere
       </span>

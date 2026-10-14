@@ -19,6 +19,9 @@ export const AI_FEATURES = [
   // V2 feature 10: indexing (background, not counted as a person's AI action) and a search query.
   "EMBED",
   "EMBED_QUERY",
+  // V2 feature 13: a recording is transcribed (not counted) and then parsed (the one counted action).
+  "TRANSCRIBE",
+  "VOICE_PARSE",
 ] as const;
 export type AIFeature = (typeof AI_FEATURES)[number];
 

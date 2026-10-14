@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { E2E_BASE_URL as baseURL, E2E_DATABASE_URL, E2E_PORT as PORT } from "./e2e/env";
+import { fakeMicrophoneFile } from "./e2e/voice-audio";
 
 // Locally, use the installed Google Chrome so no extra browser download is needed. CI installs
 // Playwright's own Chromium (`playwright install --with-deps chromium`).
@@ -27,8 +28,26 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      testIgnore: /mobile\.spec\.ts/,
+      testIgnore: /(mobile|voice)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], channel },
+    },
+    {
+      // Voice capture (feature 13): Chromium with a fake microphone that plays a file and says yes to the
+      // permission prompt, so a recording needs no person and no real device.
+      name: "voice",
+      testMatch: /voice\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        channel,
+        permissions: ["microphone"],
+        launchOptions: {
+          args: [
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
+            `--use-file-for-fake-audio-capture=${fakeMicrophoneFile()}`,
+          ],
+        },
+      },
     },
     {
       name: "mobile",

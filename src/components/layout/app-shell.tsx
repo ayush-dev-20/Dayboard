@@ -3,6 +3,7 @@ import { RecordVisit } from "@/components/pwa/record-visit";
 import { AssistantLauncher } from "@/components/assistant/assistant-launcher";
 import { CommandProvider } from "@/components/command/command-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { VoiceProvider } from "@/components/voice/voice-provider";
 import { AccountBlock } from "./account-block";
 import { AppShortcuts } from "./app-shortcuts";
 import { MobileNav } from "./mobile-nav";
@@ -27,36 +28,38 @@ type Props = {
 export function AppShell({ name, email, sidebarCollapsed, children }: Props) {
   return (
     <CommandProvider>
-      <SidebarProvider initialCollapsed={sidebarCollapsed}>
-        <TooltipProvider>
-          <ShellFrame>
-            <aside className="z-10 hidden w-(--sidebar-width) shrink-0 overflow-hidden bg-sidebar transition-[width] duration-200 ease-(--ease-enter) motion-reduce:transition-none lg:block">
-              <SidebarNav collapsible account={<AccountBlock name={name} email={email} />} />
-            </aside>
+      <VoiceProvider>
+        <SidebarProvider initialCollapsed={sidebarCollapsed}>
+          <TooltipProvider>
+            <ShellFrame>
+              <aside className="z-10 hidden w-(--sidebar-width) shrink-0 overflow-hidden bg-sidebar transition-[width] duration-200 ease-(--ease-enter) motion-reduce:transition-none lg:block">
+                <SidebarNav collapsible account={<AccountBlock name={name} email={email} />} />
+              </aside>
 
-            <div
-              id="main-panel"
-              className="min-w-0 lg:relative lg:mt-2 lg:mr-2 lg:flex-1 lg:overflow-y-auto lg:rounded-tl-lg lg:border lg:border-b-0 lg:border-border lg:bg-background"
-            >
-              <TopBar name={name} email={email} />
-              <main
-                id="main"
-                // On a phone the bottom padding also clears the chat button, which sits above the nav (about 160px
-                // from the bottom), so the last thing on a page can always be tapped.
-                className="px-4 pt-6 pb-[calc(56px+env(safe-area-inset-bottom)+7.5rem)] md:px-8 md:pt-8 md:pb-12"
+              <div
+                id="main-panel"
+                className="min-w-0 lg:relative lg:mt-2 lg:mr-2 lg:flex-1 lg:overflow-y-auto lg:rounded-tl-lg lg:border lg:border-b-0 lg:border-border lg:bg-background"
               >
-                {children}
-              </main>
-            </div>
-          </ShellFrame>
-          <AssistantLauncher />
-        </TooltipProvider>
+                <TopBar name={name} email={email} />
+                <main
+                  id="main"
+                  // On a phone the bottom padding also clears the chat button, which sits above the nav (about 160px
+                  // from the bottom), so the last thing on a page can always be tapped.
+                  className="px-4 pt-6 pb-[calc(56px+env(safe-area-inset-bottom)+7.5rem)] md:px-8 md:pt-8 md:pb-12"
+                >
+                  {children}
+                </main>
+              </div>
+            </ShellFrame>
+            <AssistantLauncher />
+          </TooltipProvider>
 
-        <AppShortcuts />
-        <AssistantBoot />
-        <RecordVisit />
-        <MobileNav />
-      </SidebarProvider>
+          <AppShortcuts />
+          <AssistantBoot />
+          <RecordVisit />
+          <MobileNav />
+        </SidebarProvider>
+      </VoiceProvider>
     </CommandProvider>
   );
 }

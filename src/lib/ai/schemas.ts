@@ -80,3 +80,35 @@ export const dailySuggestionSchema = z.object({
   text: z.string().trim().min(1).max(280),
 });
 export type DailySuggestionOutput = z.infer<typeof dailySuggestionSchema>;
+
+// ---- Voice capture (V2 feature 13 §5) -----------------------------------------------------------
+
+export const MAX_VOICE_ITEMS = 10;
+export const VOICE_KINDS = ["TASK", "TODO", "NOTE"] as const;
+export type VoiceKind = (typeof VOICE_KINDS)[number];
+export const VOICE_CONFIDENCE = ["high", "medium", "low"] as const;
+export type VoiceConfidence = (typeof VOICE_CONFIDENCE)[number];
+
+/** One thing the model heard. `dueDate` may be a phrase; the server resolves it (never trusting the model). */
+export const voiceItemSchema = z.object({
+  kind: z.enum(VOICE_KINDS),
+  title: z.string().trim().min(1).max(200),
+  body: z.string().trim().max(5000).nullish(),
+  dueDate: z.string().trim().max(40).nullish(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH"]).nullish(),
+  projectMention: z.string().trim().max(120).nullish(),
+  people: z.array(z.string().trim().min(1).max(80)).max(10).nullish(),
+  confidence: z.enum(VOICE_CONFIDENCE),
+});
+export type VoiceItemOutput = z.infer<typeof voiceItemSchema>;
+
+/** The transcript itself is not asked for again: it comes from the transcription step. */
+export const voiceParseSchema = z.object({
+  language: z.string().trim().min(1).max(20),
+  suggestedNoteTitle: z.string().trim().max(200).nullish(),
+  // No \`.max()\` on the list: Gemini refuses ("invalid argument") a schema with a list limit around items that
+  // have a list limit of their own (\`people\`), checked against the real API. The server keeps the first
+  // ten (\`finishParse\`), so a long answer is trimmed, not rejected.
+  items: z.array(voiceItemSchema),
+});
+export type VoiceParseOutput = z.infer<typeof voiceParseSchema>;

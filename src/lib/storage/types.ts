@@ -21,6 +21,10 @@ export type StorageService = {
   head(key: string): Promise<{ size: number; mime: string } | null>;
   /** The first `bytes` bytes (for checking what a file really is). */
   readHead(key: string, bytes: number): Promise<Uint8Array>;
+  /** The whole object, refused with `TOO_LARGE` when it is bigger than `maxBytes` (voice capture, feature 13). */
+  read(key: string, maxBytes: number): Promise<{ bytes: Uint8Array; mime: string } | null>;
+  /** A copy of an object under another key, inside the service. False when the source is missing. */
+  copy(from: string, to: string): Promise<boolean>;
   delete(key: string): Promise<void>;
 };
 

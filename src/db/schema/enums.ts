@@ -55,6 +55,9 @@ export const aiFeatureEnum = pgEnum("ai_feature", [
   // V2 feature 10: building the search index, and embedding a search query.
   "EMBED",
   "EMBED_QUERY",
+  // V2 feature 13: speech to text (background, not counted) and the parse that follows it (one action).
+  "TRANSCRIBE",
+  "VOICE_PARSE",
 ]);
 
 export const aiUsageStatusEnum = pgEnum("ai_usage_status", [

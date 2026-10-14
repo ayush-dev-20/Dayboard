@@ -3,18 +3,21 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCommandMenu } from "@/components/command/command-context";
+import { requestVoice } from "@/components/voice/voice-context";
+import { useVoiceAvailable } from "@/components/voice/use-voice-available";
 import { FOCUS_ADD_EVENT, isTypingTarget } from "@/lib/shortcuts";
 import { useSidebar } from "./sidebar-state";
 
 /**
  * Single-key shortcuts: N starts a new task, T a new todo, Shift+N a new note, C a quick capture,
- * and ⌘\ toggles the sidebar rail. They do nothing while
+ * V a voice capture (when it is on), and ⌘\ toggles the sidebar rail. They do nothing while
  * the person is typing, while a dialog or menu is open, or when Ctrl, Cmd or Alt is held.
  */
 export function AppShortcuts() {
   const router = useRouter();
   const command = useCommandMenu();
   const sidebar = useSidebar();
+  const voiceAvailable = useVoiceAvailable();
 
   useEffect(() => {
     function startNew(view: "tasks" | "todos") {
@@ -70,12 +73,16 @@ export function AppShortcuts() {
         // Quick capture to the Inbox, from anywhere.
         event.preventDefault();
         command.open("capture");
+      } else if (key === "v" && voiceAvailable) {
+        // A voice capture, from anywhere (V2 feature 13 §3).
+        event.preventDefault();
+        requestVoice();
       }
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [router, command, sidebar]);
+  }, [router, command, sidebar, voiceAvailable]);
 
   return null;
 }

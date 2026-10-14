@@ -1,5 +1,26 @@
 # Feature 13 — Voice Capture
 
+## 0. Reality check and progress (2026-10-14)
+
+Checked against the code and `agent_docs/` before building:
+
+| Spec assumes | What the project had | Action |
+|---|---|---|
+| `AiProvider.transcribe` | The adapter had `embed`, `generateStructured`, `streamText` and the assistant turn, no audio | Added `transcribe` and `supportsTranscription` (Gemini through `@ai-sdk/google`; Anthropic has no audio; mock reads bytes) |
+| ADR 0012 before building | Not written | Written: `docs/decisions/0012-voice-transcription-with-gemini-audio.md` |
+| Feature 09 storage "temporary prefix" | Keys had to be `u/{userId}/{yyyy}/{mm}/{attachmentId}/{hex}`; no whole-object read or copy; no audio type | `voice/{userId}/{id}/{random}`, `read`, `copy`, an `audio` category that is not attachable by hand |
+| Feature 08 jobs on queue `ai`, tick mode | Built | Reused: `transcription.process`, hourly `voice.cleanup` (seeded in the migration), inline path when no worker is live |
+| V1 AI limits and `ai_usage` | Built; one row per call | Two features: `TRANSCRIBE` (not counted) and `VOICE_PARSE` (the one counted action) |
+| Confirm through offline client commands (feature 05) | Only tasks have them | A server action in one transaction (same shape as feature 11's apply); see ADR 0012 |
+| Audio deleted as soon as transcription succeeds, and a review that can play and keep it | Contradiction | Kept until the review ends, and at most a day after ready or failed (ADR 0012) |
+| Dexie `voiceBlobs` in the local database | Feature 04 owns `LocalDatabase` (version 1) | Its own database `dayboard-voice-<hash>` |
+| Bottom nav "capture action (long-press)" | The nav has no capture action | Not built; visible microphones, `V`, the `/capture?voice=1` shortcut |
+| PWA shortcut `/capture?voice=1` | The "Quick capture" shortcut pointed at `/today` | Now points at `/capture`, which opens the recorder (voice on) or the quick capture box |
+
+**Progress:** built and tested with the mock provider and the in-memory store, plus one real Gemini round trip (synthetic speech): recording, upload, transcription, parsing, review, confirm with Undo, keep or delete the recording, offline recording and reconnect, the Voice captures list, the Settings switch, retention and cleanup. **Not run on a real phone or against Backblaze B2.** See `agent_docs/voice-capture_v2.md`.
+
+---
+
 ## 1. Scope
 
 - **Record → Transcribe → Review → Create**, mobile-first
@@ -192,16 +213,16 @@ The review's confirm is **client-side commands**, not a server endpoint that cre
 
 ## 11. Definition of done
 
-- [ ] A person can record a quick capture on a phone, see a transcript and detected items, edit them, and create tasks, todos or a note
-- [ ] Nothing is created before the confirm step; low-confidence dated items start unticked
-- [ ] Recording works offline and processes once after reconnect
-- [ ] Audio never touches the main database; audio and transcripts are deleted as specified; keeping a recording is explicit
-- [ ] Transcripts and audio are never logged; ownership is enforced everywhere
-- [ ] With AI off or unsupported browsers, voice UI is hidden and the app is unchanged
-- [ ] CI uses the mock provider and fake media; no paid calls
-- [ ] ADR 0012 written before building (transcription provider)
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass
-- [ ] `agent_docs/voice-capture_v2.md` written and indexed
+- [x] A person can record a quick capture on a phone, see a transcript and detected items, edit them, and create tasks, todos or a note _(built and tested in desktop Chromium and at 360px; not run on a real phone)_
+- [x] Nothing is created before the confirm step; low-confidence dated items start unticked
+- [x] Recording works offline and processes once after reconnect
+- [x] Audio never touches the main database; audio and transcripts are deleted as specified; keeping a recording is explicit _(retention differs from the spec in one place: ADR 0012)_
+- [x] Transcripts and audio are never logged; ownership is enforced everywhere
+- [x] With AI off or unsupported browsers, voice UI is hidden and the app is unchanged
+- [x] CI uses the mock provider and fake media; no paid calls
+- [x] ADR 0012 written before building (transcription provider)
+- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass _(all pass except a full E2E run: the last one had unrelated timing failures from streaming pages, which pass when re-run; the `voice` project passes 44 of 44 over two repeats)_
+- [x] `agent_docs/voice-capture_v2.md` written and indexed
 
 ---
 

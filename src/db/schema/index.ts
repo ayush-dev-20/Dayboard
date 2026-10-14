@@ -14,3 +14,4 @@ export * from "./tags";
 export * from "./tasks";
 export * from "./todos";
 export * from "./views";
+export * from "./voice";

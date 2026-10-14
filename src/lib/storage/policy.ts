@@ -2,22 +2,26 @@
 // be, and what the browser's claimed type is worth (little: it is only the starting point, and the
 // first bytes are checked at finalize). Pure.
 
-export type FileCategory = "image" | "pdf" | "text" | "document";
+export type FileCategory = "image" | "pdf" | "text" | "document" | "audio";
 
 const MB = 1024 * 1024;
 
-export const CATEGORY_LIMITS: Record<FileCategory, number> = {
+export const CATEGORY_LIMITS: Record<Exclude<FileCategory, "audio">, number> = {
   image: 10 * MB,
   pdf: 25 * MB,
   text: 5 * MB,
   document: 25 * MB,
 };
 
+/** A kept voice recording (feature 13): never a declared upload, and never longer than the recorder allows. */
+const AUDIO_LIMIT = 10 * MB;
+
 export const CATEGORY_LABELS: Record<FileCategory, string> = {
   image: "Image",
   pdf: "PDF",
   text: "Text",
   document: "Document",
+  audio: "Audio",
 };
 
 type TypeInfo = { category: FileCategory; extensions: string[] };
@@ -135,10 +139,32 @@ export function resolveMime(declared: string, name: string): string | null {
   return canonical in ALLOWED_TYPES ? canonical : null;
 }
 
-export const categoryOf = (mime: string): FileCategory | null =>
-  ALLOWED_TYPES[mime]?.category ?? null;
+/**
+ * The recordings a voice capture may hold (V2 feature 13). They are not in `ALLOWED_TYPES`: a person
+ * cannot attach an audio file by hand, only keep a recording they made. The file name decides the
+ * extension, so the type is the only thing that matters here.
+ */
+export const VOICE_AUDIO_TYPES: Record<string, string> = {
+  "audio/webm": "webm",
+  "audio/mp4": "m4a",
+  "audio/ogg": "ogg",
+  "audio/mpeg": "mp3",
+  "audio/wav": "wav",
+};
 
-export const limitFor = (category: FileCategory): number => CATEGORY_LIMITS[category];
+/** `audio/webm;codecs=opus` becomes `audio/webm`; null when it is not a recording type we take. */
+export function voiceMime(declared: string): string | null {
+  const base = declared.split(";")[0]!.trim().toLowerCase();
+  const alias: Record<string, string> = { "audio/x-wav": "audio/wav", "audio/x-m4a": "audio/mp4" };
+  const canonical = alias[base] ?? base;
+  return canonical in VOICE_AUDIO_TYPES ? canonical : null;
+}
+
+export const categoryOf = (mime: string): FileCategory | null =>
+  ALLOWED_TYPES[mime]?.category ?? (mime in VOICE_AUDIO_TYPES ? "audio" : null);
+
+export const limitFor = (category: FileCategory): number =>
+  category === "audio" ? AUDIO_LIMIT : CATEGORY_LIMITS[category];
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -183,9 +209,9 @@ export function validateDeclared(
 /** Images may be shown inline; everything else is a download. */
 export const isImageMime = (mime: string) => categoryOf(mime) === "image";
 
-/** A PDF can open in the browser; the rest download. */
+/** A PDF can open in the browser and a recording can play in it; the rest download. */
 export const dispositionFor = (mime: string): "inline" | "attachment" =>
-  categoryOf(mime) === "image" || categoryOf(mime) === "pdf" ? "inline" : "attachment";
+  ["image", "pdf", "audio"].includes(categoryOf(mime) ?? "") ? "inline" : "attachment";
 
 /** The `accept` attribute for a file picker. */
 export const ACCEPT = [

@@ -1,4 +1,11 @@
-import { File as FileIcon, FileImage, FileSpreadsheet, FileText, Presentation } from "lucide-react";
+import {
+  File as FileIcon,
+  FileAudio,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  Presentation,
+} from "lucide-react";
 import type { FileCategory } from "@/lib/storage/policy";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +28,7 @@ export function FileKindIcon({
     "aria-hidden": true,
   } as const;
   if (category === "image") return <FileImage {...props} />;
+  if (category === "audio") return <FileAudio {...props} />;
   if (mime && SHEET.test(mime)) return <FileSpreadsheet {...props} />;
   if (mime && SLIDES.test(mime)) return <Presentation {...props} />;
   if (category === "pdf" || category === "text" || category === "document") {

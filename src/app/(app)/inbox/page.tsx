@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/layout/empty-state";
 import { InboxCapture } from "@/components/inbox/inbox-capture";
 import { ConvertedLinks } from "@/components/inbox/convert-dialog";
 import { InboxItem } from "@/components/inbox/inbox-item";
+import { VoiceCapturesList } from "@/components/voice/voice-captures-list";
 import { getInbox } from "@/db/queries/inbox";
 import { formatAgo } from "@/lib/dates/relative";
 import { describeConversion } from "@/lib/inbox/dto";
@@ -50,6 +51,8 @@ export default async function InboxPage() {
       <PageHeader title="Inbox" description={`${inbox.open.length} open`} />
 
       <InboxCapture />
+
+      <VoiceCapturesList />
 
       <div className="mt-6">
         {inbox.open.length === 0 ? (

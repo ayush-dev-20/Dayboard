@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { saveToInbox } from "@/components/command/capture";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { MicButton } from "@/components/voice/mic-button";
 import { INBOX_TEXT_MAX } from "@/lib/validations/inbox";
 
 /** The textarea at the top of the Inbox: write anything, Cmd/Ctrl+Enter or Capture saves, and the box clears for the next one. */
@@ -50,6 +51,7 @@ export function InboxCapture() {
         <span className="type-body-sm text-muted-foreground max-md:hidden">
           <Kbd>⌘↵</Kbd> to save
         </span>
+        <MicButton />
         <Button onClick={() => void save()} disabled={saving || !text.trim()}>
           <Inbox strokeWidth={1.5} aria-hidden />
           Capture

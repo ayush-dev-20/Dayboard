@@ -591,3 +591,52 @@ export async function calendarCounts(userId: string) {
 export async function setCalendarStatus(userId: string, status: "ACTIVE" | "NEEDS_RECONNECT") {
   await sql`update calendar_accounts set status = ${status} where user_id = ${userId}`;
 }
+
+// ---- Voice capture (V2 feature 13) -----------------------------------------------------------
+
+export async function voiceCapturesOf(userId: string) {
+  return sql<
+    {
+      id: string;
+      status: string;
+      storage_key: string | null;
+      transcript: string | null;
+      keep_audio: boolean;
+      error_code: string | null;
+      duration_ms: number;
+    }[]
+  >`select id, status, storage_key, transcript, keep_audio, error_code, duration_ms
+    from voice_captures where user_id = ${userId} order by created_at`;
+}
+
+export async function todoTitlesOf(userId: string) {
+  const rows = await sql<{ title: string }[]>`
+    select title from todos where user_id = ${userId} and deleted_at is null order by title`;
+  return rows.map((r) => r.title);
+}
+
+export async function noteTitlesOf(userId: string) {
+  const rows = await sql<{ title: string }[]>`
+    select title from notes where user_id = ${userId} and deleted_at is null order by title`;
+  return rows.map((r) => r.title);
+}
+
+export async function taskPriorityAndDue(userId: string, title: string) {
+  const [row] = await sql<
+    { priority: string; due_date: string | null; project_id: string | null }[]
+  >`
+    select priority::text, to_char(due_date, 'YYYY-MM-DD') as due_date, project_id
+    from tasks where user_id = ${userId} and title = ${title} and deleted_at is null`;
+  return row ?? null;
+}
+
+export async function setVoiceEnabled(userId: string, enabled: boolean) {
+  await sql`update user_preferences set voice_capture_enabled = ${enabled} where user_id = ${userId}`;
+}
+
+export async function taskIdsOf(userId: string) {
+  const rows = await sql<
+    { id: string }[]
+  >`select id from tasks where user_id = ${userId} order by created_at`;
+  return rows.map((r) => r.id);
+}

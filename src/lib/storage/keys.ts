@@ -23,5 +23,25 @@ export function isKeyOf(userId: string, key: string): boolean {
   return key.startsWith(`u/${userId}/`) && !key.includes("..");
 }
 
-/** Keys are only ever made by `createStorageKey`; anything else is refused by the local drivers. */
-export const KEY_PATTERN = /^u\/[0-9a-f-]{36}\/\d{4}\/\d{2}\/[0-9a-f-]{36}\/[0-9a-f]{32}$/;
+/**
+ * A voice capture's temporary audio (V2 feature 13 §2): `voice/{userId}/{captureId}/{128-bit random hex}`.
+ * Its own prefix, so the recordings are easy to tell apart from attachments and can be given a
+ * lifecycle rule on the bucket as a second safety net.
+ */
+export function createVoiceKey(
+  userId: string,
+  captureId: string,
+  random: () => string = () => randomBytes(16).toString("hex"),
+): string {
+  if (!UUID.test(userId) || !UUID.test(captureId)) throw new Error("Ids must be UUIDs.");
+  return `voice/${userId}/${captureId}/${random()}`;
+}
+
+/** Whether a voice key sits under this person's prefix (a second check beside the database row). */
+export function isVoiceKeyOf(userId: string, captureId: string, key: string): boolean {
+  return key.startsWith(`voice/${userId}/${captureId}/`) && !key.includes("..");
+}
+
+/** Keys are only ever made by `createStorageKey` or `createVoiceKey`; anything else is refused by the local drivers. */
+export const KEY_PATTERN =
+  /^(?:u\/[0-9a-f-]{36}\/\d{4}\/\d{2}\/[0-9a-f-]{36}|voice\/[0-9a-f-]{36}\/[0-9a-f-]{36})\/[0-9a-f]{32}$/;

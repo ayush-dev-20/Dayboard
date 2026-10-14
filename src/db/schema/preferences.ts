@@ -31,6 +31,9 @@ export const userPreferences = pgTable(
     // V2 feature 10: meaning-based search. Off by default, because turning it on sends the person's notes
     // and tasks to the embedding provider to build the index.
     semanticSearchEnabled: boolean("semantic_search_enabled").notNull().default(false),
+    // V2 feature 13: the microphone button and the voice captures list. On by default; it only shows when
+    // AI is available, because a recording is sent to the AI provider to be transcribed.
+    voiceCaptureEnabled: boolean("voice_capture_enabled").notNull().default(true),
     // V2 feature 12: working hours, for free-slot suggestions and planning; and whether planning may see event
     // titles (off: it only sees when the person is busy).
     workStart: time("work_start").notNull().default("09:00:00"),

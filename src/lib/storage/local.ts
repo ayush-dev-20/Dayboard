@@ -103,6 +103,18 @@ export function createLocalStorage({ store, secret, baseUrl, now = Date.now }: L
       const blob = await store.get(key);
       return blob ? blob.bytes.slice(0, bytes) : new Uint8Array();
     },
+    async read(key, maxBytes) {
+      const blob = await store.get(key);
+      if (!blob) return null;
+      if (blob.bytes.length > maxBytes) throw new Error("TOO_LARGE");
+      return blob;
+    },
+    async copy(from, to) {
+      const blob = await store.get(from);
+      if (!blob) return false;
+      await store.put(to, blob.bytes, blob.mime);
+      return true;
+    },
     async delete(key) {
       await store.delete(key);
     },

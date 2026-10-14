@@ -14,6 +14,7 @@ import {
   Folder,
   History,
   MessageCircleQuestion,
+  Mic,
   Plus,
   Search,
   Tag as TagIcon,
@@ -23,6 +24,8 @@ import { AskPanel } from "@/components/ai/ask-panel";
 import { createThread, titleFrom } from "@/components/assistant/threads";
 import { useAIStream } from "@/components/ai/use-ai";
 import { Kbd } from "@/components/ui/kbd";
+import { useVoiceAvailable } from "@/components/voice/use-voice-available";
+import { requestVoice } from "@/components/voice/voice-context";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { ProjectToken } from "@/components/workspace/tokens";
 import { COPY_NOTE_EVENT } from "@/lib/shortcuts";
@@ -116,6 +119,7 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
   const router = useRouter();
   const onNote = /^\/notes\/(?!new$)[^/]+$/.test(usePathname());
   const { aiEnabled } = useWorkspace();
+  const voiceAvailable = useVoiceAvailable();
   const ask = useAIStream("/api/ai/ask");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
@@ -423,6 +427,24 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                       Capture to Inbox
                       <Kbd className="ml-auto max-md:hidden">C</Kbd>
                     </Command.Item>
+                    {voiceAvailable ? (
+                      <Command.Item
+                        value="voice-capture"
+                        onSelect={() => {
+                          close();
+                          requestVoice();
+                        }}
+                        className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 type-body-md data-[selected=true]:bg-primary-subtle md:min-h-9"
+                      >
+                        <Mic
+                          className="size-4 text-muted-foreground"
+                          strokeWidth={1.5}
+                          aria-hidden
+                        />{" "}
+                        Record a voice capture
+                        <Kbd className="ml-auto max-md:hidden">V</Kbd>
+                      </Command.Item>
+                    ) : null}
                     {onNote ? (
                       <>
                         <Command.Item

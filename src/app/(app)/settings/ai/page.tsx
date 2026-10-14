@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { AiSettings } from "@/components/settings/ai-settings";
 import { SemanticSearchSettings } from "@/components/settings/semantic-search-settings";
 import { SettingsSection } from "@/components/settings/settings-ui";
+import { VoiceSettings } from "@/components/settings/voice-settings";
+import { isTranscriptionAvailable } from "@/lib/ai";
 import { countToday, getLimits } from "@/lib/ai/usage";
 import { env } from "@/lib/env";
 import { getPreferences } from "@/lib/preferences";
@@ -12,7 +14,9 @@ export const metadata: Metadata = { title: "AI assistant" };
 
 export default async function AiSettingsPage() {
   const user = await requireUser({ redirect: true });
-  const { aiEnabled, assistantLauncher, timezone } = await getPreferences(user.id);
+  const { aiEnabled, assistantLauncher, timezone, voiceCaptureEnabled } = await getPreferences(
+    user.id,
+  );
   const used = await countToday(user.id, timezone);
   const semantic = await indexStatus(user.id);
 
@@ -31,6 +35,14 @@ export default async function AiSettingsPage() {
         aiEnabled={aiEnabled}
         providerName={env.aiProvider === "gemini" ? "Google (Gemini)" : "the AI provider"}
       />
+      {env.storageAvailable && isTranscriptionAvailable() ? (
+        <VoiceSettings
+          initialEnabled={voiceCaptureEnabled}
+          aiEnabled={aiEnabled}
+          providerName={env.aiProvider === "gemini" ? "Google (Gemini)" : "the AI provider"}
+          freeTier={env.aiProvider === "gemini"}
+        />
+      ) : null}
     </SettingsSection>
   );
 }

@@ -42,7 +42,7 @@ describe("web app manifest", () => {
     expect(shortcuts.map((s) => s.url)).toEqual([
       "/tasks?focus=add",
       "/notes/new",
-      "/today",
+      "/capture?voice=1",
       "/search",
     ]);
     for (const shortcut of shortcuts) {

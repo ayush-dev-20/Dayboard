@@ -21,6 +21,7 @@ import { claimJobs } from "@/lib/jobs/claim";
 import { runClaimed } from "@/lib/jobs/runner";
 import { createOauthCookie, OAUTH_COOKIE } from "@/lib/calendar/oauth";
 import { mockCalendar, fixtureEvents } from "@/lib/calendar/providers/mock";
+import { staleAccounts } from "@/lib/calendar/store";
 import { syncAccount } from "@/lib/calendar/sync";
 import { MANUAL_SYNCS_PER_HOUR } from "@/lib/calendar/manual";
 import { planningCalendar } from "@/lib/calendar/planning";
@@ -209,6 +210,29 @@ describe("syncing", () => {
       .where(eq(calendarAccounts.id, account.id));
     expect(after!.lastSyncedAt).not.toBeNull();
     expect(after!.syncLeaseUntil).toBeNull();
+  });
+
+  it("finds the accounts that are due a refresh when the person opens the app: never synced, or older than the limit", async () => {
+    const account = await connected(await createTestUser("sync-stale"));
+    const minute = 60_000;
+    // Never synced: due.
+    expect((await staleAccounts(account.userId, 5 * minute)).map((a) => a.id)).toEqual([
+      account.id,
+    ]);
+    await syncAccount(account.id);
+    // Just synced: not due.
+    expect(await staleAccounts(account.userId, 5 * minute)).toEqual([]);
+    // Ten minutes later it is.
+    const later = new Date(Date.now() + 10 * minute);
+    expect((await staleAccounts(account.userId, 5 * minute, later)).map((a) => a.id)).toEqual([
+      account.id,
+    ]);
+    // An account that needs reconnecting is never refreshed.
+    await db
+      .update(calendarAccounts)
+      .set({ status: "NEEDS_RECONNECT" })
+      .where(eq(calendarAccounts.id, account.id));
+    expect(await staleAccounts(account.userId, 5 * minute, later)).toEqual([]);
   });
 
   it("updates an event that changed, removes ones the provider reports gone, and keeps the rest", async () => {

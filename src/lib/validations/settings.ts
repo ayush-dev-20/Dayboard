@@ -37,6 +37,8 @@ export const updatePreferencesSchema = z.strictObject({
   workStart: startOfDaySchema.optional(),
   workEnd: startOfDaySchema.optional(),
   planningSeesTitles: z.boolean().optional(),
+  // V2 feature 13: the microphone button and the voice captures list.
+  voiceCaptureEnabled: z.boolean().optional(),
 });
 
 export const changeEmailSchema = z.object({

@@ -96,15 +96,36 @@ export type EmbedResult = {
   usage: TokenUsage;
 };
 
+// ---- Transcription: audio in, text out (feature 13 §4, ADR 0012) -------------------------------
+
+export type TranscribeOptions = {
+  signal: AbortSignal;
+};
+
+export type TranscribeResult = {
+  /** What was said, as written text. Empty when there was no speech. */
+  text: string;
+  usage: TokenUsage;
+  /** The model that answered. */
+  model: string;
+};
+
 export interface AIProvider {
   readonly id: "anthropic" | "gemini" | "mock";
   /** False for a vendor with no embedding model (Anthropic). Meaning-based search is then unavailable. */
   readonly supportsEmbeddings: boolean;
+  /** False for a vendor that cannot take audio (Anthropic). Voice capture is then hidden. */
+  readonly supportsTranscription: boolean;
   modelName(tier: ModelTier): string;
   /** The embedding model in use, without the size (`gemini-embedding-001`). */
   embeddingModelName(): string;
   /** Turns texts into vectors. At most `EMBED_BATCH` texts per call. */
   embed(input: string[], options: EmbedOptions): Promise<EmbedResult>;
+  /** Turns a recording into text. `audio.mime` is the plain type, without codec parameters. */
+  transcribe(
+    audio: { bytes: Uint8Array; mime: string },
+    options: TranscribeOptions,
+  ): Promise<TranscribeResult>;
   /** The raw model answer. The caller validates it; a provider only has to return JSON-shaped data. */
   generateStructured(options: CallOptions, schema: z.ZodType): Promise<StructuredResult>;
   streamText(options: CallOptions): TextStream;

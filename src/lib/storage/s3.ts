@@ -1,6 +1,7 @@
 import "server-only";
 import {
   DeleteObjectCommand,
+  CopyObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -95,6 +96,36 @@ export function createS3Storage(settings: S3Settings, client = createS3Client(se
         new GetObjectCommand({ Bucket, Key: key, Range: `bytes=0-${Math.max(0, bytes - 1)}` }),
       );
       return (await out.Body?.transformToByteArray()) ?? new Uint8Array();
+    },
+    async read(key, maxBytes) {
+      // A size check first, so a huge object is never pulled into memory.
+      const head = await service.head(key);
+      if (!head) return null;
+      if (head.size > maxBytes) throw new Error("TOO_LARGE");
+      try {
+        const out = await client.send(new GetObjectCommand({ Bucket, Key: key }));
+        const bytes = (await out.Body?.transformToByteArray()) ?? new Uint8Array();
+        return { bytes, mime: out.ContentType ?? head.mime };
+      } catch (error) {
+        if (isMissing(error)) return null;
+        throw error;
+      }
+    },
+    async copy(from, to) {
+      try {
+        await client.send(
+          new CopyObjectCommand({
+            Bucket,
+            Key: to,
+            // The source is "bucket/key", each part encoded; the slashes inside the key stay.
+            CopySource: `${encodeURIComponent(Bucket)}/${from.split("/").map(encodeURIComponent).join("/")}`,
+          }),
+        );
+        return true;
+      } catch (error) {
+        if (isMissing(error)) return false;
+        throw error;
+      }
     },
     async delete(key) {
       // On a versioned bucket (Backblaze B2 is one) a plain delete only hides the file: the data stays

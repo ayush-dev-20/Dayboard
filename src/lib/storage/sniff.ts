@@ -74,3 +74,23 @@ export function sniffMatches(bytes: Uint8Array, mime: string): SniffResult {
   }
   return found === mime ? { ok: true } : { ok: false, reason: "SIGNATURE_MISMATCH" };
 }
+
+/** Whether the first bytes of a voice recording agree with the audio type it was declared as (feature 13). */
+export function sniffAudio(bytes: Uint8Array, mime: string): boolean {
+  switch (mime) {
+    case "audio/webm":
+      return startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3]);
+    case "audio/mp4":
+      return ascii(bytes, 4, 8) === "ftyp";
+    case "audio/ogg":
+      return ascii(bytes, 0, 4) === "OggS";
+    case "audio/mpeg":
+      return (
+        ascii(bytes, 0, 3) === "ID3" || (bytes[0] === 0xff && ((bytes[1] ?? 0) & 0xe0) === 0xe0)
+      );
+    case "audio/wav":
+      return ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 12) === "WAVE";
+    default:
+      return false;
+  }
+}

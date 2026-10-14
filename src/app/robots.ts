@@ -19,6 +19,7 @@ export default function robots(): MetadataRoute.Robots {
           "/trash",
           "/settings",
           "/more",
+          "/capture",
           "/onboarding",
           "/sign-in",
           "/sign-up",

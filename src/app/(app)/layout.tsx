@@ -13,6 +13,7 @@ import { getPreferences } from "@/lib/preferences";
 import { safeNextPath } from "@/lib/redirects";
 import { SIDEBAR_COOKIE } from "@/components/layout/sidebar-state";
 import { requireUser } from "@/lib/session";
+import { voiceEnabledFor } from "@/lib/voice/availability";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser({ redirect: true });
@@ -44,6 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         aiEnabled: env.aiAvailable && preferences.aiEnabled,
         assistantLauncher: preferences.assistantLauncher,
         filesEnabled: env.storageAvailable,
+        voiceEnabled: voiceEnabledFor(preferences),
         noteTree,
       }}
     >

@@ -25,6 +25,7 @@ import {
   type TextStream,
 } from "../provider";
 import { DEFAULT_EMBEDDING_MODEL, EMBED_DIMENSIONS, embeddingLabel } from "../embedding";
+import { TRANSCRIBE_SYSTEM } from "../prompts";
 import type { ModelTier, TokenUsage } from "../types";
 import {
   canFallBack,
@@ -208,7 +209,42 @@ export function createSdkProvider(): AIProvider {
     modelName,
     // Only Google offers an embedding model through this adapter (Anthropic has none).
     supportsEmbeddings: vendor === "gemini",
+    // Gemini takes audio as a file part (ADR 0012). Anthropic's models do not take audio.
+    supportsTranscription: vendor === "gemini",
     embeddingModelName,
+
+    async transcribe(audio, options) {
+      if (vendor !== "gemini") {
+        throw new ProviderError("This AI provider cannot transcribe audio.", false);
+      }
+      try {
+        const { value, model } = await firstThatWorks(
+          chainFor("fast"),
+          cooling,
+          options.signal,
+          (name) =>
+            generateText({
+              model: languageModel(name),
+              system: TRANSCRIBE_SYSTEM,
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: "Write down what is said in this recording." },
+                    { type: "file", data: audio.bytes, mediaType: audio.mime },
+                  ],
+                },
+              ],
+              abortSignal: options.signal,
+              maxRetries: 0,
+            }),
+          logFallback("TRANSCRIBE"),
+        );
+        return { text: value.text.trim(), usage: usageOf(value.usage), model };
+      } catch (error) {
+        throw new ProviderError("The AI service failed.", isRetryable(error), { cause: error });
+      }
+    },
 
     async embed(input, options) {
       if (vendor !== "gemini") {

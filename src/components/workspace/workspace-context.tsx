@@ -20,6 +20,8 @@ export type WorkspaceValue = {
   assistantLauncher: boolean;
   /** File storage is configured: attachments, image and file blocks are shown (feature 09). */
   filesEnabled: boolean;
+  /** Voice capture is on: storage, a provider that takes audio, AI and the person's switch (feature 13). */
+  voiceEnabled: boolean;
   /** The notes under Notes in the sidebar: the first 50 top-level notes and what is under them. */
   noteTree: { rows: NoteTreeRow[]; rootTotal: number };
 };
@@ -32,6 +34,7 @@ const WorkspaceContext = createContext<WorkspaceValue>({
   aiEnabled: false,
   assistantLauncher: true,
   filesEnabled: false,
+  voiceEnabled: false,
   noteTree: { rows: [], rootTotal: 0 },
 });
 

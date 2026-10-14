@@ -39,9 +39,11 @@ export default function manifest(): MetadataRoute.Manifest {
         icons: [{ src: "/icons/96", sizes: "96x96", type: "image/png" }],
       },
       {
+        // Opens the voice recorder when voice capture is on, and the quick capture box when it is not
+        // (V2 feature 13 §3), so one shortcut serves both.
         name: "Quick capture",
         short_name: "Capture",
-        url: "/today",
+        url: "/capture?voice=1",
         icons: [{ src: "/icons/96", sizes: "96x96", type: "image/png" }],
       },
       {

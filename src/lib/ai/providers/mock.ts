@@ -8,6 +8,7 @@ import {
 import type { AIFeature, ModelTier } from "../types";
 import { embeddingLabel } from "../embedding";
 import { mockAssistantTurn } from "./mock-assistant";
+import { mockTranscript, mockVoiceParse } from "./mock-voice";
 import { mockEmbedStats, mockVector } from "./mock-embed";
 
 // Deterministic fixtures for development, tests and CI. No network, no key, no cost. Each feature
@@ -426,6 +427,13 @@ function structured(feature: AIFeature, fixture: Obj): unknown {
       return assist(fixture);
     case "CLASSIFY_INBOX":
       return classify(fixture);
+    case "VOICE_PARSE": {
+      // `[mock:parsefail]` in the speech makes only the parse step fail, so the fallback note can be tested.
+      if (str(fixture.transcript).includes("[mock:parsefail]")) {
+        throw new ProviderError("Mock provider failure.", false);
+      }
+      return mockVoiceParse(str(fixture.transcript));
+    }
     default:
       throw new ProviderError(`The mock has no structured fixture for ${feature}.`, false);
   }
@@ -435,6 +443,7 @@ export function createMockProvider(): AIProvider {
   return {
     id: "mock",
     supportsEmbeddings: true,
+    supportsTranscription: true,
     runAssistantTurn: mockAssistantTurn,
     modelName: (tier: ModelTier) => (tier === "fast" ? "mock-fast" : "mock"),
     embeddingModelName: () => "mock-embedding",
@@ -448,6 +457,17 @@ export function createMockProvider(): AIProvider {
         vectors: input.map(mockVector),
         model: embeddingLabel("mock-embedding"),
         usage: { inputTokens: input.reduce((n, t) => n + Math.ceil(t.length / 4), 0) },
+      };
+    },
+
+    async transcribe(audio, options) {
+      const transcript = mockTranscript(audio.bytes);
+      // `[mock:error]` or `[mock:slow]` in the transcript text makes this call fail or wait.
+      await applyBehaviour({ fixture: transcript, signal: options.signal });
+      return {
+        text: transcript,
+        usage: { inputTokens: Math.ceil(audio.bytes.length / 400), outputTokens: 40 },
+        model: "mock-fast",
       };
     },
 
