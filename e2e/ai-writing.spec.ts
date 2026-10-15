@@ -253,9 +253,20 @@ const helpPanel = (page: Page) => page.getByRole("dialog", { name: "Writing help
 
 /** Selects one line of text by keyboard (repeated triple clicks are unreliable in the browser). */
 async function selectLine(page: Page, text: Locator) {
-  await text.click();
-  await pressLineEnd(page);
-  await selectToLineStart(page);
+  // The floating "Improve writing" button follows the selection. On a busy machine the editor can miss the
+  // selection change (for example straight after a panel closed on the same text), so select again until the
+  // button is there.
+  await expect(async () => {
+    await text.click();
+    await pressLineEnd(page);
+    await selectToLineStart(page);
+    // On a phone the selection has no floating button (the toolbar's Writing help is used instead).
+    if ((page.viewportSize()?.width ?? 1280) >= 768) {
+      await expect(page.getByRole("button", { name: "Improve writing" })).toBeVisible({
+        timeout: 3000,
+      });
+    }
+  }).toPass({ timeout: 30_000 });
 }
 
 async function chooseHelp(page: Page, mode: string) {

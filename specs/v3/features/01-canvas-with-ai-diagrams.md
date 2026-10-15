@@ -1,10 +1,12 @@
-# Feature 01 — Canvas with AI Diagrams (V3)
+# Feature 01 — Canvas with AI Diagrams and Sticky Boards (V3)
 
 > **Build priority: first V3 feature, and the first thing to build from this folder** (owner, 2026-10-13). It began as V2 feature 17 and was moved to V3. It needs only V1, the AI pipeline and V2 feature 11's audit log, so it does not wait for V3 permissions or collaboration, or for the open V2 offline work (V2 features 03 to 05), the worker (08) or semantic search (10).
+>
+> **Sticky boards** (§13, slice D) were added on 2026-10-15 (owner): a second kind of canvas, a status board of sticky notes, where **each sticky note is a task of its own kind** that also shows in Today. It reuses slice A and needs neither Excalidraw nor ADR 0017, but it adds columns to the tasks table (§13.2).
 
 ## 1. Scope
 
-- A new item type, the **Canvas**: an infinite whiteboard (Excalidraw, embedded) for boxes, arrows, text and frames, saved per person in PostgreSQL. Own list page `/canvases`, own page `/canvases/[id]`, optional project, archive, Trash, search.
+- A new item type, the **Canvas**, in two kinds. A **drawing** is an infinite whiteboard (Excalidraw, embedded) for boxes, arrows, text and frames; a **sticky board** (§13) is columns of sticky notes. Both are saved per person in PostgreSQL, with an own list page `/canvases`, an own page `/canvases/[id]`, an optional project, archive, Trash and search.
 - A **Canvases tab** in the sidebar, at the same level as Notes, Journal and Projects, with a collapsible list of the latest canvases under it (§7).
 - **Tasks linked to a canvas** (many to many, like tasks and notes): link a task from the canvas page or a canvas from the task, and see the links on both sides (§2, §6, §7).
 - **Cards** for a note, task or project: a box that opens the item. Dropping a task card also links the task.
@@ -12,6 +14,7 @@
 - **Refine with AI** (slice C): add or change parts of a diagram the AI drew.
 - An **Outline** view of every diagram as plain text, for screen readers and keyboard users.
 - Export as PNG, SVG and an Excalidraw file.
+- **Sticky boards** (slice D, §13): columns named by status (Planned, In progress, Waiting, Completed, Cancelled and more) holding sticky notes that move between them by drag, keyboard or menu. A sticky is a **task of its own kind**: the column decides its status, and it shows in its own section of Today.
 
 Reuses: the V1 AI pipeline (`src/lib/ai/gate.ts`, limits, `ai_usage`, the mock provider, Zod-checked answers, versioned prompts, the repair retry, model fallback from ADR 0004), V2 feature 11's `audit_log` and "a proposal is applied once" rule, the notes' save pattern (version check, local draft, conflict banner), V1 Trash semantics, the V1 search module, V2 feature 07's note picker (`src/lib/notes/picker.ts`, `note-link-picker.tsx`), and the task-to-note link pattern (`task_notes`, `linkTaskNote`, `unlinkTaskNote`, `findTasksToLink`, `LinkedTasks`) for the task-to-canvas link.
 
@@ -26,8 +29,9 @@ Source spec sections: V3 product §4 (Canvas with AI diagrams), `../Agent.md` §
 | **A** | Canvas table, CRUD actions, Canvases sidebar tab, list page, canvas page with Excalidraw and autosave, Trash, search, cards, task links, Outline, export | A person can draw, keep canvases and link tasks to them |
 | **B** | `DiagramSpec`, layout, scene builder, `GENERATE_DIAGRAM` route, Draw with AI dialog and preview, audit | "Draw with AI" works |
 | **C** | `REFINE_DIAGRAM`, Additions frame, Arrange again | "Add a cache between X and Y" works |
+| **D** | Sticky boards: board format and `sanitizeBoard`, presets, stickies as tasks of kind `STICKY`, board page, Today's "Sticky notes" section, the `plainTasks` filter (§13) | A person can keep sticky notes on a status board and see them in Today |
 
-Slice A ships on its own. B needs A. C needs B and should wait until the owner has tried B.
+Slice A ships on its own. B needs A. C needs B and should wait until the owner has tried B. **D needs A** (the canvas `kind` and `board_json` come with A's migration; D adds its own expand-only migration on `tasks`) and does not use Excalidraw, so it can be built before or after B and C.
 
 ---
 
@@ -42,9 +46,11 @@ Slice A ships on its own. B needs A. C needs B and should wait until the owner h
 | `project_id` | uuid FK → projects, set null | not cleared when the project goes to Trash (like notes) |
 | `title` | text NOT NULL default '' | ≤ 300 chars (check) |
 | `emoji` | text NULL | one grapheme, same rule as notes |
-| `scene_json` | jsonb NOT NULL | the checked scene (§2.1) |
-| `scene_text` | text NOT NULL default '' | the plain-text copy for search, **built on the server**, ≤ 20,000 chars |
-| `element_count` | integer NOT NULL default 0 | built on the server |
+| `kind` | text NOT NULL default `'DRAWING'` | `DRAWING` or `BOARD` (check); a sticky board is §13 |
+| `scene_json` | jsonb NOT NULL | the checked scene (§2.1); an empty scene for a board |
+| `board_json` | jsonb NULL | the checked board columns (§13.2); set only when `kind = 'BOARD'` (check). The stickies are task rows, not in this column |
+| `scene_text` | text NOT NULL default '' | the plain-text copy for search, **built on the server**, ≤ 20,000 chars (for a board: its title and column names; sticky text is found through the tasks) |
+| `element_count` | integer NOT NULL default 0 | built on the server (not used for a board; the list counts its stickies) |
 | `version` | integer NOT NULL default 1 | bumped on every accepted save; a stale save is refused |
 | `last_modified_by_device_id` | uuid NULL | for the sync engine later (like `collection_views`) |
 | `created_at`, `updated_at` | timestamptz | |
@@ -172,8 +178,8 @@ Every created element carries `customData.dayboard = { id, kind, section, ai: tr
 
 | Action | Purpose |
 |---|---|
-| `createCanvas({ title?, projectId?, scene?, proposalId? })` | New canvas. With `proposalId` (from an AI diagram) it also writes one `audit_log` row (`source: CANVAS`, a summary of counts such as "Drew a diagram: 6 sections, 24 boxes, 31 connections", ids only, never labels or the prompt). The row's `(user_id, proposal_id)` is unique, so it applies once; a second apply returns `CONFLICT` |
-| `saveCanvas({ id, version, scene?, title? })` | Returns `{ outcome: "saved" \| "conflict", version }` as data, like notes. Checks ownership and `sanitizeScene`, rebuilds `scene_text` and `element_count` |
+| `createCanvas({ kind?, preset?, title?, projectId?, scene?, proposalId? })` | New canvas. With `proposalId` (from an AI diagram) it also writes one `audit_log` row (`source: CANVAS`, a summary of counts such as "Drew a diagram: 6 sections, 24 boxes, 31 connections", ids only, never labels or the prompt). The row's `(user_id, proposal_id)` is unique, so it applies once; a second apply returns `CONFLICT` |
+| `saveCanvas({ id, version, scene?, board?, title? })` | For a drawing a `scene`, for a board a `board` (§13.3). Returns `{ outcome: "saved" \| "conflict", version }` as data, like notes. Checks ownership and `sanitizeScene`, rebuilds `scene_text` and `element_count` |
 | `updateCanvasMeta({ id, title?, emoji?, projectId? })` | Title, emoji, project (the project must be the person's own) |
 | `archiveCanvas`, `unarchiveCanvas` | `archived_at` |
 | `deleteCanvas` / `restoreCanvas` / `permanentlyDeleteCanvas` | Trash with Undo, restore, delete for good (same rules as notes) |
@@ -182,6 +188,8 @@ Every created element carries `customData.dayboard = { id, kind, section, ai: tr
 | `findTasksToLinkToCanvas({ query })` / `findCanvasesToLink({ query })` | Search the person's own open tasks (for the canvas page) or live canvases (for the task page), up to 20, like `findTasksToLink` for notes |
 
 Queries: `listCanvases` (not deleted, not archived, newest first), `getCanvas`, archived list, `listLinkedTasks(canvasId)` (open first, then done), `listLinkedCanvases(taskId)` (live ones, archived marked), and a `canvas` type in Trash and in search (`SEARCH_TYPES`, `TRASH_TYPES`, `trashHref`). A person may keep at most **100** canvases (`CANVAS_LIMIT`), so the free database cannot be filled by one account; over it → `QUOTA_EXCEEDED`.
+
+Sticky boards add board column saving and the sticky actions (`createSticky`, `moveSticky` and so on); see §13.3.
 
 ### AI routes (`src/app/api/ai/`, through `openGate`, mock provider in tests)
 
@@ -200,7 +208,7 @@ Both: `requireAIEnabled`, per-minute and per-day limits (one action each), `AI_D
 
 Sidebar tab **Canvases** in the Library group, a Lucide icon such as `Shapes`, and a row in the phone's More page. The Library group reads: Notes, Journal, Canvases, Projects, Templates, Assistant.
 
-**The tab works like Notes and Projects.** The row is a link to `/canvases`, with a chevron that folds the section. Unfolded, it lists the **latest five canvases** (emoji, title) and **Show all**. The fold choice is remembered on the device (`dayboard:sidebar:canvases`), shown by default, and the list refreshes when a canvas is created, renamed, archived or trashed. The tab shows no count. `NAV_ITEMS`, `NAV_GROUPS` (today built with fixed `slice` indexes, which must change to explicit lists) and `MORE_PREFIXES` all gain the new tabs. Header (shared `PageHeader`): title, count, **New canvas** (primary) and **Draw with AI** (secondary, an ordinary button with a verb, no sparkle). A hairline list: emoji, title, project marker, "24 elements", updated. Archived canvases collapse below. Empty state: "No canvases yet. Sketch an idea, or describe a system and let AI draw it." with **New canvas** and **Draw with AI**.
+**The tab works like Notes and Projects.** The row is a link to `/canvases`, with a chevron that folds the section. Unfolded, it lists the **latest five canvases** (emoji, title) and **Show all**. The fold choice is remembered on the device (`dayboard:sidebar:canvases`), shown by default, and the list refreshes when a canvas is created, renamed, archived or trashed. The tab shows no count. `NAV_ITEMS`, `NAV_GROUPS` (today built with fixed `slice` indexes, which must change to explicit lists) and `MORE_PREFIXES` all gain the new tabs. Header (shared `PageHeader`): title, count, **New canvas** (primary; a small menu with **New drawing** and **New sticky board**, §13) and **Draw with AI** (secondary, an ordinary button with a verb, no sparkle). A hairline list: emoji, title, project marker, "24 elements" (a board shows a Board marker and "18 sticky notes"), updated. Archived canvases collapse below. Empty state: "No canvases yet. Sketch an idea, or describe a system and let AI draw it." with **New canvas** and **Draw with AI**.
 
 ### Canvas page (`/canvases/[id]`)
 
@@ -261,6 +269,8 @@ Nothing new is required. `AI_*` settings, model fallback (ADR 0004) and the limi
 
 ## 10. Tests
 
+The tests for sticky boards are in §13.7.
+
 **Unit**
 - `diagram-spec`: valid spec; edge to a missing box dropped with a warning; self-loop and duplicate edge dropped; unknown section goes to Other; duplicate node ids rejected; every cap (sections 12, nodes 60, edges 120, text lengths); id pattern; control characters removed; a link, a colour code or coordinates in the model's output are rejected or ignored.
 - `layout`: no overlaps; boxes inside frames; frames do not overlap; deterministic; a cycle; a single box; disconnected groups; 13 sections wrap rows; 60 boxes in under 100 ms; flow layout ranks; very long labels.
@@ -304,6 +314,7 @@ No visual baselines: Excalidraw's rendering depends on fonts and platform.
 - [ ] **Draw with AI** works with the mock provider and with a real model: structured answer checked, warnings shown, layout without overlaps, arrows attached to boxes, preview, nothing saved before Create, one apply per proposal, audit row with counts only
 - [ ] The food-delivery example from V3 product §4.3 is a test fixture and its preview is reviewed by the owner
 - [ ] The Outline shows the same content as the drawing
+- [ ] **Sticky boards** meet the definition of done in §13.8 (they are tasks of kind `STICKY` and need the `plainTasks` filter in every task query)
 - [ ] Without AI the canvas still works
 - [ ] Excalidraw loads on demand only, with its fonts and assets from our own origin; the canvas route's JavaScript size is recorded
 - [ ] Axe passes, 360 px works for the list and the dialog, reduced motion respected
@@ -324,3 +335,197 @@ No visual baselines: Excalidraw's rendering depends on fonts and platform.
 - Live card titles; thumbnails in the list; PDF export; version history.
 - Linking todos, projects or notes to a canvas through the link table (a card can point at them); the assistant proposing canvas links.
 - Working offline (V2 features 04 and 05).
+- Sticky boards have their own out-of-scope list (§13.9).
+
+---
+
+## 13. Sticky boards (slice D)
+
+> Added 2026-10-15 (owner request). **Revised the same day (owner): a sticky note is also a task**, a task of its own kind that shows up separately in Today. A **sticky board** is a second kind of canvas: columns named by status (Planned, In progress, Waiting, Completed, Cancelled and more) holding sticky notes the person writes and moves between them. Behaviour is in V3 product §4 (4.3 to 4.8). Where this section is more detailed, it wins. The owner asked to keep it this way for now and change it later if needed, so the open questions in §13.9 mark every choice that follows from it.
+
+### 13.1 What it is, and how it differs from the Tasks Board
+
+A sticky note is a **task with `kind = 'STICKY'`**. It has the task's status, completion time, due date, priority, tags, notes, Trash and sync, and the board adds a place: which board, which column, which colour.
+
+| | Ordinary task | Sticky note (a task of its own kind) |
+|---|---|---|
+| Written as | a title, a description, fields | short free text (title and description are the text's first line and the rest; 600 characters in all) and a colour |
+| Lives | in lists and views | on one sticky board, in a column; **the column decides its status** |
+| Shows in Today | in the task lists | in **its own section** (§13.4) |
+| Shows in the Tasks list, views, Inbox, counts | yes | **not in this release** (open question) |
+| Repeats, has subtasks | yes | no |
+
+The existing **Tasks Board view** (V2 feature 06) is unchanged: it shows ordinary tasks by status.
+
+### 13.2 Data
+
+**`canvases`** (slice A, with the migration): `kind` (`DRAWING` or `BOARD`, default `DRAWING`) and `board_json` (null for a drawing, the board's **columns** for a board; check `(kind = 'BOARD') = (board_json is not null)`). A board's `scene_json` holds an empty scene, `scene_text` is its title and column names, and the sticky count shown in the list is counted from the stickies, not stored.
+
+**`tasks`** (one expand-only migration for slice D; every column has a default, so the previous release keeps working):
+
+| Column | Notes |
+|---|---|
+| `kind` | text NOT NULL default `'TASK'`, check in (`TASK`, `STICKY`) |
+| `board_canvas_id` | uuid NULL → `canvases`, **on delete cascade** (deleting a board for good deletes its stickies) |
+| `board_column_id` | text NULL: the id of a column in that board's `board_json` |
+| `sticky_tone` | text NULL: one of the eight colour tokens (`src/lib/colors.ts`) |
+
+Checks: `(kind = 'STICKY') = (board_canvas_id is not null and board_column_id is not null)`; a sticky has no `recurrence_rule` and no `parent_task_id`. Index `(board_canvas_id, sort_order)` where `kind = 'STICKY'`. The order of stickies inside a column is the task's existing `sort_order` (the same `orderBetween` helper and renumbering as task lists).
+
+**Board format** (`src/lib/canvas/board.ts`, pure, shared by browser and server) holds columns only:
+
+```ts
+type Board = { v: 1; columns: Column[] };
+type Column = {
+  id: string;                  // client-made id, /^[a-z0-9-]{8,40}$/, unique within the board
+  name: string;                // 1 to 40 characters, plain text
+  status: "PLANNED" | "IN_PROGRESS" | "WAITING" | "DONE" | "CANCELLED";   // required
+  tone: ColorToken | null;
+  collapsed?: boolean;
+};
+```
+
+`sanitizeBoard` refuses more than **12 columns** or none, an empty name, a missing or other status (`INBOX` is not a column status), a colour not in the tokens, duplicate ids, any other key, and a board over 20,000 bytes. Several columns may share a status (for example two Waiting columns).
+
+**Presets** (built on the server; the client sends only the name):
+
+| Preset | Columns (status) |
+|---|---|
+| **Status board** (default) | Planned (PLANNED), In progress (IN_PROGRESS), Waiting (WAITING), Completed (DONE), Cancelled (CANCELLED) |
+| **Simple** | To do (PLANNED), Doing (IN_PROGRESS), Done (DONE) |
+| **Blank** | one column, Ideas (PLANNED) |
+
+Default column tones: Planned slate, In progress blue, Waiting amber, Completed green, **Cancelled slate** (red stays rare, `DESIGN.md`).
+
+**Limits:** 500 live stickies per board and 200 per column (`QUOTA_EXCEEDED`), text 600 characters, columns 12; boards count in the 100-canvas limit.
+
+**The column decides the status** (one source of truth, the task):
+
+- Moving a sticky to a column sets its task status to the column's status with the normal task logic (`statusPatch`: Completed sets `completed_at`, leaving it clears it, Cancelled cancels).
+- If the status changes anywhere else (complete it in Today, change it in the task panel), the sticky **moves to the first column of its board with that status**. If the board has no such column it stays where it is and shows its status as a text label.
+- Changing a column's status (Column menu → Status) asks first ("3 sticky notes will become Waiting") and then updates them.
+- Deleting a column asks where its stickies go. Moving them to a column with another status changes their status to match, and the dialog says so. Choosing "delete them" moves them to Trash. The last column cannot be deleted.
+
+### 13.3 Server contract
+
+Actions in `src/actions/canvases.ts` and `src/actions/stickies.ts` (each starts with `requireUser()`, Zod input, `runAction`). Stickies use the **existing task mutations** (create, status, order, delete, restore) so every rule, the sync change log (V2 feature 05) and the tests that enumerate task mutations apply to them.
+
+| Action | Purpose |
+|---|---|
+| `createCanvas({ kind: "BOARD", preset, title?, projectId? })` | Builds the columns from the preset; title defaults to "Untitled board". A `scene` sent to a board is `VALIDATION_ERROR` |
+| `saveCanvas({ id, version, board?, title? })` | For a board: `sanitizeBoard`, version check, `{ outcome: "saved" \| "conflict" }` as drawings. Columns only |
+| `changeColumnStatus({ canvasId, version, columnId, status })`, `deleteBoardColumn({ canvasId, version, columnId, moveTo \| "trash" })` | Change the column and update its stickies in one transaction (§13.2) |
+| `createSticky({ canvasId, columnId, text, tone? })` | New sticky at the bottom of the column: title is the first line (cut at 500), the rest is the description as plain paragraphs, status from the column, project from the board, `sort_order` last. Limits checked |
+| `updateSticky({ id, text?, tone? })` | Text and colour |
+| `moveSticky({ id, columnId, beforeId \| null })` | Place before another sticky in the target column, or at the end; sets the status from the target column in the same transaction |
+| `duplicateSticky({ id })`, `deleteSticky({ id })`, `restoreSticky({ id })` | Copy below, Trash with Undo (the task delete), restore |
+| `makeStickyRegularTask({ id })` | Sets `kind = 'TASK'` and clears the board fields: it leaves the board and appears in the task lists; a link to the board (`task_canvases`) keeps the connection |
+
+Queries: `getBoard(canvasId)` (columns plus its live stickies with their task fields), `listStickiesForToday(userId, today)`, and the sticky count in `listCanvases`. Every one filters by the session user; another person's board, column or sticky is `NOT_FOUND`. A board in Trash or archived shows no stickies anywhere; restoring it brings them back.
+
+### 13.4 Where stickies show up
+
+One shared condition, **`plainTasks`** (`kind = 'TASK'`), is exported from `src/db/queries/tasks.ts` and used by every query that lists, counts or searches tasks. A test lists every exported task query and states whether it uses `plainTasks`, so a new query cannot forget the choice (the same idea as `plainNotes` for journal entries).
+
+| Place | Stickies |
+|---|---|
+| **Today** | **Yes, in their own section "Sticky notes"** (below) |
+| The board | Yes |
+| Tasks list, Todos, Table, Board and Calendar views, Inbox, sidebar counts, Today's task lists, focus, progress | **No** (open question) |
+| Global search and ⌘K | Yes, labelled **Sticky note**; a hit opens its board |
+| Journal "Done on this day" | Yes, labelled Sticky note, when completed that day |
+| Trash | Yes, labelled; stickies of a trashed board travel with the board |
+| Task detail panel | Yes, through **Details**; Repeat and Subtasks are hidden |
+| AI assistant tools, Plan my day, weekly review, memory, overdue cleanup | **No** |
+| Linked-tasks panel of a canvas | Ordinary tasks only (stickies are on the board, not linked to it) |
+| Sync and the offline database (V2 features 04 and 05) | Same task rows; the snapshot and operations carry `kind` and the board fields, and the offline lists apply the same filter |
+
+**Today's "Sticky notes" section** (`StickyRow`, server-rendered with the rest of Today): shown only when it has rows, after the task lists. It lists the person's **open stickies that are In progress, or due today or overdue**, on live boards, newest activity first, up to 20 with "Show all N" opening the first board involved. A row has the same square checkbox as a task (checking it completes the sticky, which moves to its board's Completed column), the sticky's colour dot, the title, the due chip when it has one, the board's name as a link, and the status in text when it is not In progress. Clicking the title opens the task panel (**Details** view). The section is not counted in the day's progress, the focus picker or the sidebar's Today count.
+
+### 13.5 UI
+
+**Where it lives.** Boards sit in the Canvases tab and list next to drawings. **New canvas** is a small menu: **New drawing** and **New sticky board**; rows show a Board marker in text (and a Lucide `Kanban` icon) and "18 sticky notes". Drawings and boards share the address `/canvases/[id]`; a board renders the board page and **does not load Excalidraw**.
+
+**The board page.**
+- A slim header like a drawing's: back, editable title, emoji, save state text (columns), project picker, the **Tasks** button (linked ordinary tasks, §7) and a `…` menu: **Copy as Markdown** (columns as headings, stickies as bullets with their status), Archive, Move to Trash.
+- Columns sit side by side in a horizontal scroll area, each at least 260 px wide. A column header shows its name, a count and a `…` menu: **Rename**, **Colour**, **Status**, **Collapse**, **Move left / right**, **Delete column**. **Add column** ends the row.
+- A column foot has **Add sticky note**: an inline box (Enter adds it and opens another, Shift+Enter is a new line, Esc closes).
+- A sticky is a tinted card showing its text. Click or Enter edits in place and saves on blur. Its `…` menu: **Colour**, **Move to**, **Details** (the task panel: due date, priority, tags, notes), **Duplicate**, **Make it a regular task**, **Delete** (with an Undo toast). A due date shows as a chip on the card.
+- **Completed and Cancelled are not colour alone:** a sticky in a DONE column shows a check glyph and muted text, one in CANCELLED a cross, muted and struck through, and a column header carries its status in text.
+- **Moving:** drag between columns and within a column with the library of ADR 0008 (dnd-kit, pointer, touch and keyboard sensors; Space to lift, arrows to move, Space to drop, announced politely), and **always also** by **Move to**, **Move up** and **Move down** in the menu. A move saves at once (optimistic, with a quiet failure message and the card returning if it fails), not through the 1.5 s debounce. Column changes (names, colours, order) autosave like a drawing with the version check, a device draft and the conflict banner.
+- **Empty states:** a new board shows its preset columns, each saying "No sticky notes" with the add button. A board always has at least one column.
+- **Phone (360 px):** a scrollable strip of column tabs with counts shows one column at a time; moving uses the menu; 44 px targets; menus are bottom sheets.
+- Reduced motion: no card animation of our own; the drag preview follows the pointer only.
+
+### 13.6 Rules
+
+- **Owner only,** like every canvas and task: every read and write is scoped to the session user.
+- **The task is the truth.** A sticky has one status, held by its task; the board shows it as a column and never keeps a second copy.
+- **Plain text only.** Sticky and column text is stored and rendered as text: no HTML, Markdown rendering or links turned into elements.
+- **No AI in this feature.** Boards and stickies are not sent to the AI, to memory or to logs; the AI features that read tasks skip stickies (§13.4).
+- **Every sticky change is a task change:** it goes through the task mutations, so versions, the change log and Trash behave as for tasks.
+- **Same Trash, archive, search, project and limit behaviour as other canvases** (100 per person, both kinds).
+- **No new dependency.** The drag library is already chosen (ADR 0008); ADR 0017 is not needed for this slice.
+
+### 13.7 Tests
+
+**Unit**
+- `sanitizeBoard`: a valid board; each cap (12 columns, name 40, 20,000 bytes); no columns, empty name, missing or `INBOX` status, bad colour, duplicate ids, extra keys.
+- Pure helpers: presets (each valid), `columnForStatus` (first column with the status, none), `statusAfterMove`, `splitStickyText` (first line as title cut at 500, the rest as description, 600 total), `deleteColumn` plans, `boardToMarkdown`.
+
+**Integration** (real database)
+- Ownership matrix for boards and stickies (read, create, update, move, delete, restore, convert) on another person's board: `NOT_FOUND`; signed out `UNAUTHENTICATED`.
+- `createSticky`: title and description from the text, status from the column, project from the board, last in order; limits 500 and 200 give `QUOTA_EXCEEDED`; a recurrence or a parent is refused.
+- `moveSticky`: within a column and to another; status follows the column; to a Completed column sets `completed_at`, out of it clears it; Cancelled cancels; order is right.
+- A status change made elsewhere (`setTaskStatus`, completing in Today) moves the sticky to the first column with that status; with no such column it stays and reports its status.
+- `changeColumnStatus` and `deleteBoardColumn` (move to a column with another status, trash them) update their stickies in one transaction; the last column cannot be deleted; a stale version is a `conflict` and changes nothing.
+- **Visibility:** the `plainTasks` classification test passes; stickies are absent from the Tasks list, views, Inbox, sidebar counts, Today's task lists and progress and the assistant's tools; they are present in search, the board, Trash and Journal Done (labelled).
+- **Today's section:** an In progress sticky and an overdue Planned sticky appear; a Planned sticky with no date, a Completed one, one on a trashed or archived board do not; completing one from Today moves it to the board's Completed column.
+- Board in Trash hides its stickies and Restore returns them; permanent delete of the board deletes them.
+- `makeStickyRegularTask`: it leaves the board, appears in the Tasks list, is linked to the board, and its status is kept.
+- Every sticky mutation writes the sync change log (V2 feature 05's coverage test lists them).
+
+**E2E**
+1. New sticky board from the Status board preset: five columns.
+2. Add stickies in two columns, reload: they are there in order; the Tasks list does not show them.
+3. Drag to another column and reorder; the same by keyboard and **Move to**; moving to Completed shows the check.
+4. Open Today: the In progress sticky is in "Sticky notes" with its board; check it off there and see it in Completed on the board.
+5. Rename, add and delete a column, moving its stickies; change a column's status after the confirmation.
+6. **Details** opens the task panel without Repeat and Subtasks; set a due date and see the chip; **Make it a regular task** and find it in Tasks.
+7. Two tabs: a stale column save shows the conflict banner; Trash with Undo, restore, search by sticky text.
+8. At 360 px: column tabs, **Move to**, Move up and down; axe on the list, the board and Today's section, light and dark; reduced motion.
+
+### 13.8 Definition of done (slice D)
+
+- [ ] One expand-only migration adds the four task columns and checks, and the canvas `kind` and `board_json` (slice A)
+- [ ] A person can create a board from each preset, add, edit, recolour, move, duplicate and delete stickies, and manage columns; no other person can reach any of it
+- [ ] The column decides the status, and a status changed elsewhere moves the sticky, both tested
+- [ ] Every move works by drag, by keyboard and by menu, on desktop and phone
+- [ ] Today shows the "Sticky notes" section by the rule in §13.4, separate from the task lists, with its own checkbox
+- [ ] The `plainTasks` condition is used by every task query and a test classifies them all; stickies are absent from the places listed as "No" and present where listed "Yes"
+- [ ] Sticky mutations use the task mutations and write the sync change log
+- [ ] Completed and Cancelled stickies are distinguishable without colour
+- [ ] The board page does not load Excalidraw
+- [ ] Axe passes; 360 px works; reduced motion respected
+- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass
+- [ ] The as-built section of `agent_docs/canvas-with-ai-diagrams_v3.md` covers boards
+
+### 13.9 Out of scope, alternatives and open questions
+
+**Out of scope (this slice)**
+- Sticky notes drawn on a free-form drawing (a sticky shape in Excalidraw).
+- Assignees, checklists, images or files on a sticky. (Due date, priority, tags and notes are available through the task panel.)
+- Work-in-progress limits, swimlanes, filters, and views of one board by tag or project.
+- Moving a sticky to another board; adding an existing task to a board as a sticky; templates gallery; import from Trello or other tools.
+- AI-filled boards and AI reading of stickies; shared or real-time boards (the §12 rule on shared canvases applies); working offline until V2 features 04 and 05 carry `kind`.
+
+**Alternatives considered**
+- **A separate `sticky_notes` table** shown in Today as "a kind of task". Rejected: it would copy status, completion, Trash, the detail panel and sync that a task already has.
+- **Stickies inside the board's JSON, with a task created on "Make a task".** Rejected after the owner's change: two copies of the truth, and status could not follow the column.
+- **The cost of the chosen design:** every existing task query must apply `plainTasks`. That is the main work and risk of the slice, and why a test classifies every query.
+
+**Open (kept as the owner asked: "like this for now")**
+- Whether stickies should also appear in the Tasks list, views, Inbox, counts, the assistant, Plan my day and the weekly review.
+- Today's rule (In progress, or due today or overdue, up to 20); the alternatives are every open sticky or only those due.
+- Whether an existing task can be added to a board as a sticky (the reverse of **Make it a regular task**).
+- Whether a board can be a project's default view.

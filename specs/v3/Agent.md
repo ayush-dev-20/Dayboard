@@ -52,6 +52,7 @@ The canvas (`features/01-canvas-with-ai-diagrams.md`) is the first V3 feature.
 - No prompts, labels, notes or scenes in logs or in the audit row.
 - The drawing library is loaded on demand only, with its assets served from our own origin. The server never imports it.
 - The canvas works without AI. A canvas is private to its owner until a sharing decision (ADR) is made.
+- Sticky boards (feature 01 §13): everything stored passes `sanitizeBoard` (plain text only, the column, sticky and size caps); a sticky is a task of kind `STICKY` and every change goes through the existing task mutations, with the shared `plainTasks` condition on every ordinary task query; no board or sticky text goes to the AI or to logs.
 - Excalidraw is a new dependency: write ADR 0017 before adding it.
 
 ## 5. Permission rules
@@ -128,7 +129,7 @@ Never log private document contents by default.
 
 Minimum automated coverage for V3 additions:
 
-- canvas: scene sanitisation, `DiagramSpec` checking, layout (no overlaps, deterministic), ownership matrix
+- canvas: scene sanitisation, `DiagramSpec` checking, layout (no overlaps, deterministic), ownership matrix; sticky boards: `sanitizeBoard`, moves and status following the column, the `plainTasks` classification, Today's Sticky notes section
 - ACL/authorization matrix
 - collaboration reconnect
 - automation idempotency

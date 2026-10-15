@@ -26,6 +26,7 @@ Slices (each ships on its own):
 - **A:** canvas table, CRUD actions, Canvases sidebar tab, list page, canvas page with autosave, Trash, search, cards, task links, Outline, export.
 - **B:** `DiagramSpec`, layout, scene builder, `GENERATE_DIAGRAM` route, Draw with AI dialog and preview, audit.
 - **C:** `REFINE_DIAGRAM`, Additions frame, Arrange again. Wait until the owner has tried B.
+- **D:** sticky boards (a second canvas kind: status columns and sticky notes that are tasks of their own kind, shown in Today). Needs A and its own migration on `tasks`; it does not use Excalidraw. Breakdown: feature 01 §13.
 
 Definition of done:
 

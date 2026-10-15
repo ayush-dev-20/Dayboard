@@ -12,7 +12,7 @@ V3 should feel like a mature product rather than a collection of features.
 
 ## 2. V3 goals
 
-1. Add a **canvas**: an infinite whiteboard for boxes, arrows and notes, where the AI can draw a diagram (for example a system architecture) from a description, with sections and properly connected boxes that the person reviews, edits and saves (§4).
+1. Add a **canvas**: an infinite whiteboard for boxes, arrows and notes, where the AI can draw a diagram (for example a system architecture) from a description, with sections and properly connected boxes that the person reviews, edits and saves, and a **sticky-note board** with status columns (Planned, In progress, Waiting, Completed, Cancelled and more) for planning and parking ideas (§4).
 2. Add a **Journal**: one daily entry in the same editor as Notes, with the tasks and todos completed that day listed automatically, in its own collapsible sidebar section (§5).
 3. Add **Templates**: reusable starting shapes for notes and for each new journal entry, in their own tab (§6).
 4. Support optional collaboration on selected spaces/projects.
@@ -34,7 +34,7 @@ Avoid in V3 unless product demand clearly requires them:
 - custom programming language or workflow engine
 - multi-cloud deployment by default
 
-## 4. Canvas with AI diagrams
+## 4. Canvas: AI diagrams and sticky boards
 
 The first V3 feature, and the first to build (owner, 2026-10-13). It began as V2 feature 17 and was moved here. The working document is [features/01-canvas-with-ai-diagrams.md](features/01-canvas-with-ai-diagrams.md).
 
@@ -42,12 +42,16 @@ The first V3 feature, and the first to build (owner, 2026-10-13). It began as V2
 
 Dayboard holds text: tasks, notes, projects. A person who is designing something (a system, a flow, a plan) has nowhere to draw it, and the AI can only answer in words. Notes can hold a table or a list, but not boxes joined by arrows. People keep a second tool (Excalidraw, Miro, Eraser) for this and copy screenshots back into notes.
 
+There is also nowhere to put **loose thoughts in a board shape**: a planning session, a list of ideas, "what is waiting on someone". Dayboard's Tasks Board shows ordinary tasks by status, but every card there is a full task. A person who wants to jot a dozen quick items and sort them into Planned, In progress, Waiting, Completed and Cancelled has no light, visual place to do it.
+
 ### 4.2 How the references do it (checked 2026-10-13)
 
 - **Obsidian Canvas:** an infinite board with text cards, notes, images and web pages, joined by labelled lines, with groups; saved in the open JSON Canvas format; a text card can become a note.
 - **Excalidraw:** a hand-drawn style whiteboard. Its AI turns a prompt into Mermaid text and renders that as shapes; the result is then ordinary editable shapes.
 - **Eraser (DiagramGPT):** a prompt becomes a diagram kept as editable "diagram as code"; strongest for software diagrams (architecture, flow, entity relationship, sequence).
 - **Miro AI:** good for brainstorming layouts; reviewers find it weaker for precise technical diagrams.
+
+- **Trello and similar boards:** columns that are statuses, cards moved between them by drag. **Miro and similar whiteboards:** coloured sticky notes written fast and sorted into groups. Not re-checked for this spec.
 
 What to take from them: an infinite canvas people can edit freely, an AI that produces **structure** (sections, boxes, labelled connections) rather than a picture, and a result that is just a normal canvas afterwards.
 
@@ -59,6 +63,8 @@ What to take from them: an infinite canvas people can edit freely, an AI that pr
 - Draw boxes, arrows, text and frames; add a **card for a note, task or project** that opens it.
 - **Draw with AI:** the person describes what they want ("Design the architecture for a food-delivery app like Swiggy or Zomato: ordering, restaurants, delivery tracking, payments, notifications, and the technologies you would use") and the AI proposes a diagram: **sections** (for example Clients, Edge, Services, Data, External), **boxes** inside them with the technology named, and **labelled connections** between boxes. The person sees a preview and confirms before anything is saved.
 - **Refine with AI:** ask for a change to a diagram the AI drew ("add a cache between the order service and the database").
+- A **sticky board**: a second kind of canvas where the person keeps **sticky notes** in **columns named by status**, by default Planned, In progress, Waiting, Completed and Cancelled, and can add, rename, recolour and reorder columns. Stickies are short coloured notes, moved between columns by drag, keyboard or menu.
+- A sticky note is **also a task**, a task of its own kind. The column it sits in is its status, so moving it to Completed completes it, and completing it elsewhere moves it. Stickies show up **separately in Today**, in their own section.
 - The AI draws a **reference architecture** for the kind of app described. It must not present the result as the real internal design of a named company.
 
 ### 4.4 Behaviour
@@ -72,7 +78,10 @@ What to take from them: an infinite canvas people can edit freely, an AI that pr
 - Every diagram is also available as an **Outline**: a plain list of sections, boxes (with their technology) and connections, for screen readers and keyboard users.
 - **Canvases tab:** a row in the Library group with a chevron that folds the section and lists the latest five canvases, remembered on the device like Projects. The Library group reads Notes, Journal, Canvases, Projects, Templates, Assistant.
 - **Linking tasks:** the canvas page has a **Tasks** button with a count that opens the linked tasks (open ones first) with a search to link another and a control to unlink; the task has a **Canvases** section next to its linked notes. Dropping a task card on the drawing also links that task. Deleting a card does not unlink, and unlinking does not delete the card. A canvas in Trash drops out of the task's list and comes back with Restore.
-- The canvas works without AI. With AI off, the AI buttons are not shown.
+- **Sticky boards:** **New canvas** offers a drawing or a sticky board. A new board starts from a preset: **Status board** (Planned, In progress, Waiting, Completed, Cancelled), **Simple** (To do, Doing, Done) or **Blank**. Each column has a name, a colour and optionally a task status. A column header shows its name and count; **Add sticky note** at the foot of a column opens a quick box (Enter adds and opens another). Clicking a sticky edits it in place. Moving works three ways: **drag**, **keyboard** (Space to lift, arrows to move) and a **Move to** menu, so nothing depends on dragging, and on a phone one column shows at a time with the menu. A sticky in Completed shows a check and one in Cancelled a cross, so status is never only a colour. The board autosaves like a drawing. Boards sit in the Canvases tab with a Board marker, are searched by their sticky text, and can be archived, trashed, restored, given a project and linked to tasks like any canvas.
+- **Stickies are tasks of their own kind.** A sticky's first line is its task title and the rest its description; its status is its column's status (each column carries one), so dragging between columns changes the status and nothing is kept twice. A sticky can also have a due date, priority and tags through the normal task panel (**Details**). Stickies cannot repeat or have subtasks. **Make it a regular task** takes a sticky off the board and into the ordinary task lists.
+- **In Today:** a separate **Sticky notes** section lists open stickies that are In progress or due today or overdue, each with its board's name and a checkbox. For now stickies do **not** appear in the Tasks list, views, Inbox or counts, and the AI features skip them; the owner asked to keep it like this and revisit later.
+- The canvas works without AI. With AI off, the AI buttons are not shown. Sticky boards need no AI at all.
 - A diagram the AI draws is a starting point on a normal canvas: the person can move, change, delete and add anything, and nothing is saved until they confirm it.
 
 ### 4.5 Safety
@@ -81,6 +90,7 @@ What to take from them: an infinite canvas people can edit freely, an AI that pr
 - Only a small structured description crosses from the AI: names, short text, kinds and connections. No coordinates, colours, links or drawing data. Everything saved is checked on the server.
 - Embedded web pages and images are not allowed on a canvas in this feature.
 - Applying an AI diagram writes an audit record with counts only, and can be applied once.
+- Sticky text is plain text, stored and shown as text. A board never goes to the AI in this feature, and its text is not logged. Limits keep it small: 12 columns, 500 sticky notes, 600 characters each.
 
 ### 4.6 Acceptance criteria
 
@@ -93,6 +103,13 @@ What to take from them: an infinite canvas people can edit freely, an AI that pr
 7. A failed or stopped AI request changes nothing.
 8. The Canvases tab appears in the sidebar and under More, and folds like Projects.
 9. A task linked to a canvas from either side shows on both; unlinking from either side removes it from both; a trashed canvas disappears from the task's list and returns on Restore.
+10. A person can create a sticky board from the Status board preset and see five columns: Planned, In progress, Waiting, Completed and Cancelled.
+11. Sticky notes can be added, edited, recoloured and deleted (with Undo), and the board is intact after a reload.
+12. A sticky can be moved to another column and reordered by drag, by keyboard and by the Move to menu, including on a phone.
+13. Columns can be added, renamed, recoloured, reordered and deleted; deleting a column with stickies asks where they go.
+14. Moving a sticky to Completed completes its task; completing it from Today moves it to the board's Completed column; moving it out of Completed reopens it.
+15. An In progress sticky appears in Today's **Sticky notes** section with its board's name, and an ordinary task list, the Inbox and the counts do not include it.
+16. A sticky in Completed or Cancelled is recognisable without colour; sticky text is found by search; a board can be archived, trashed, restored (its stickies go and come back with it) and is private to its owner.
 
 ### 4.7 Not in this feature
 
@@ -102,12 +119,17 @@ What to take from them: an infinite canvas people can edit freely, an AI that pr
 - Diagram kinds beyond architecture and flow (entity relationship, sequence, mind map).
 - Working offline (it follows V2 features 04 and 05, like notes).
 - Pre-drawn thumbnails in the list.
+- For sticky boards: sticky notes drawn on a free-form drawing; assignees, checklists, images or files on a sticky; work-in-progress limits and swimlanes; moving a sticky between boards; AI-filled boards and AI reading of stickies; stickies in the Tasks list, views, Inbox and counts (for now); shared or real-time boards; working offline.
 
 ### 4.8 Decisions and open questions
 
 - **Priority (owner, 2026-10-13):** canvas with AI diagrams is the first of the new capabilities to build, ahead of the other open V2 features and the rest of V3. Daily notes and templates follow it (§5 and §6).
+- **Owner request (2026-10-15):** sticky notes in a proper status board (Planned, In progress, Waiting, Completed, Cancelled and so on) as part of the canvas work. Built as a second kind of canvas (slice D); it needs no Excalidraw and no ADR 0017.
+- **Owner decision (2026-10-15):** a sticky note is also a task, a different kind of task, and it shows up separately in Today. Keep it like this for now; change later if needed.
+- **Proposed:** the column decides the status; a sticky is a task row with a kind (`STICKY`), and every task query that lists or counts ordinary tasks leaves stickies out; Today's section lists open stickies that are In progress or due today or overdue.
 - **Proposed, to be confirmed by ADR 0017:** embed Excalidraw (MIT) as the drawing surface.
 - **Open:** whether a shared canvas belongs in V3 (needs a decision before V3 collaboration is designed).
+- **Open (boards):** whether stickies should also appear in the Tasks list, views, Inbox, counts, the assistant and the weekly review; Today's rule for which stickies appear; whether an existing task can be added to a board as a sticky; whether a board can be a project's default view.
 
 ### 4.9 Reference material
 
@@ -161,7 +183,7 @@ What to take from them: one click to today's page, one page per day, a date as t
 **The Done section**
 
 - Under the editor, every entry has a read-only section **Done on this day**: the tasks and todos whose completion time falls inside that day (same day rules as above), grouped as Tasks and Todos. Each row shows the title as a link that opens it, its project, and the time it was completed.
-- It includes sub-tasks and each completed occurrence of a repeating task, and includes archived items. It leaves out items in Trash. If something is marked not done again, it leaves the list.
+- It includes sub-tasks, each completed occurrence of a repeating task and completed sticky notes (marked as such), and includes archived items. It leaves out items in Trash. If something is marked not done again, it leaves the list.
 - It is **worked out when the page is opened** and is not part of the note's text. That keeps it correct, and means completing a task in another window never rewrites a note the person is typing in.
 - The header shows the count and the section can be folded. With nothing completed it says "Nothing completed this day."
 - **Add to entry** copies the list into the note as ordinary editable text at the end. This is the way to keep a permanent record of a day: the live list changes if a task is later trashed or un-done; the copy does not.
@@ -411,7 +433,7 @@ Support:
 
 A mature daily user should be able to:
 
-1. draw on a canvas and have AI draw a connected, sectioned diagram from a description (§4),
+1. draw on a canvas and have AI draw a connected, sectioned diagram from a description, and keep sticky notes on a status board (§4),
 2. write a daily journal entry in one click and see what they completed that day listed in it (§5),
 3. start notes and journal entries from their own templates (§6),
 4. collaborate on a selected project/note,

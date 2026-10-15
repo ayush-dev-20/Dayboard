@@ -30,6 +30,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | Background worker and jobs            | V2    | In progress | [background-worker-and-jobs_v2.md](background-worker-and-jobs_v2.md)           |
 | Google Calendar                       | V2    | In progress | [google-calendar_v2.md](google-calendar_v2.md)                                 |
 | Voice capture                         | V2    | In progress | [voice-capture_v2.md](voice-capture_v2.md)                                     |
+| AI weekly review                      | V2    | In progress | [ai-weekly-review_v2.md](ai-weekly-review_v2.md)                               |
 
 Status is `Done` or `In progress`.
 

@@ -1,5 +1,25 @@
 # Feature 15 — AI Weekly Review
 
+## 0. Reality check and progress (2026-10-15)
+
+Checked against the code and `agent_docs/` before building:
+
+| Spec assumes | What the project had | Action |
+|---|---|---|
+| Feature 08 jobs and a per-user scheduled job at the person's day and hour | A worker, tick mode and **global** schedules only (`every 1h`, `daily 03:00 UTC`) | A seeded hourly `review.scan` queues one `review.generate` per person who is due (like feature 10's scan); ADR 0026 |
+| Feature 14 notification enqueue and a `WEEKLY_REVIEW_READY` category | Feature 14 is not built | Not built: the Today card is the only signal; the seam is the end of `generateReview` |
+| `task_schedule_history` written by "the single task-update path" | `updateTask` is that path (actions, the assistant, and the sync push all call it) | Written there, inside its transaction; plus a `feature_epochs` row so "not enough history" can be told from "none" |
+| Feature 12 calendar events as an optional input | Built; busy windows exist (`planning.busyWindows`) | Used, only when a calendar is connected and selected |
+| Feature 11 proposal and audit pattern; the `WEEKLY_REVIEW` audit source | Built; the audit check already allows `WEEKLY_REVIEW` | Reused: one server action, one audit row, Undo |
+| V1 AI pipeline (gate, limits, mock) | Built | `WEEKLY_REVIEW` feature and prompt `WEEKLY_REVIEW_V1`; one counted action; mock added |
+| A Dexie cache of the last 12 reviews for offline reading | Feature 04 owns the local database; the offline shell has no review screen | Deferred |
+| `weekly_reviews` columns | As listed | Plus `suggestions_error`, `suggestions_at`, `carry_applied_at` (reason line, once a day, applied once) |
+| Nav item "Weekly review" under Plan | Plan had Today, Inbox, Tasks | Added; also in More on phones |
+
+**Progress:** built and tested with the mock provider and one real Gemini call (sample week): the facts, the suggestions with validation, the hourly scan and the generation job, Generate now, the carry-forward proposal with Undo, the schedule history, the Today card, the page and settings. **Not built:** the ready notification and offline reading. See `agent_docs/ai-weekly-review_v2.md`.
+
+---
+
 ## 1. Scope
 
 - A **weekly review** the person can read in a few minutes: what happened (computed facts) and what to focus on next (AI suggestions), kept visibly separate
@@ -182,15 +202,15 @@ Applying proposals uses existing commands, not a review-specific write endpoint.
 
 ## 10. Definition of done
 
-- [ ] A weekly review is generated automatically (and on demand) with facts clearly separated from labelled AI suggestions
-- [ ] Every fact is computed from the person's own data and matches it; suggestions reference the facts they are based on
-- [ ] Carry-forward changes are proposals applied only on confirm, audited and undoable
-- [ ] The review works without AI (facts only) and without a calendar
-- [ ] Repeated postponements are observed from a real history log, with an honest "not enough history" state
-- [ ] A "ready" notification and a Today card exist and are not repeated
-- [ ] Private data stays out of logs and usage rows; reviews are deleted with the account
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass
-- [ ] `agent_docs/ai-weekly-review_v2.md` written and indexed
+- [x] A weekly review is generated automatically (and on demand) with facts clearly separated from labelled AI suggestions
+- [x] Every fact is computed from the person's own data and matches it; suggestions reference the facts they are based on
+- [x] Carry-forward changes are proposals applied only on confirm, audited and undoable
+- [x] The review works without AI (facts only) and without a calendar
+- [x] Repeated postponements are observed from a real history log, with an honest "not enough history" state
+- [ ] A "ready" notification and a Today card exist and are not repeated _(the Today card is built and tested; the notification needs feature 14)_
+- [x] Private data stays out of logs and usage rows; reviews are deleted with the account
+- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass _(all pass except a full E2E run, which was not repeated after this feature; the review spec, 17 cases, and the specs this touches pass)_
+- [x] `agent_docs/ai-weekly-review_v2.md` written and indexed
 
 ---
 

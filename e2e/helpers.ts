@@ -79,12 +79,47 @@ export function fakeClientIp() {
   return `10.${(n >> 16) & 255}.${(n >> 8) & 255}.${n & 255}`;
 }
 
+/**
+ * A page that was just loaded may still be streaming its content in. React sends each late piece inside a hidden
+ * `<div id="S:n">` and swaps it into place a moment after the browser's `load` event (it reveals finished
+ * pieces in batches). For those few hundred milliseconds the same text exists twice, so a strict locator such as
+ * `getByLabel("Add task")` fails with "resolved to 2 elements" although nothing is wrong with the page. Waiting
+ * for the swap to finish after every full page load removes that whole class of flaky failures.
+ */
+async function waitForStreamedContent(page: Page) {
+  await page
+    .waitForFunction(() => !document.querySelector('div[hidden][id^="S:"]'), undefined, {
+      timeout: 5000,
+    })
+    // The page went away, or never had a stream: nothing to wait for.
+    .catch(() => undefined);
+}
+
+/** Makes `goto` and `reload` on this page wait for streamed content to settle (see above). */
+export function settleAfterLoad(page: Page): Page {
+  const goto = page.goto.bind(page);
+  const reload = page.reload.bind(page);
+  page.goto = async (...args: Parameters<Page["goto"]>) => {
+    const response = await goto(...args);
+    await waitForStreamedContent(page);
+    return response;
+  };
+  page.reload = async (...args: Parameters<Page["reload"]>) => {
+    const response = await reload(...args);
+    await waitForStreamedContent(page);
+    return response;
+  };
+  return page;
+}
+
 /** A new browser profile (a separate "device") with its own client address. */
-export function newDevice(browser: Browser, options: BrowserContextOptions = {}) {
-  return browser.newContext({
+export async function newDevice(browser: Browser, options: BrowserContextOptions = {}) {
+  const context = await browser.newContext({
     ...options,
     extraHTTPHeaders: { ...options.extraHTTPHeaders, "x-forwarded-for": fakeClientIp() },
   });
+  context.on("page", settleAfterLoad);
+  return context;
 }
 
 /** The person's "today" (Asia/Kolkata, 06:00 rollover, the defaults every test user gets). */

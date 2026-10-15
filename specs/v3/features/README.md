@@ -6,7 +6,7 @@ Build them in order. Each feature leaves the app runnable and depends only on fe
 
 | # | Feature | Covers (V3 product spec §) | Depends on |
 | --- | --- | --- | --- |
-| 01 | [Canvas with AI Diagrams](01-canvas-with-ai-diagrams.md) **(build first)** | Canvases tab and list, Excalidraw page, task links, note/task/project cards, Draw with AI, refine, Outline, export (§4, goal 1) | V1; V2 11 (audit log); V2 07 (note picker, soft) |
+| 01 | [Canvas with AI Diagrams and Sticky Boards](01-canvas-with-ai-diagrams.md) **(build first)** | Canvases tab and list, Excalidraw page, task links, note/task/project cards, Draw with AI, refine, Outline, export; **sticky boards** (status columns; sticky notes are tasks of their own kind, shown in Today) as slice D (§4, goal 1) | V1; V2 11 (audit log); V2 07 (note picker, soft) |
 | 02 | [Journal (Daily Notes)](02-journal-daily-notes.md) | Journal tab, one entry per day in the note editor, auto title, Done on this day, folding sidebar section (§5, goal 2) | V1; V2 notes (built); 03 (starting template, slice C) |
 | 03 | [Templates](03-templates.md) | Templates tab, editor, placeholders, New note from template, journal template, starters (§6, goal 3) | V1; V2 notes (built); 02 (for slice B) |
 | 04 | [Permissions & Sharing](04-permissions-and-sharing.md) | Roles, grants, invitations, the authorization module, ACL test suite, Shared with me (§7, goals 4 and 6) | V1; 02, 03 (to state what is not shareable) |
@@ -39,7 +39,7 @@ These V2 features are not done today (see `agent_docs/README.md`). V3 features t
 
 | V3 product spec requirement | Feature |
 | --- | --- |
-| §4 canvas, Canvases tab, task links, Draw with AI, refine, Outline (goal 1) | 01 |
+| §4 canvas, Canvases tab, task links, Draw with AI, refine, Outline, sticky boards (goal 1) | 01 |
 | §5 journal: own tab, same editor, auto title, Done on this day, collapsible section (goal 2) | 02 |
 | §6 templates: own tab, placeholders, journal template (goal 3) | 03 |
 | §7 collaboration roles, sharing, permissions (goals 4 and 6) | 04 |

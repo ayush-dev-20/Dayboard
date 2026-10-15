@@ -640,3 +640,121 @@ export async function taskIdsOf(userId: string) {
   >`select id from tasks where user_id = ${userId} order by created_at`;
   return rows.map((r) => r.id);
 }
+
+// ---- Weekly review (V2 feature 15) ----------------------------------------------------------
+
+export async function reviewsOf(userId: string) {
+  return sql<
+    {
+      id: string;
+      week_start: string;
+      partial: boolean;
+      status: string;
+      suggestions_status: string;
+      suggestions_error: string | null;
+      viewed_at: Date | null;
+      dismissed_at: Date | null;
+      carry_applied_at: Date | null;
+    }[]
+  >`select id, to_char(week_start, 'YYYY-MM-DD') as week_start, partial, status, suggestions_status,
+           suggestions_error, viewed_at, dismissed_at, carry_applied_at
+    from weekly_reviews where user_id = ${userId} order by week_start desc`;
+}
+
+/** A review with nothing in it, for tests of the card and the history (the page renders whatever is stored). */
+export function emptyFacts(weekStart: string, weekEnd: string) {
+  return {
+    version: 1,
+    weekStart,
+    weekEnd,
+    asOf: weekEnd,
+    computedAt: new Date().toISOString(),
+    completed: { tasks: 3, todos: 1, byProject: [], recent: [] },
+    overdue: { count: 0, carriedForward: 0, items: [] },
+    notes: { created: 0, edited: 0, titles: [] },
+    projects: { active: [], quiet: [] },
+    calendar: null,
+    postponements: { enough: false, items: [] },
+    inbox: { captured: 0, processed: 0 },
+  };
+}
+
+export async function insertReview(
+  userId: string,
+  seed: { weekStart: string; weekEnd: string; partial?: boolean; viewed?: boolean },
+) {
+  const [row] = await sql<{ id: string }[]>`
+    insert into weekly_reviews (id, user_id, week_start, week_end, status, facts, partial, suggestions_status,
+                                suggestions_error, generated_at, viewed_at)
+    values (gen_random_uuid(), ${userId}, ${seed.weekStart}, ${seed.weekEnd}, 'READY',
+            ${sql.json(emptyFacts(seed.weekStart, seed.weekEnd))}, ${seed.partial ?? false}, 'OFF', 'AI_OFF', now(),
+            ${seed.viewed ? sql`now()` : null})
+    returning id`;
+  return row!.id;
+}
+
+export async function setReviewPrefs(
+  userId: string,
+  values: { enabled?: boolean; day?: number | null; hour?: number },
+) {
+  if (values.enabled !== undefined) {
+    await sql`update user_preferences set weekly_review_enabled = ${values.enabled} where user_id = ${userId}`;
+  }
+  if (values.day !== undefined) {
+    await sql`update user_preferences set weekly_review_day = ${values.day} where user_id = ${userId}`;
+  }
+  if (values.hour !== undefined) {
+    await sql`update user_preferences set weekly_review_hour = ${values.hour} where user_id = ${userId}`;
+  }
+}
+
+export async function reviewPrefsOf(userId: string) {
+  const [row] = await sql<{ enabled: boolean; day: number | null; hour: number }[]>`
+    select weekly_review_enabled as enabled, weekly_review_day as day, weekly_review_hour as hour
+    from user_preferences where user_id = ${userId}`;
+  return row!;
+}
+
+/** Two later-dated moves of one task, as the schedule history would hold them. */
+export async function insertPostponements(userId: string, taskId: string) {
+  await sql`
+    insert into task_schedule_history (id, user_id, task_id, from_date, to_date, reason, changed_at)
+    values (gen_random_uuid(), ${userId}, ${taskId}, '2026-01-01', '2026-01-03', 'MANUAL', now() - interval '3 days'),
+           (gen_random_uuid(), ${userId}, ${taskId}, '2026-01-03', '2026-01-06', 'MANUAL', now() - interval '1 day')`;
+}
+
+/** Moves the start of schedule history, so "not enough history" can be told from enough. Returns the old value. */
+export async function setHistoryEpoch(daysAgo: number): Promise<Date> {
+  const [old] = await sql<{ started_at: Date }[]>`
+    select started_at from feature_epochs where name = 'task_schedule_history'`;
+  await sql`update feature_epochs set started_at = now() - make_interval(days => ${daysAgo})
+            where name = 'task_schedule_history'`;
+  return old!.started_at;
+}
+
+export async function restoreHistoryEpoch(startedAt: Date) {
+  await sql`update feature_epochs set started_at = ${startedAt} where name = 'task_schedule_history'`;
+}
+
+export async function scheduleHistoryOf(taskId: string) {
+  return sql<{ from_date: string | null; to_date: string | null; reason: string }[]>`
+    select to_char(from_date, 'YYYY-MM-DD') as from_date, to_char(to_date, 'YYYY-MM-DD') as to_date, reason
+    from task_schedule_history where task_id = ${taskId} order by changed_at`;
+}
+
+export async function taskDueAndStatus(taskId: string) {
+  const [row] = await sql<{ due_date: string | null; status: string; archived: boolean }[]>`
+    select to_char(due_date, 'YYYY-MM-DD') as due_date, status::text, archived_at is not null as archived
+    from tasks where id = ${taskId}`;
+  return row ?? null;
+}
+
+export async function weeklyReviewAuditOf(userId: string) {
+  return sql<{ summary: string; source: string }[]>`
+    select summary, source from audit_log where user_id = ${userId} and source = 'WEEKLY_REVIEW' order by created_at`;
+}
+
+/** Turns a "week so far" review into the finished one (what the end-of-week job would have made). */
+export async function setFinal(userId: string) {
+  await sql`update weekly_reviews set partial = false, viewed_at = null, dismissed_at = null where user_id = ${userId}`;
+}

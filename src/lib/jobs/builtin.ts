@@ -6,6 +6,7 @@ import { findHandler, registerHandler } from "./registry";
 import { ensureEmbeddingHandlers } from "@/lib/search/semantic/handlers";
 import { ensureCalendarHandlers } from "@/lib/calendar/handlers";
 import { ensureVoiceHandlers } from "@/lib/voice/handlers";
+import { ensureReviewHandlers } from "@/lib/review/handlers";
 
 // The job types this release ships (V2 feature 08 §5). Later features register theirs in their own modules.
 // Each entry point calls `ensureBuiltinHandlers` once before it runs jobs.
@@ -21,6 +22,8 @@ export function ensureBuiltinHandlers(): void {
   ensureCalendarHandlers();
   // The voice capture jobs (V2 feature 13) live in their own module.
   ensureVoiceHandlers();
+  // The weekly review jobs (V2 feature 15) live in their own module.
+  ensureReviewHandlers();
   if (!findHandler("system.ping")) {
     registerHandler({
       type: "system.ping",

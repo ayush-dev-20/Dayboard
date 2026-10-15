@@ -112,3 +112,42 @@ export const voiceParseSchema = z.object({
   items: z.array(voiceItemSchema),
 });
 export type VoiceParseOutput = z.infer<typeof voiceParseSchema>;
+
+// ---- Weekly review suggestions (V2 feature 15 §5) -----------------------------------------------
+
+/** What the model must return. No `.max()` on any list: the server trims (see `validateSuggestions`), because a list
+ *  limit around items that hold lists made the real Gemini API refuse the schema (found building voice capture). */
+export const reviewSuggestionsOutputSchema = z.object({
+  summary: z.string().trim(),
+  focusAreas: z.array(
+    z.object({
+      title: z.string().trim(),
+      why: z.string().trim(),
+      basedOn: z.array(
+        z.object({
+          fact: z.enum([
+            "completed",
+            "overdue",
+            "notes",
+            "projects",
+            "calendar",
+            "postponements",
+            "inbox",
+          ]),
+          ids: z.array(z.string()).nullish(),
+        }),
+      ),
+      taskIds: z.array(z.string()).nullish(),
+    }),
+  ),
+  carryForward: z.array(
+    z.object({
+      taskId: z.string(),
+      action: z.enum(["KEEP", "RESCHEDULE", "DROP"]),
+      newDueDate: z.string().trim().nullish(),
+      reason: z.string().trim(),
+    }),
+  ),
+  watchouts: z.array(z.string().trim()),
+});
+export type ReviewSuggestionsOutput = z.infer<typeof reviewSuggestionsOutputSchema>;

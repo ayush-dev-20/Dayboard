@@ -113,9 +113,13 @@ test.describe("board, more", () => {
     await page.goto("/tasks");
     await addView(page, "Board");
     await page.getByRole("button", { name: "View settings" }).click();
-    const saved = page.waitForResponse((r) => r.request().method() === "POST");
-    await page.getByLabel("Group by").selectOption("dueBucket");
-    await saved; // the settings are saved a moment after the change; not in the middle of a drag
+    // The settings are saved a moment after the change: wait for that request, not for the page to look settled, so
+    // the drag below never starts in the middle of it. A change made before the panel is ready is lost, so try again.
+    await expect(async () => {
+      const saved = page.waitForResponse((r) => r.request().method() === "POST", { timeout: 5000 });
+      await page.getByLabel("Group by").selectOption("dueBucket");
+      await saved;
+    }).toPass({ timeout: 30_000 });
     await page.keyboard.press("Escape");
     await page.waitForLoadState("networkidle");
     await expect(column(page, "Later")).toContainText("Later one");
@@ -325,6 +329,9 @@ test.describe("table", () => {
     await expect
       .poll(async () => (await tagsOfTask((await taskOf(user.id, "One"))!.id)).length)
       .toBe(1);
+    // A bulk action clears the selection a moment after the server answers. Selecting everything again before it
+    // has cleared would instead toggle it off, so wait for the bar to go.
+    await expect(bar).toBeHidden();
 
     await page.getByLabel("Select all").click();
     await bar.getByRole("button", { name: "Move to Trash" }).click();

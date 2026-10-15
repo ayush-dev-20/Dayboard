@@ -9,6 +9,7 @@ export * from "./search";
 export * from "./notes";
 export * from "./preferences";
 export * from "./projects";
+export * from "./review";
 export * from "./sync";
 export * from "./tags";
 export * from "./tasks";

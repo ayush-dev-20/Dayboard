@@ -58,6 +58,8 @@ export const aiFeatureEnum = pgEnum("ai_feature", [
   // V2 feature 13: speech to text (background, not counted) and the parse that follows it (one action).
   "TRANSCRIBE",
   "VOICE_PARSE",
+  // V2 feature 15: the weekly review's suggestions.
+  "WEEKLY_REVIEW",
 ]);
 
 export const aiUsageStatusEnum = pgEnum("ai_usage_status", [

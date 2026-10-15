@@ -105,7 +105,7 @@ Queries (`src/db/queries/journal.ts`):
 - `listJournalEntries(userId, { cursor, limit })`: newest first by `journal_date`, with title, first line (the text copy, cut), `journal_date`, `emoji`, archived flag, and `doneCount` per entry.
 - `getJournalEntry(userId, id)`: the note DTO plus `journal_date`.
 - `getDoneOnDay(userId, date, prefs)`: the tasks and todos completed in `dayBounds(date, prefs)`:
-  - tasks: `status = 'DONE'`, `completed_at` inside the bounds, `deleted_at is null` (archived included; sub-tasks included, shown with their parent's title in the row), each completed occurrence of a repeating task;
+  - tasks: `status = 'DONE'`, `completed_at` inside the bounds, `deleted_at is null` (archived included; sub-tasks included, shown with their parent's title in the row), each completed occurrence of a repeating task, and completed **sticky notes** (`kind = 'STICKY'`, feature 01 §13), shown with a "Sticky note" label and their board's name;
   - todos: `is_complete`, `completed_at` inside the bounds, `deleted_at is null`;
   - fields: id, type, title, emoji, project (ref), `completed_at`; ordered by `completed_at`; capped at 200 with "and N more" and a count.
 - `countDoneByDay(userId, dates[], prefs)`: counts for the list rows, one query for a page of entries.

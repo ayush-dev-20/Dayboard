@@ -23,6 +23,7 @@ Filename: `NNNN-short-title.md` (for example `0001-use-better-auth.md`). Numbers
 | [0014](0014-service-worker-built-with-esbuild.md)     | Service worker written by hand and bundled with esbuild                            | Accepted |
 | [0015](0015-assistant-floating-launcher-and-drag.md)  | The assistant's floating chat button, and dragging items onto it                   | Accepted |
 | [0016](0016-assistant-threads-in-browser-storage.md)  | Assistant conversations in the browser's storage, until Dexie exists               | Accepted |
+| [0026](0026-weekly-review-facts-and-suggestions.md)   | Weekly review: facts computed in code, suggestions checked against them            | Accepted |
 
 ## Template
 

@@ -120,6 +120,13 @@
       "when": 1791976860971,
       "tag": "0016_voice-capture",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792038498603,
+      "tag": "0017_weekly-review",
+      "breakpoints": true
     }
   ]
 }

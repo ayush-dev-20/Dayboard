@@ -20,6 +20,7 @@ export default function robots(): MetadataRoute.Robots {
           "/settings",
           "/more",
           "/capture",
+          "/review",
           "/onboarding",
           "/sign-in",
           "/sign-up",

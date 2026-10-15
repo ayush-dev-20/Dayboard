@@ -22,6 +22,8 @@ export const AI_FEATURES = [
   // V2 feature 13: a recording is transcribed (not counted) and then parsed (the one counted action).
   "TRANSCRIBE",
   "VOICE_PARSE",
+  // V2 feature 15: the weekly review's suggestions (one AI action).
+  "WEEKLY_REVIEW",
 ] as const;
 export type AIFeature = (typeof AI_FEATURES)[number];
 

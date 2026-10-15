@@ -1,4 +1,5 @@
 import {
+  CalendarCheck,
   Ellipsis,
   File,
   Folder,
@@ -19,6 +20,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today", icon: Sun },
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/tasks", label: "Tasks", icon: List },
+  // The weekly review (V2 feature 15): facts first, then suggestions. It works without AI.
+  { href: "/review", label: "Weekly review", icon: CalendarCheck },
   { href: "/notes", label: "Notes", icon: File },
   { href: "/projects", label: "Projects", icon: Folder },
   // The workspace assistant (V2 feature 11): shown only while AI is on. Speech bubble, never a sparkle.
@@ -30,9 +33,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
 
 /** The desktop sidebar's groups, in product-spec order (§5). Same items as `NAV_ITEMS`. */
 export const NAV_GROUPS: readonly { label: string | null; items: readonly NavItem[] }[] = [
-  { label: "Plan", items: NAV_ITEMS.slice(0, 3) },
-  { label: "Library", items: NAV_ITEMS.slice(3, 6) },
-  { label: null, items: NAV_ITEMS.slice(6) },
+  { label: "Plan", items: NAV_ITEMS.slice(0, 4) },
+  { label: "Library", items: NAV_ITEMS.slice(4, 7) },
+  { label: null, items: NAV_ITEMS.slice(7) },
 ];
 
 /** How many active projects the sidebar lists under Projects. */
@@ -48,7 +51,15 @@ export const MOBILE_NAV_ITEMS: readonly NavItem[] = [
 ];
 
 // Pages reached through "More" keep it highlighted so you always know where you are.
-const MORE_PREFIXES = ["/more", "/projects", "/assistant", "/search", "/trash", "/settings"];
+const MORE_PREFIXES = [
+  "/more",
+  "/review",
+  "/projects",
+  "/assistant",
+  "/search",
+  "/trash",
+  "/settings",
+];
 
 // The note editor takes the whole phone screen: no top bar or bottom navigation, so the formatting
 // bar can sit right above the keyboard (design: Notes, mobile with keyboard).

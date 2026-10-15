@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "More" };
 
 // Phone-sized destination for everything that doesn't fit the five bottom-nav slots.
 const MORE_LINKS = NAV_ITEMS.filter((item) =>
-  ["/projects", "/assistant", "/search", "/trash", "/settings"].includes(item.href),
+  ["/review", "/projects", "/assistant", "/search", "/trash", "/settings"].includes(item.href),
 );
 
 export default async function MorePage() {

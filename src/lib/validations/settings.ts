@@ -39,6 +39,10 @@ export const updatePreferencesSchema = z.strictObject({
   planningSeesTitles: z.boolean().optional(),
   // V2 feature 13: the microphone button and the voice captures list.
   voiceCaptureEnabled: z.boolean().optional(),
+  // V2 feature 15: the weekly review. `weeklyReviewDay` null is the last day of the person's week.
+  weeklyReviewEnabled: z.boolean().optional(),
+  weeklyReviewDay: z.number().int().min(0).max(6).nullable().optional(),
+  weeklyReviewHour: z.number().int().min(0).max(23).optional(),
 });
 
 export const changeEmailSchema = z.object({

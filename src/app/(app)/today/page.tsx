@@ -12,6 +12,8 @@ import { DayProgress } from "@/components/today/day-progress";
 import { FocusHero } from "@/components/today/focus-hero";
 import { PlanDay } from "@/components/today/plan-day";
 import { TodayCapture } from "@/components/today/today-capture";
+import { ReviewReadyCard } from "@/components/review/review-ready-card";
+import { unreadReviewFor } from "@/lib/review/service";
 import { InstallTip } from "@/components/pwa/install-tip";
 import { TodayEvents } from "@/components/calendar/today-events";
 import { refreshCalendarsInBackground } from "@/lib/calendar/freshen";
@@ -57,9 +59,11 @@ export default async function TodayPage() {
   const user = await requireUser({ redirect: true });
   const prefs = await getPreferences(user.id);
   const { dayPrefs, now, context } = await loadTaskContext(user.id);
-  const [data, counts] = await Promise.all([
+  const [data, counts, readyReview] = await Promise.all([
     getTodayData(user.id, dayPrefs, prefs.focusTaskId, now),
     prefs.checklistDismissedAt ? Promise.resolve(null) : checklistCounts(user.id),
+    // A finished weekly review nobody has opened (V2 feature 15): one quiet card, never repeated once dismissed.
+    unreadReviewFor(user.id),
   ]);
   const checklist = counts ? deriveChecklist(counts) : null;
   // Calendar (V2 feature 12): refresh a stale calendar after the page is sent. Nothing when it is not set up.
@@ -94,6 +98,8 @@ export default async function TodayPage() {
             <InstallTip />
 
             <TodayCapture />
+
+            {readyReview ? <ReviewReadyCard review={readyReview} /> : null}
 
             {env.calendarAvailable ? (
               <TodayEvents

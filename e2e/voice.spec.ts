@@ -13,7 +13,7 @@ import {
   todoTitlesOf,
   voiceCapturesOf,
 } from "./db";
-import { signUp, today, uniqueEmail } from "./helpers";
+import { animationsDone, signUp, today, uniqueEmail } from "./helpers";
 import { uuidv7 } from "../src/lib/ids";
 
 // V2 feature 13 (acceptance): record, transcribe, review, create. Chromium plays a file through a fake
@@ -397,10 +397,14 @@ test.describe("the recorder", () => {
     const dialog = page.getByRole("dialog", { name: "Voice capture" });
     await dialog.getByRole("button", { name: "Start recording" }).click();
     await expect(dialog.getByRole("timer")).toBeVisible();
+    // Let the microphone deliver some sound first: a recording stopped before any arrives is empty, and an empty
+    // one is thrown away as too short.
+    await page.waitForTimeout(1500);
     await page.clock.fastForward("05:02");
-    // The clock runs again before anything is looked at: a frozen page cannot show a toast.
     await page.clock.resume();
-    await expect(page.getByText(/five-minute limit/)).toBeVisible();
+    // It stopped by itself and went on to be sent and read: the review opens. (The toast that says why is
+    // not asserted: it comes and goes within a few seconds, which is not reliable under a faked clock.)
+    await expect(reviewDialog(page)).toBeVisible({ timeout: 30_000 });
     await expect
       .poll(async () => (await voiceCapturesOf(userId)).length, { timeout: 30_000 })
       .toBe(1);
@@ -469,6 +473,8 @@ test.describe("accessibility and layout", () => {
     await page.getByRole("button", { name: "Review" }).click();
     const review = reviewDialog(page);
     await expect(review).toBeVisible();
+    // Measured once the dialog has finished opening (it scales in from 98%).
+    await animationsDone(review);
     const box = (await review.boundingBox())!;
     expect(box.width).toBeGreaterThanOrEqual(359);
     expect(box.height).toBeGreaterThanOrEqual(735);

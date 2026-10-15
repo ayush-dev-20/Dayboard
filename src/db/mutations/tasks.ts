@@ -7,10 +7,18 @@ import { rejectReusedId } from "@/db/mutations/reused-id";
 import { logTaskDeletes, logTaskUpserts } from "@/lib/sync/change-log";
 import { projectDoc, syncNoteLinks } from "@/db/mutations/note-links";
 import { taskMetaFor } from "@/db/queries/meta";
-import { inboxItems, taskNotes, tasks, type NewTask, type Task } from "@/db/schema";
+import {
+  inboxItems,
+  taskNotes,
+  tasks,
+  type NewTask,
+  type ScheduleReason,
+  type Task,
+} from "@/db/schema";
 import { addDays, daysBetween } from "@/lib/dates/calendar";
 import { AppError } from "@/lib/errors";
 import { uuidv7 } from "@/lib/ids";
+import { recordScheduleChange } from "@/lib/review/history";
 import { isEmptyDoc } from "@/lib/editor/projection";
 import type { TiptapDoc } from "@/lib/editor/types";
 import { toTaskDTO, type TaskDTO } from "@/lib/tasks/dto";
@@ -208,7 +216,11 @@ export async function createTasksBatch(
   });
 }
 
-export async function updateTask(userId: string, input: UpdateTaskInput): Promise<TaskDTO> {
+export async function updateTask(
+  userId: string,
+  input: UpdateTaskInput,
+  options: { reason?: ScheduleReason } = {},
+): Promise<TaskDTO> {
   return db.transaction(async (tx) => {
     const task = await loadOwned(tx, userId, input.id);
     const patch: Partial<NewTask> = {};
@@ -258,6 +270,14 @@ export async function updateTask(userId: string, input: UpdateTaskInput): Promis
     const [updated] = await tx.update(tasks).set(patch).where(owned(userId, input.id)).returning();
     if (!updated) throw new AppError("NOT_FOUND");
     await logTaskUpserts(tx, userId, [updated.id], { bump: true });
+    // The weekly review's log of due-date moves (feature 15): only when the date really changed.
+    await recordScheduleChange(tx, {
+      userId,
+      taskId: updated.id,
+      from: task.dueDate,
+      to: updated.dueDate,
+      reason: options.reason,
+    });
     return dto(tx, updated);
   });
 }

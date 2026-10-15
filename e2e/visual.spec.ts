@@ -56,7 +56,13 @@ for (const theme of THEMES) {
         }
         await page.goto("/today");
         await page.waitForLoadState("networkidle");
-        // The greeting and the date come from the server's clock.
+        // The greeting and the date come from the server's clock, and their length (and so whether they wrap
+        // on a phone, and how tall the header is) changes with the time of day and the date. They are masked,
+        // but a taller header would still move everything below it, so they are held to one fixed-size line.
+        await page.addStyleTag({
+          content:
+            "main h1, main h1 + p { white-space: nowrap; overflow: hidden; max-width: 180px; }",
+        });
         await shot(page, `today-empty-${theme}-${width}`, ["main h1", "main h1 + p"]);
       });
     });

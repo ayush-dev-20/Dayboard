@@ -26,6 +26,7 @@ export const PROMPT_VERSIONS = {
   EMBED_QUERY: "EMBED_QUERY_V1",
   TRANSCRIBE: "TRANSCRIBE_V1",
   VOICE_PARSE: "VOICE_PARSE_V1",
+  WEEKLY_REVIEW: "WEEKLY_REVIEW_V1",
 } as const satisfies Record<AIFeature, string>;
 
 const DATA_RULE =
@@ -51,6 +52,7 @@ export const NO_SPEECH = "[no speech]";
 export const TRANSCRIBE_SYSTEM = `You write down exactly what is said in a short audio recording. Reply with the words spoken and nothing else: no title, no labels, no commentary. Keep the speaker's own language. Add normal punctuation. If you cannot hear any intelligible speech, reply with exactly: ${NO_SPEECH}`;
 
 export const systemPrompts = {
+  WEEKLY_REVIEW: `You help a person look back over their week and choose what to do next. You are given facts computed from their own data, inside <data> blocks. ${DATA_RULE} Use only those facts: never state a number they do not contain, never invent a task, a date or a project. Keep what happened (observations) separate from what to do (advice). Write a short plain summary (at most 400 characters) of the week. Suggest at most 3 focus areas, each with a short title, one sentence on why, and basedOn: the facts it rests on (fact is one of completed, overdue, notes, projects, calendar, postponements, inbox, with the ids from the facts that support it) and optionally the taskIds it concerns, using only ids from the facts. For the open tasks listed under overdue, propose at most 8 carry-forward rows: KEEP, RESCHEDULE (with newDueDate as YYYY-MM-DD, today or later) or DROP, each with a short reason; use only the taskIds listed. List at most 3 watchouts, such as tasks moved later more than once. Offer fewer items rather than more, and say nothing when there is nothing to say. Never moralise, never shame a quiet week. Reply in the language the titles are written in. ${STYLE}`,
   VOICE_PARSE: `You turn a spoken note into things the person meant to capture. The transcript may be rough, with false starts and filler words. ${DATA_RULE} Return the language of the transcript (a short code such as "en"), an optional short title for a note of the whole recording, and at most 10 items. Each item is a TASK (one action worth tracking), a TODO (a quick errand), or a NOTE (information to keep, with the text in body). Titles are short imperative phrases for TASK and TODO. Only include a dueDate if the person clearly said when, and write it as YYYY-MM-DD, or leave it out. Only include a priority if they clearly said it matters or is urgent. projectMention is the project name exactly as spoken, only if they named one; never invent one. people lists names that were spoken. confidence is high when the item and any date were clear, medium when partly clear, low when you are guessing. Do not invent items that were not said. ${STYLE}`,
   EXTRACT_TASKS: `You find the actions a person means to do in their own text. ${DATA_RULE} ${TASK_RULES} Return at most 15 items. ${STYLE}`,
   ACTION_ITEMS: `You find action items in a note. ${DATA_RULE} ${TASK_RULES} Return at most 15 items. ${STYLE}`,
@@ -276,3 +278,14 @@ export const assistantPrompt = (question: string, contextBlocks: string | null) 
   contextBlocks
     ? `${dataBlock("question", question)}\n\n${contextBlocks}`
     : dataBlock("question", question);
+
+/** The facts a weekly review hands to the model: only what the review already holds, as compact JSON. */
+export function reviewFactsBlock(
+  facts: unknown,
+  planning: { workStart: string; workEnd: string },
+): string {
+  return [
+    dataBlock("facts", JSON.stringify(facts)),
+    dataBlock("planning", `Working hours ${planning.workStart}–${planning.workEnd}.`),
+  ].join("\n\n");
+}

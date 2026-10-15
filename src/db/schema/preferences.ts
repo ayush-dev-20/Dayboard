@@ -34,6 +34,11 @@ export const userPreferences = pgTable(
     // V2 feature 13: the microphone button and the voice captures list. On by default; it only shows when
     // AI is available, because a recording is sent to the AI provider to be transcribed.
     voiceCaptureEnabled: boolean("voice_capture_enabled").notNull().default(true),
+    // V2 feature 15: the weekly review. On by default (it works without AI, as facts only). `day` is 0 (Sunday) to 6,
+    // null for the last day of the person's week; `hour` is local.
+    weeklyReviewEnabled: boolean("weekly_review_enabled").notNull().default(true),
+    weeklyReviewDay: smallint("weekly_review_day"),
+    weeklyReviewHour: smallint("weekly_review_hour").notNull().default(17),
     // V2 feature 12: working hours, for free-slot suggestions and planning; and whether planning may see event
     // titles (off: it only sees when the person is busy).
     workStart: time("work_start").notNull().default("09:00:00"),
@@ -50,7 +55,14 @@ export const userPreferences = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [check("user_preferences_week_start_range", sql`${t.weekStart} between 0 and 6`)],
+  (t) => [
+    check("user_preferences_week_start_range", sql`${t.weekStart} between 0 and 6`),
+    check(
+      "user_preferences_review_day_range",
+      sql`${t.weeklyReviewDay} is null or ${t.weeklyReviewDay} between 0 and 6`,
+    ),
+    check("user_preferences_review_hour_range", sql`${t.weeklyReviewHour} between 0 and 23`),
+  ],
 );
 
 export type UserPreferences = typeof userPreferences.$inferSelect;
