@@ -1,17 +1,26 @@
 "use client";
 
 import { useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DESKTOP_QUERY } from "@/hooks/use-media-query";
 import { setSheetMode } from "./sheet-state";
 
 /**
- * Opening a task: a side sheet on wide screens (`/tasks?task=id`, so the Back button closes it and
- * the link works), a full page on narrow ones (`/tasks/id`).
+ * The page the task panel docks to: Today has its own (the panel opens beside the day, not on the Tasks page),
+ * and every other page uses the Tasks page.
+ */
+export function useTaskPanelPath(): "/today" | "/tasks" {
+  return usePathname() === "/today" ? "/today" : "/tasks";
+}
+
+/**
+ * Opening a task: a side sheet on wide screens (`?task=id` on the page it is opened from, so the Back
+ * button closes it and the link works), a full page on narrow ones (`/tasks/id`).
  */
 export function useOpenTask() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const base = useTaskPanelPath();
 
   return useCallback(
     (id: string) => {
@@ -20,24 +29,25 @@ export function useOpenTask() {
       if (window.matchMedia(DESKTOP_QUERY).matches) {
         const next = new URLSearchParams(searchParams.toString());
         next.set("task", id);
-        router.push(`/tasks?${next.toString()}`, { scroll: false });
+        router.push(`${base}?${next.toString()}`, { scroll: false });
       } else {
         router.push(`/tasks/${id}`);
       }
     },
-    [router, searchParams],
+    [router, searchParams, base],
   );
 }
 
 export function useCloseTask() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const base = useTaskPanelPath();
 
   return useCallback(() => {
     setSheetMode("docked");
     const next = new URLSearchParams(searchParams.toString());
     next.delete("task");
     const query = next.toString();
-    router.push(query ? `/tasks?${query}` : "/tasks", { scroll: false });
-  }, [router, searchParams]);
+    router.push(query ? `${base}?${query}` : base, { scroll: false });
+  }, [router, searchParams, base]);
 }

@@ -48,4 +48,6 @@ One list per collection could not show the same work as a board, a table or a ca
 - **Notes order:** List defaults to `updated` descending; Board columns and any view with no sorts use `sort_order`. `reorderNote` does not touch `updated_at`.
 - **Dev database:** run `pnpm db:migrate` before opening the app (the test database is migrated by the E2E run).
 - **Toasts stack:** in E2E, click Undo inside `[data-sonner-toast][data-front="true"]`.
+- **Tinted chips and columns (2026-10-19, ADR 0027):** a status, project or tag is a `TintChip` (name in ink on a wash of its colour); a Board column that has a colour (`ViewGroup.color`, set in `groupItems`: `STATUS_COLORS` for status, a fixed map for due buckets, the project or tag colour otherwise) gets `tint-surface` and a chip header; the Tasks filter buttons are filled, and filled with the selection tint when they narrow the list. A column's accessible name is still "label count". Priority columns and the default list's sections stay plain.
+- **Board and calendar drags in E2E:** the drop target is measured after the drag has started (lifting a card can shrink the cell or column it left and move everything below it), so the helpers wait 150 ms first.
 - Related: `tasks-and-todos_v1.md`, `notes-projects-tags_v1.md`, `ui-modernization_v1.md` (DESIGN.md rules), ADR `docs/decisions/0008-drag-and-drop-library.md`.

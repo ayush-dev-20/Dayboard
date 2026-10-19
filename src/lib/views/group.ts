@@ -1,5 +1,12 @@
 import type { ColorToken } from "../colors";
-import { PRIORITY_LABELS, STATUS_LABELS, TASK_PRIORITIES, TASK_STATUSES } from "../tasks/status";
+import {
+  PRIORITY_LABELS,
+  STATUS_COLORS,
+  STATUS_LABELS,
+  TASK_PRIORITIES,
+  TASK_STATUSES,
+  type TaskStatus,
+} from "../tasks/status";
 import { DUE_BUCKET_LABELS, DUE_BUCKETS } from "./due-buckets";
 import type { AnyItem, ViewNote, ViewTask } from "./items";
 import type { Collection, ViewConfig } from "./types";
@@ -29,11 +36,27 @@ function fixedGroups<T>(
   keys: readonly string[],
   label: (key: string) => string,
   droppable: (key: string) => boolean = () => true,
+  color: (key: string) => ColorToken | null = () => null,
 ): Map<string, Mutable<T>> {
   return new Map(
-    keys.map((key) => [key, { key, label: label(key), items: [], droppable: droppable(key) }]),
+    keys.map((key) => [
+      key,
+      { key, label: label(key), items: [], droppable: droppable(key), color: color(key) },
+    ]),
   );
 }
+
+/** The colours of the due buckets (ADR 0027). Overdue is the one red column: it is the alarm. */
+const BUCKET_COLORS: Record<string, ColorToken> = {
+  overdue: "red",
+  today: "blue",
+  week: "teal",
+  upcoming: "teal",
+  later: "slate",
+  none: "slate",
+  done: "green",
+};
+const bucketColor = (key: string): ColorToken => BUCKET_COLORS[key] ?? "slate";
 
 const nameCollator = new Intl.Collator(undefined, { sensitivity: "base" });
 
@@ -69,14 +92,24 @@ export function groupItems<T extends AnyItem>(
   let groups: Map<string, Mutable<T>>;
 
   if (by === "status") {
-    groups = fixedGroups(TASK_STATUSES, (k) => STATUS_LABELS[k as keyof typeof STATUS_LABELS]);
+    groups = fixedGroups(
+      TASK_STATUSES,
+      (k) => STATUS_LABELS[k as keyof typeof STATUS_LABELS],
+      () => true,
+      (k) => STATUS_COLORS[k as TaskStatus],
+    );
     for (const item of items) groups.get((item as ViewTask).status)?.items.push(item);
   } else if (by === "priority") {
     const order = [...TASK_PRIORITIES].reverse();
     groups = fixedGroups(order, (k) => PRIORITY_LABELS[k as keyof typeof PRIORITY_LABELS]);
     for (const item of items) groups.get((item as ViewTask).priority)?.items.push(item);
   } else if (by === "done") {
-    groups = fixedGroups(["open", "done"], (k) => (k === "done" ? "Done" : "Not done"));
+    groups = fixedGroups(
+      ["open", "done"],
+      (k) => (k === "done" ? "Done" : "Not done"),
+      () => true,
+      (k) => (k === "done" ? "green" : "slate"),
+    );
     for (const item of items) {
       groups
         .get((item as unknown as { isComplete: boolean }).isComplete ? "done" : "open")
@@ -87,6 +120,7 @@ export function groupItems<T extends AnyItem>(
       DUE_BUCKETS,
       (k) => DUE_BUCKET_LABELS[k as keyof typeof DUE_BUCKET_LABELS],
       (k) => k !== "overdue",
+      bucketColor,
     );
     groups.get("none")!.empty = true;
     const completed: Mutable<T> = {
@@ -94,6 +128,7 @@ export function groupItems<T extends AnyItem>(
       label: DUE_BUCKET_LABELS.done,
       items: [],
       droppable: false,
+      color: bucketColor("done"),
     };
     for (const item of items) {
       const bucket = dueBucketFor(collection, item, ctx);
@@ -113,6 +148,7 @@ export function groupItems<T extends AnyItem>(
               ? "Today"
               : "Overdue",
       (k) => k !== "overdue",
+      bucketColor,
     );
     groups.get("none")!.empty = true;
     const completed: Mutable<T> = {
@@ -120,6 +156,7 @@ export function groupItems<T extends AnyItem>(
       label: DUE_BUCKET_LABELS.done,
       items: [],
       droppable: false,
+      color: bucketColor("done"),
     };
     for (const item of items) {
       const bucket = dueBucketFor(collection, item, ctx);

@@ -38,6 +38,7 @@ These are the views that cut across every item type, so each is built on the own
 - **New package:** `cmdk` (already in the stack list).
 - **Machine load:** on a busy laptop a full Playwright run can time out tests that pass on their own; run with `--workers=4` if that happens.
 - **Design vs spec:** the design's Convert is a button that opens one dialog with tabs; here the button is a menu of the five targets that opens the same dialog on that tab. The mobile Today/Inbox headers use the app's own top bar.
+- **Task panel on Today (2026-10-19):** a task opens in the same docked panel the Tasks page uses, on Today itself (`/today?task=id`; `useOpenTask`/`useCloseTask` use the page they are on, via `useTaskPanelPath`). Today loads the detail like the Tasks page does, keeps clear of the panel (`TodayShell`) and stacks its rail under the lists while the panel is docked (`TodayGrid`). The focus card's Open and "Up next" links go to `/today?task=id`. On a phone, and from every other page, a task still opens as `/tasks/id` or on the Tasks page. Projects pages still open tasks on the Tasks page.
 
 ## Not verified
 - Touch behaviour and the on-screen keyboard on a real phone (emulated only); Safari and Firefox.

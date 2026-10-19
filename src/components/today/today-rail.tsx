@@ -46,7 +46,7 @@ export function TodayRail({ upNext, notes, inbox, now, timeZone, checklist }: Pr
             {upNext.slice(0, 4).map((task) => (
               <li key={task.id} className="border-b border-border">
                 <Link
-                  href={`/tasks?task=${task.id}`}
+                  href={`/today?task=${task.id}`}
                   className="flex min-h-row-touch items-center gap-3 px-1 transition-colors duration-150 hover:bg-accent md:min-h-row"
                 >
                   <span className="inline-flex w-12 shrink-0 items-center gap-1 type-data-sm text-muted-foreground">

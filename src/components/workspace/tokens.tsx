@@ -20,7 +20,41 @@ export function ColorDot({
   );
 }
 
-/** Colour dot and project name. Colour is never the only identifier. */
+/** The `--tint` a colour token sets for the `tint-chip` and `tint-surface` rules (ADR 0027). */
+export const tintStyle = (color: ColorToken | null | undefined) =>
+  ({ "--tint": colorVar(color) }) as React.CSSProperties;
+
+/**
+ * A name on a soft fill of its colour, with the dot beside it: how a project, a status or a tag reads at a
+ * glance. The text is ordinary ink; the colour never carries the meaning alone.
+ */
+export function TintChip({
+  color,
+  dot = true,
+  className,
+  children,
+}: {
+  color: ColorToken | null | undefined;
+  /** The small circle before the name. */
+  dot?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      style={tintStyle(color)}
+      className={cn(
+        "inline-flex min-w-0 items-center gap-1.5 rounded-sm tint-chip px-2 py-0.5 type-body-sm text-foreground",
+        className,
+      )}
+    >
+      {dot ? <ColorDot color={color} /> : null}
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
+/** A project's name as a tinted chip. Colour is never the only identifier. */
 export function ProjectToken({
   project,
   className,
@@ -29,19 +63,13 @@ export function ProjectToken({
   className?: string;
 }) {
   return (
-    <span
-      className={cn(
-        "inline-flex min-w-0 items-center gap-1.5 type-body-sm text-muted-foreground",
-        className,
-      )}
-    >
-      <ColorDot color={project.color} />
-      <span className="truncate">{project.name}</span>
-    </span>
+    <TintChip color={project.color} className={className}>
+      {project.name}
+    </TintChip>
   );
 }
 
-/** A tag as a quiet chip: optional colour dot and the name. */
+/** A tag as a chip: tinted in its colour when it has one, otherwise a quiet grey. */
 export function TagBadge({
   tag,
   className,
@@ -49,6 +77,13 @@ export function TagBadge({
   tag: Pick<TagDTO, "name" | "color">;
   className?: string;
 }) {
+  if (tag.color) {
+    return (
+      <TintChip color={tag.color} className={className}>
+        {tag.name}
+      </TintChip>
+    );
+  }
   return (
     <span
       className={cn(
@@ -56,7 +91,6 @@ export function TagBadge({
         className,
       )}
     >
-      {tag.color ? <ColorDot color={tag.color} /> : null}
       <span className="truncate">{tag.name}</span>
     </span>
   );

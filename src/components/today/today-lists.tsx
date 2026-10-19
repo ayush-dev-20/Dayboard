@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { animateRows } from "@/lib/motion";
 
@@ -50,6 +51,8 @@ export function TodayTasks({
   subheadingAt?: number;
 }) {
   const open = useOpenTask();
+  // The task open in the panel beside the day is marked in its row.
+  const selectedId = useSearchParams().get("task");
   const { prefs, nowMs } = useTaskContext();
   const oldest = oldestOverdueId(tasks, prefs, new Date(nowMs));
   const split =
@@ -63,6 +66,7 @@ export function TodayTasks({
             layoutAnimation={animateRows(list.length)}
             key={task.id}
             task={task}
+            selected={task.id === selectedId}
             onOpen={open}
             overdueEmphasis={task.id === oldest}
           />
@@ -119,6 +123,7 @@ export function TodayTodos({ todos }: { todos: TodoDTO[] }) {
 /** Finished today: tasks and todos together, most recent first. */
 export function TodayCompleted({ tasks, todos }: { tasks: TaskDTO[]; todos: TodoDTO[] }) {
   const open = useOpenTask();
+  const selectedId = useSearchParams().get("task");
   const items = [
     ...tasks.map((t) => ({ kind: "task" as const, at: t.completedAt ?? "", task: t })),
     ...todos.map((t) => ({ kind: "todo" as const, at: t.completedAt ?? "", todo: t })),
@@ -131,7 +136,12 @@ export function TodayCompleted({ tasks, todos }: { tasks: TaskDTO[]; todos: Todo
       <AnimatePresence initial={false}>
         {items.map((item) =>
           item.kind === "task" ? (
-            <TaskRow key={item.task.id} task={item.task} onOpen={open} />
+            <TaskRow
+              key={item.task.id}
+              task={item.task}
+              selected={item.task.id === selectedId}
+              onOpen={open}
+            />
           ) : (
             <TodoRow key={item.todo.id} todo={item.todo} />
           ),

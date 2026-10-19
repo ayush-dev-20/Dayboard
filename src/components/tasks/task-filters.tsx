@@ -12,14 +12,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ColorDot } from "@/components/workspace/tokens";
+import { TintChip } from "@/components/workspace/tokens";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { DUE_FILTER_LABELS, DUE_FILTERS, type DueFilter } from "@/lib/tasks/grouping";
 import { buildTasksQuery, describeStatuses, type TasksParams } from "@/lib/tasks/params";
-import { OPEN_STATUSES, STATUS_LABELS, TASK_STATUSES, type TaskStatus } from "@/lib/tasks/status";
+import {
+  OPEN_STATUSES,
+  STATUS_COLORS,
+  STATUS_LABELS,
+  TASK_STATUSES,
+  type TaskStatus,
+} from "@/lib/tasks/status";
+import { cn } from "@/lib/utils";
 
-const triggerClasses =
-  "type-body-md inline-flex h-11 items-center gap-1.5 rounded-md px-3 text-muted-foreground hover:bg-accent hover:text-foreground md:h-8";
+// A soft fill, like Notion's filter chips (ADR 0027). A filter that is doing something fills with the selection
+// tint, so what narrows the list reads at a glance; the words say the same.
+const triggerClasses = (active: boolean) =>
+  cn(
+    "type-body-md inline-flex h-11 items-center gap-1.5 rounded-md px-3 transition-colors duration-[120ms] md:h-8",
+    active
+      ? "bg-primary-subtle text-foreground hover:bg-primary-subtle/70"
+      : "bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground",
+  );
 
 /** Filters live in the URL, so a filtered list can be refreshed, linked and sent back with the Back button. */
 export function TaskFilters({
@@ -38,6 +52,11 @@ export function TaskFilters({
   const { projects, tags } = useWorkspace();
   const project = projects.find((p) => p.id === params.projectId);
   const tag = tags.find((t) => t.id === params.tagId);
+  // Whether each filter differs from what the list shows by default.
+  const statusActive =
+    params.archived ||
+    params.statuses.length !== OPEN_STATUSES.length ||
+    !OPEN_STATUSES.every((s) => params.statuses.includes(s));
 
   function go(patch: Partial<TasksParams>) {
     const next = { ...params, ...patch };
@@ -60,7 +79,7 @@ export function TaskFilters({
   return (
     <div className="flex flex-wrap items-center gap-1 py-2">
       <DropdownMenu>
-        <DropdownMenuTrigger className={triggerClasses}>
+        <DropdownMenuTrigger className={triggerClasses(statusActive)}>
           Status{" "}
           <b className="font-semibold text-foreground">{describeStatuses(params.statuses)}</b>
           <ChevronDown className="size-4" strokeWidth={1.5} aria-hidden />
@@ -73,7 +92,7 @@ export function TaskFilters({
               onCheckedChange={(checked) => toggleStatus(status, checked)}
               onSelect={(event) => event.preventDefault()}
             >
-              {STATUS_LABELS[status]}
+              <TintChip color={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</TintChip>
             </DropdownMenuCheckboxItem>
           ))}
           <DropdownMenuSeparator />
@@ -96,7 +115,7 @@ export function TaskFilters({
       </DropdownMenu>
 
       <DropdownMenu>
-        <DropdownMenuTrigger className={triggerClasses}>
+        <DropdownMenuTrigger className={triggerClasses(params.due !== "any")}>
           Due <b className="font-semibold text-foreground">{DUE_FILTER_LABELS[params.due]}</b>
           <ChevronDown className="size-4" strokeWidth={1.5} aria-hidden />
         </DropdownMenuTrigger>
@@ -115,7 +134,7 @@ export function TaskFilters({
       </DropdownMenu>
 
       <DropdownMenu>
-        <DropdownMenuTrigger className={triggerClasses}>
+        <DropdownMenuTrigger className={triggerClasses(Boolean(params.projectId))}>
           Project{" "}
           <b className="font-semibold text-foreground">
             {params.projectId === "none" ? "No project" : (project?.name ?? "Any")}
@@ -131,7 +150,7 @@ export function TaskFilters({
             <DropdownMenuRadioItem value="none">No project</DropdownMenuRadioItem>
             {projects.map((p) => (
               <DropdownMenuRadioItem key={p.id} value={p.id}>
-                <ColorDot color={p.color} /> {p.name}
+                <TintChip color={p.color}>{p.name}</TintChip>
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -139,7 +158,7 @@ export function TaskFilters({
       </DropdownMenu>
 
       <DropdownMenu>
-        <DropdownMenuTrigger className={triggerClasses}>
+        <DropdownMenuTrigger className={triggerClasses(Boolean(params.tagId))}>
           Tag <b className="font-semibold text-foreground">{tag?.name ?? "Any"}</b>
           <ChevronDown className="size-4" strokeWidth={1.5} aria-hidden />
         </DropdownMenuTrigger>
@@ -151,7 +170,7 @@ export function TaskFilters({
             <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
             {tags.map((t) => (
               <DropdownMenuRadioItem key={t.id} value={t.id}>
-                {t.color ? <ColorDot color={t.color} /> : null} {t.name}
+                {t.color ? <TintChip color={t.color}>{t.name}</TintChip> : t.name}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>

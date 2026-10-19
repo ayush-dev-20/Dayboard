@@ -21,7 +21,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ColorDot } from "@/components/workspace/tokens";
+import { TintChip, tintStyle } from "@/components/workspace/tokens";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { orderBetween } from "@/lib/tasks/ordering";
 import { PAGE_SIZE } from "@/lib/views/engine";
@@ -416,9 +416,14 @@ function Column({
         id={`col:${group.key}`}
         data={data}
         aria-labelledby={headingId}
+        style={isOver ? undefined : tintStyle(group.color)}
         className={cn(
-          "flex w-12 shrink-0 flex-col items-center gap-2 rounded-lg border border-border bg-secondary/40 py-3",
-          isOver && "border-primary bg-primary-subtle",
+          "flex w-12 shrink-0 flex-col items-center gap-2 rounded-lg border py-3",
+          isOver
+            ? "border-primary bg-primary-subtle"
+            : group.color
+              ? "tint-surface"
+              : "border-border bg-secondary/40",
         )}
       >
         <button
@@ -447,19 +452,28 @@ function Column({
       id={`col:${group.key}`}
       data={data}
       aria-labelledby={headingId}
+      style={isOver ? undefined : tintStyle(group.color)}
       className={cn(
-        "flex shrink-0 flex-col rounded-lg border border-border bg-secondary/40",
+        "flex shrink-0 flex-col rounded-lg border",
+        isOver
+          ? "border-primary bg-primary-subtle"
+          : group.color
+            ? "tint-surface"
+            : "border-border bg-secondary/40",
         phone ? "w-full" : "w-72",
-        isOver && "border-primary bg-primary-subtle",
       )}
     >
       <header className="flex items-center gap-1.5 px-3 pt-3 pb-2">
-        {group.color ? <ColorDot color={group.color} /> : null}
-        <h2
-          id={headingId}
-          className="min-w-0 flex-1 truncate type-label-caps text-muted-foreground"
-        >
-          {group.label} <span className="ml-1 type-data-sm">{group.items.length}</span>
+        {/* A column with a colour (a status, a project, a tag) names itself as a chip of that colour, like Notion. */}
+        <h2 id={headingId} className="flex min-w-0 flex-1 items-center gap-2 type-label-md">
+          {group.color ? (
+            <TintChip color={group.color} className="type-label-md">
+              {group.label}
+            </TintChip>
+          ) : (
+            <span className="truncate type-label-caps text-muted-foreground">{group.label}</span>
+          )}{" "}
+          <span className="type-data-sm text-muted-foreground">{group.items.length}</span>
         </h2>
         {canOrder ? (
           <DropdownMenu>

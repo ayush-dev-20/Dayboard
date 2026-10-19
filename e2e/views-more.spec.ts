@@ -53,10 +53,13 @@ const undo = (page: Page) =>
 async function drag(page: Page, from: Locator, to: Locator) {
   await from.scrollIntoViewIfNeeded();
   const a = (await from.boundingBox())!;
-  const b = (await to.boundingBox())!;
   await page.mouse.move(a.x + 24, a.y + a.height / 2);
   await page.mouse.down();
   await page.mouse.move(a.x + 40, a.y + a.height / 2 + 8, { steps: 4 });
+  // The target is measured once the drag has started: lifting the card can change the height of the cell or the
+  // column it came from, which moves everything below it (a calendar row, a board column).
+  await page.waitForTimeout(150);
+  const b = (await to.boundingBox())!;
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 });
   await page.mouse.up();
 }

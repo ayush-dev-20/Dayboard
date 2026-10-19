@@ -142,7 +142,7 @@ export function FocusHero({
                 className="-ml-2.5"
               />
               <Link
-                href={`/tasks?task=${focus.id}`}
+                href={`/today?task=${focus.id}`}
                 className={cn(
                   "min-w-0 flex-1 pt-1.5 type-headline-md text-foreground hover:underline md:pt-1",
                   done && "text-muted-foreground line-through",
@@ -182,7 +182,7 @@ export function FocusHero({
             ) : null}
             <div className="mt-4 flex flex-wrap items-center gap-1 pl-7">
               <Link
-                href={`/tasks?task=${focus.id}`}
+                href={`/today?task=${focus.id}`}
                 className={cn(buttonVariants({ variant: "secondary" }), "cursor-pointer")}
               >
                 Open <ArrowUpRight strokeWidth={1.5} aria-hidden />

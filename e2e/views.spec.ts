@@ -39,10 +39,13 @@ const card = (page: Page, title: string) =>
 /** A mouse drag in small steps, so the library sees a real pointer move. */
 async function drag(page: Page, from: Locator, to: Locator) {
   const a = (await from.boundingBox())!;
-  const b = (await to.boundingBox())!;
   await page.mouse.move(a.x + 24, a.y + a.height / 2);
   await page.mouse.down();
   await page.mouse.move(a.x + 40, a.y + a.height / 2 + 8, { steps: 4 });
+  // The target is measured once the drag has started: lifting the card can change the height of the cell or the
+  // column it came from, which moves everything below it (a calendar row, a board column).
+  await page.waitForTimeout(150);
+  const b = (await to.boundingBox())!;
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 });
   await page.mouse.up();
 }
@@ -333,7 +336,11 @@ test.describe("table", () => {
     // has cleared would instead toggle it off, so wait for the bar to go.
     await expect(bar).toBeHidden();
 
-    await page.getByLabel("Select all").click();
+    // Select everything again, clicking only while nothing is selected (a click on a selection toggles it off).
+    await expect(async () => {
+      if (!(await bar.isVisible())) await page.getByLabel("Select all").click();
+      await expect(bar).toContainText("2 selected", { timeout: 3000 });
+    }).toPass({ timeout: 20_000 });
     await bar.getByRole("button", { name: "Move to Trash" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Move to Trash" }).click();
     await expect.poll(async () => (await taskOf(user.id, "One"))?.deleted_at).not.toBeNull();

@@ -1,3 +1,5 @@
+import type { ColorToken } from "../colors";
+
 export const TASK_STATUSES = [
   "INBOX",
   "PLANNED",
@@ -18,6 +20,20 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   WAITING: "Waiting",
   DONE: "Done",
   CANCELLED: "Cancelled",
+};
+
+/**
+ * One colour per status (ADR 0027): a soft fill on the board's column and its header chip, on the filter menu and on a
+ * table's status cell, so a status is told apart at a glance. The name is always written next to the colour.
+ * Done is green, the rest are spread over the eight tag colours; red is not used (it is kept for what is late).
+ */
+export const STATUS_COLORS: Record<TaskStatus, ColorToken> = {
+  INBOX: "slate",
+  PLANNED: "blue",
+  IN_PROGRESS: "amber",
+  WAITING: "violet",
+  DONE: "green",
+  CANCELLED: "slate",
 };
 
 export const TASK_PRIORITIES = ["NONE", "LOW", "MEDIUM", "HIGH"] as const;

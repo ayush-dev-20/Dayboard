@@ -15,11 +15,12 @@ import { DueChip } from "@/components/tasks/due-chip";
 import { PriorityGlyph } from "@/components/tasks/priority-glyph";
 import { useTaskContext } from "@/components/tasks/task-context";
 import { ProjectPicker } from "@/components/workspace/project-picker";
-import { ProjectToken, TagBadge } from "@/components/workspace/tokens";
+import { ProjectToken, TagBadge, TintChip } from "@/components/workspace/tokens";
 import { TagPicker } from "@/components/workspace/tag-picker";
 import { formatDay } from "@/lib/dates/calendar";
 import {
   PRIORITY_LABELS,
+  STATUS_COLORS,
   STATUS_LABELS,
   TASK_PRIORITIES,
   TASK_STATUSES,
@@ -188,7 +189,7 @@ function StatusCell({ state, item }: { state: ViewState; item: ViewTask }) {
         aria-label={`Status of ${item.title}: ${STATUS_LABELS[item.status]}`}
         className={cell}
       >
-        {STATUS_LABELS[item.status]}
+        <TintChip color={STATUS_COLORS[item.status]}>{STATUS_LABELS[item.status]}</TintChip>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuRadioGroup
@@ -210,7 +211,7 @@ function StatusCell({ state, item }: { state: ViewState; item: ViewTask }) {
         >
           {TASK_STATUSES.map((status) => (
             <DropdownMenuRadioItem key={status} value={status}>
-              {STATUS_LABELS[status]}
+              <TintChip color={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</TintChip>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

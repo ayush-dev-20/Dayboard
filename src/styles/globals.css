@@ -385,6 +385,20 @@
   border-radius: var(--radius-lg);
 }
 
+/*
+ * Tinted chips and surfaces (ADR 0027): a project, status or tag colour as a soft fill, the way Notion shows them.
+ * The text stays the ordinary ink colour, so contrast never depends on the tint, and the dot beside the name
+ * carries the hue. Set `--tint` to one of the `--tag-*` colours. The mix is taken against the page, so the same
+ * rule is a light wash in the light theme and a dim one in the dark.
+ */
+@utility tint-chip {
+  background-color: color-mix(in oklab, var(--tint, var(--tag-slate)) 22%, var(--background));
+}
+@utility tint-surface {
+  background-color: color-mix(in oklab, var(--tint, var(--tag-slate)) 8%, var(--background));
+  border-color: color-mix(in oklab, var(--tint, var(--tag-slate)) 26%, var(--border));
+}
+
 /* Skeleton shimmer: a static band under reduced motion. */
 @utility skeleton {
   background: var(--hover);
