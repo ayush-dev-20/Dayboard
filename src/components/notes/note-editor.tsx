@@ -49,6 +49,10 @@ import { copyFlavours, copyToClipboard, type CopyKind } from "@/components/edito
 import { pasteSingleLine } from "@/components/editor/single-line-paste";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/layout/confirm-dialog";
+import {
+  ExpandableDialogActions,
+  useExpandableDialog,
+} from "@/components/layout/expandable-dialog";
 import { PageContainer } from "@/components/layout/page-container";
 import { makeSubNote } from "@/components/editor/blocks/note-create";
 import { MoveNoteDialog } from "@/components/notes/tree/move-note-dialog";
@@ -150,6 +154,8 @@ function saveStatus(state: NoteSaveState): SaveStatus {
  */
 export function NoteEditor({ note, start, backlinks = [] }: Props) {
   const router = useRouter();
+  // Inside the peek dialog (Today): no back arrow or tree button, the dialog's own buttons, and Trash closes it.
+  const dialog = useExpandableDialog();
   const isClient = useIsClient();
   const online = useSyncExternalStore(
     subscribeOnline,
@@ -436,10 +442,16 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
     });
   }
 
+  /** Where to go once the note is gone: back to the page under the dialog, or to the list. */
+  function leave() {
+    if (dialog) dialog.close();
+    else router.push("/notes");
+  }
+
   async function trash() {
     await sync.flush();
     if (!noteId) {
-      router.push("/notes");
+      leave();
       return;
     }
     const result = await deleteNote({ id: noteId });
@@ -448,7 +460,7 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
       return;
     }
     emitNoteEvent({ type: "structure" });
-    router.push("/notes");
+    leave();
     const along =
       result.data.subNotes > 0 ? ` ${subNotesWord(result.data.subNotes)} went with it.` : "";
     toast(`Moved to Trash.${along}`, {
@@ -556,24 +568,34 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
     </div>
   );
 
+  const Frame = dialog ? DialogFrame : PageContainer;
+
   return (
-    <PageContainer className="pb-28 md:pb-16">
-      <header className="mb-4 flex items-center gap-2">
-        <Link
-          href={
-            project && !note
-              ? `/projects/${project.id}`
-              : note && note.breadcrumb.length > 0
-                ? `/notes/${note.breadcrumb[note.breadcrumb.length - 1]!.id}`
-                : "/notes"
-          }
-          aria-label={
-            note && note.breadcrumb.length > 0 ? "Back to the parent note" : "Back to notes"
-          }
-          className="-ml-2 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-8"
-        >
-          <ArrowLeft className="size-4" strokeWidth={1.5} aria-hidden />
-        </Link>
+    <Frame className="pb-28 md:pb-16">
+      <header
+        className={cn(
+          "mb-4 flex items-center gap-2",
+          // The dialog scrolls under its header, so Close and Expand stay in reach.
+          dialog && "sticky top-0 z-10 -mx-4 bg-overlay px-4 pt-3 pb-2 md:-mx-8 md:px-8",
+        )}
+      >
+        {dialog ? null : (
+          <Link
+            href={
+              project && !note
+                ? `/projects/${project.id}`
+                : note && note.breadcrumb.length > 0
+                  ? `/notes/${note.breadcrumb[note.breadcrumb.length - 1]!.id}`
+                  : "/notes"
+            }
+            aria-label={
+              note && note.breadcrumb.length > 0 ? "Back to the parent note" : "Back to notes"
+            }
+            className="-ml-2 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-8"
+          >
+            <ArrowLeft className="size-4" strokeWidth={1.5} aria-hidden />
+          </Link>
+        )}
         <NoteBreadcrumb
           ancestors={note?.breadcrumb ?? []}
           project={project}
@@ -581,7 +603,7 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
           isNew={!note && !noteId}
         />
         <span className="flex-1 md:hidden" />
-        <NotesTreeSheet />
+        {dialog ? null : <NotesTreeSheet />}
 
         <SaveState status={saveStatus(sync.state)} />
         <LinkedTasks noteId={noteId} tasks={tasks} onChange={setTasks} />
@@ -744,6 +766,7 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
             <span aria-hidden className="absolute right-0 bottom-0 size-0" />
           </TagPicker>
         </div>
+        <ExpandableDialogActions className="-mr-2" />
       </header>
 
       {aiEnabled && generateOpen ? (
@@ -904,6 +927,13 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
           await toggleArchive(false, true);
         }}
       />
-    </PageContainer>
+    </Frame>
+  );
+}
+
+/** The note's column inside the peek dialog: the editor's reading width, with the page's side padding. */
+function DialogFrame({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <div className={cn("mx-auto w-full max-w-editor px-4 md:px-8", className)}>{children}</div>
   );
 }

@@ -7,6 +7,7 @@ import {
   insertNote,
   insertTask,
   insertTodo,
+  noteTitlesOf,
   taskByTitle,
 } from "./db";
 import { animationsDone as animationsDoneOn, signUp, taskRow, todoRow, today } from "./helpers";
@@ -310,5 +311,101 @@ test.describe("the task panel on Today", () => {
       .getByRole("button", { name: "Phone task", exact: true })
       .click();
     await expect(page).toHaveURL(new RegExp(`/tasks/${id}`));
+  });
+});
+
+test.describe("a note opened from Today", () => {
+  const dialog = (page: Page) => page.getByRole("dialog", { name: /Meeting notes|Untitled/ });
+  const noteLink = (page: Page) =>
+    section(page, /^Recently updated notes/).getByRole("link", { name: /Meeting notes/ });
+
+  test("opens in a dialog over Today that is 80% of the screen; Close returns to Today", async ({
+    page,
+  }) => {
+    const { user } = await newUser(page);
+    const id = await insertNote(user.id, { title: "Meeting notes", text: "agenda for monday" });
+    await page.goto("/today");
+
+    await noteLink(page).click();
+    await expect(page).toHaveURL(new RegExp(`/today\\?note=${id}`));
+    await expect(dialog(page)).toBeVisible();
+    await expect(dialog(page).getByLabel("Note title")).toHaveValue("Meeting notes");
+    await expect(dialog(page).getByText("agenda for monday")).toBeVisible();
+    await animationsDoneOn(dialog(page));
+
+    // 80% of the 1280 x 800 window.
+    const box = (await dialog(page).boundingBox())!;
+    expect(Math.abs(box.width - 1024)).toBeLessThanOrEqual(2);
+    expect(Math.abs(box.height - 640)).toBeLessThanOrEqual(2);
+
+    // It is the real editor: a new title is saved, and the rail behind shows it after the dialog closes.
+    await dialog(page).getByLabel("Note title").fill("Meeting notes (edited)");
+    await dialog(page).getByLabel("Note title").blur();
+    await expect.poll(async () => (await noteTitlesOf(user.id))[0]).toBe("Meeting notes (edited)");
+
+    await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/today$/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(
+      /Good (morning|afternoon|evening)/,
+    );
+  });
+
+  test("Escape closes it, and Expand opens the note's own page", async ({ page }) => {
+    const { user } = await newUser(page);
+    const id = await insertNote(user.id, { title: "Meeting notes", text: "agenda" });
+    await page.goto("/today");
+
+    await noteLink(page).click();
+    await expect(dialog(page)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/today$/);
+
+    await noteLink(page).click();
+    await dialog(page).getByRole("link", { name: "Open as a full page" }).click();
+    await expect(page).toHaveURL(new RegExp(`/notes/${id}$`));
+    await expect(page.getByLabel("Note title")).toHaveValue("Meeting notes");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("moving it to Trash closes the dialog and stays on Today", async ({ page }) => {
+    const { user } = await newUser(page);
+    await insertNote(user.id, { title: "Meeting notes", text: "agenda" });
+    await page.goto("/today");
+    await noteLink(page).click();
+    await dialog(page).getByRole("button", { name: "More actions" }).click();
+    await page.getByRole("menuitem", { name: "Move to Trash" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/today$/);
+  });
+
+  test("a note that is not there is no dialog", async ({ page }) => {
+    await newUser(page);
+    await page.goto("/today?note=00000000-0000-4000-8000-000000000000");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(
+      /Good (morning|afternoon|evening)/,
+    );
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("on a phone it fills the screen and fits", async ({ page }) => {
+    const { user } = await newUser(page);
+    await insertNote(user.id, { title: "Meeting notes", text: "agenda" });
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto("/today");
+    await noteLink(page).click();
+    await expect(dialog(page)).toBeVisible();
+    await animationsDoneOn(dialog(page));
+    const box = (await dialog(page).boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(340);
+    expect(box.width).toBeLessThanOrEqual(360);
+    expect(box.height).toBeGreaterThanOrEqual(710);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await expect(dialog(page).getByRole("link", { name: "Open as a full page" })).toBeVisible();
+    await dialog(page).getByRole("button", { name: "Close" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 });

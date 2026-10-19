@@ -73,7 +73,15 @@ export function TodayRail({ upNext, notes, inbox, now, timeZone, checklist }: Pr
           <RailHeading id="today-notes" label="Recently updated notes" count={notes.length} />
           <ul className="border-t border-border">
             {notes.slice(0, 3).map((note) => (
-              <NoteCard key={note.id} note={note} now={now} timeZone={timeZone} compact />
+              <NoteCard
+                key={note.id}
+                note={note}
+                now={now}
+                timeZone={timeZone}
+                compact
+                // A note opens in a dialog over Today; its Expand button goes to the note's page.
+                href={`/today?note=${note.id}`}
+              />
             ))}
           </ul>
           <Link href="/notes" className={railLink}>

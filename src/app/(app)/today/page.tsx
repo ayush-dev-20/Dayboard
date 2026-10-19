@@ -13,6 +13,7 @@ import { FocusHero } from "@/components/today/focus-hero";
 import { PlanDay } from "@/components/today/plan-day";
 import { TodayCapture } from "@/components/today/today-capture";
 import { TodayGrid, TodayShell } from "@/components/today/today-layout";
+import { TodayNoteDialog } from "@/components/today/today-note-dialog";
 import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
 import { ReviewReadyCard } from "@/components/review/review-ready-card";
 import { unreadReviewFor } from "@/lib/review/service";
@@ -29,6 +30,8 @@ import {
 import { TodayRail } from "@/components/today/today-rail";
 import { checklistCounts } from "@/db/queries/onboarding";
 import { getTodayData } from "@/db/queries/today";
+import { getBacklinks } from "@/db/queries/note-tree";
+import { getNote } from "@/db/queries/notes";
 import { getTaskDetail } from "@/db/queries/tasks";
 import { parseTasksParams } from "@/lib/tasks/params";
 import type { SearchParams } from "@/lib/oauth-providers";
@@ -41,6 +44,7 @@ import { requireUser } from "@/lib/session";
 import { loadTaskContext } from "@/lib/tasks/context";
 import type { TaskDTO } from "@/lib/tasks/dto";
 import { TODAY_LIMITS } from "@/lib/today/buckets";
+import { idSchema } from "@/lib/validations/tasks";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -65,13 +69,22 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
   const prefs = await getPreferences(user.id);
   const { dayPrefs, now, context } = await loadTaskContext(user.id);
   // `?task=id` opens that task in the panel beside the day (the same panel the Tasks page uses).
-  const { taskId } = parseTasksParams(await searchParams);
-  const [data, counts, readyReview, detail] = await Promise.all([
+  // `?note=id` opens that note in a dialog over the day. A note and a task are not open together: the note wins.
+  const raw = await searchParams;
+  const noteParam = Array.isArray(raw.note) ? raw.note[0] : raw.note;
+  const noteId = noteParam && idSchema.safeParse(noteParam).success ? noteParam : null;
+  const { taskId: askedTask } = parseTasksParams(raw);
+  const taskId = noteId ? null : askedTask;
+  const [data, counts, readyReview, detail, openNote] = await Promise.all([
     getTodayData(user.id, dayPrefs, prefs.focusTaskId, now),
     prefs.checklistDismissedAt ? Promise.resolve(null) : checklistCounts(user.id),
     // A finished weekly review nobody has opened (V2 feature 15): one quiet card, never repeated once dismissed.
     unreadReviewFor(user.id),
     taskId ? getTaskDetail(user.id, taskId) : Promise.resolve(null),
+    // Someone else's id, or a deleted note, is just no dialog: Today shows as it always does.
+    noteId
+      ? Promise.all([getNote(user.id, noteId), getBacklinks(user.id, noteId)])
+      : Promise.resolve(null),
   ]);
   const checklist = counts ? deriveChecklist(counts) : null;
   // Calendar (V2 feature 12): refresh a stale calendar after the page is sent. Nothing when it is not set up.
@@ -224,6 +237,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
         </PageContainer>
       </TodayShell>
       {detail ? <TaskDetailSheet detail={detail} /> : null}
+      {openNote?.[0] ? <TodayNoteDialog note={openNote[0]} backlinks={openNote[1]} /> : null}
     </TaskContextProvider>
   );
 }

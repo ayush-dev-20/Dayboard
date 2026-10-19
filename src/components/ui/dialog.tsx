@@ -9,7 +9,7 @@ export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
 // 440px, 10px radius, `overlay` surface. Only for confirming a destructive action, a small
-// focused form, or AI confirmation. Never nest dialogs.
+// focused form, or AI confirmation. Never nest dialogs. A large peek at a record is `ExpandableDialog`.
 export function DialogContent({
   className,
   children,

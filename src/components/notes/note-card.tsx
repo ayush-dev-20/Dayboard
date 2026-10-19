@@ -17,6 +17,8 @@ type Props = {
   hideProject?: boolean;
   /** A narrow column (Today's rail): title and time only. */
   compact?: boolean;
+  /** Where the row goes; the note's own page unless a page opens notes some other way (Today's dialog). */
+  href?: string;
   className?: string;
 };
 
@@ -25,12 +27,12 @@ type Props = {
  * right. A row, not a card (UI/UX §6). The whole row is the link. Used by the Notes list and
  * project pages.
  */
-export function NoteCard({ note, now, timeZone, hideProject, compact, className }: Props) {
+export function NoteCard({ note, now, timeZone, hideProject, compact, href, className }: Props) {
   const time = formatCompact(new Date(note.updatedAt), now, timeZone);
   return (
     <li className={cn("border-b border-border", className)}>
       <Link
-        href={`/notes/${note.id}`}
+        href={href ?? `/notes/${note.id}`}
         {...askAttrs({ type: "note", id: note.id, title: note.title })}
         className="flex min-h-row-touch items-center gap-2 px-3 py-2 transition-colors duration-[120ms] hover:bg-accent md:min-h-row md:py-1"
       >
