@@ -32,6 +32,8 @@ import {
 import { TodayRail } from "@/components/today/today-rail";
 import { checklistCounts } from "@/db/queries/onboarding";
 import { getTodayData } from "@/db/queries/today";
+import { listStickiesForToday } from "@/db/queries/stickies";
+import { TodayStickies } from "@/components/today/today-stickies";
 import { getBacklinks } from "@/db/queries/note-tree";
 import { getNote } from "@/db/queries/notes";
 import { getTaskDetail } from "@/db/queries/tasks";
@@ -77,7 +79,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
   const noteId = noteParam && idSchema.safeParse(noteParam).success ? noteParam : null;
   const { taskId: askedTask } = parseTasksParams(raw);
   const taskId = noteId ? null : askedTask;
-  const [data, counts, readyReview, detail, openNote, dueReminders, upcomingReminders] =
+  const [data, counts, readyReview, detail, openNote, dueReminders, upcomingReminders, stickies] =
     await Promise.all([
       getTodayData(user.id, dayPrefs, prefs.focusTaskId, now),
       prefs.checklistDismissedAt ? Promise.resolve(null) : checklistCounts(user.id),
@@ -91,6 +93,8 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
       // Reminders that have come due and wait in the app (V2 feature 14 §5), and what is coming, for the timer.
       dueInApp(user.id, now),
       upcomingInApp(user.id, now),
+      // Sticky notes (V3 feature 01 §13.4): their own section, outside the day's progress and the focus picker.
+      listStickiesForToday(user.id, getUserToday(dayPrefs, now)),
     ]);
   const checklist = counts ? deriveChecklist(counts) : null;
   // Calendar (V2 feature 12): refresh a stale calendar after the page is sent. Nothing when it is not set up.
@@ -211,6 +215,21 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
                         count={data.planning.length}
                       />
                       <TodayTasks tasks={data.planning} />
+                    </section>
+                  ) : null}
+
+                  {stickies.rows.length > 0 ? (
+                    <section aria-labelledby="today-stickies">
+                      <SectionHeading
+                        id="today-stickies"
+                        label="Sticky notes"
+                        count={stickies.total}
+                      />
+                      <TodayStickies
+                        rows={stickies.rows}
+                        total={stickies.total}
+                        today={getUserToday(dayPrefs, now)}
+                      />
                     </section>
                   ) : null}
 

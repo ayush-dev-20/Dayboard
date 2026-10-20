@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from "d
 import { db } from "@/db/client";
 import { notes, taskNotes, tasks } from "@/db/schema";
 import { taskMetaFor } from "@/db/queries/meta";
+import { plainTasks } from "@/db/queries/task-filters";
 import { toTaskDTO, type TaskDetailDTO, type TaskDTO } from "@/lib/tasks/dto";
 import { OPEN_STATUSES, type TaskStatus } from "@/lib/tasks/status";
 
@@ -12,6 +13,8 @@ import { OPEN_STATUSES, type TaskStatus } from "@/lib/tasks/status";
 // `${tasks.id}` as a bare "id", which inside the subquery would silently mean the subtask's own id.
 export const subtaskTotal = sql<number>`(select count(*)::int from tasks s where s.parent_task_id = "tasks"."id" and s.deleted_at is null)`;
 export const subtaskDone = sql<number>`(select count(*)::int from tasks s where s.parent_task_id = "tasks"."id" and s.deleted_at is null and s.status = 'DONE')`;
+
+export { plainTasks, stickyTasks } from "@/db/queries/task-filters";
 
 const LIST_LIMIT = 1000;
 
@@ -76,6 +79,7 @@ export async function selectTasks(
         isNull(tasks.deletedAt),
         isNull(tasks.archivedAt),
         isNull(tasks.parentTaskId),
+        plainTasks,
         ...extra,
       ),
     )
@@ -100,6 +104,7 @@ export async function listTasks(
         eq(tasks.userId, userId),
         isNull(tasks.deletedAt),
         isNull(tasks.parentTaskId),
+        plainTasks,
         options.archived ? isNotNull(tasks.archivedAt) : isNull(tasks.archivedAt),
         inArray(tasks.status, [...statuses]),
         ...filterConditions(userId, options),
@@ -131,6 +136,7 @@ export async function listClosedTasks(
         eq(tasks.userId, userId),
         isNull(tasks.deletedAt),
         isNull(tasks.parentTaskId),
+        plainTasks,
         options.archived ? isNotNull(tasks.archivedAt) : isNull(tasks.archivedAt),
         inArray(tasks.status, [...statuses]),
         ...filterConditions(userId, options),
@@ -157,6 +163,7 @@ export async function countTasksByGroup(
         eq(tasks.userId, userId),
         isNull(tasks.deletedAt),
         isNull(tasks.parentTaskId),
+        plainTasks,
         options.archived ? isNotNull(tasks.archivedAt) : isNull(tasks.archivedAt),
         ...filterConditions(userId, options),
       ),

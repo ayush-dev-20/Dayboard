@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { ensureDefaultViews, listViews } from "@/db/mutations/views";
 import { projectRefsFor, tagsForNotes, taskMetaFor } from "@/db/queries/meta";
 import { plainNotes } from "@/db/queries/note-filters";
+import { plainTasks } from "@/db/queries/task-filters";
 import { subtaskDone, subtaskTotal } from "@/db/queries/tasks";
 import { notes, tasks, todos } from "@/db/schema";
 import { makeSnippet, SNIPPET_LENGTH } from "@/lib/notes/dto";
@@ -58,6 +59,7 @@ export async function listTasksForViews(
       eq(tasks.userId, userId),
       isNull(tasks.deletedAt),
       isNull(tasks.parentTaskId),
+      plainTasks,
       scope.archivedOnly ? isNotNull(tasks.archivedAt) : isNull(tasks.archivedAt),
       projectCondition(tasks.projectId, scope),
       statusCondition,
@@ -131,7 +133,7 @@ export async function listTodosForViews(
   return rows.map((r) => toTodoDTO(r, (r.projectId && refs.get(r.projectId)) || null));
 }
 
-const linkedTaskCount = sql<number>`(select count(*)::int from task_notes tn join tasks t on t.id = tn.task_id where tn.note_id = "notes"."id" and t.deleted_at is null)`;
+const linkedTaskCount = sql<number>`(select count(*)::int from task_notes tn join tasks t on t.id = tn.task_id where tn.note_id = "notes"."id" and t.deleted_at is null and t.kind = 'TASK')`;
 
 export async function listNotesForViews(
   userId: string,

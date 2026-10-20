@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
+import { plainTasks } from "@/db/queries/task-filters";
 import { notificationLog, pushSubscriptions, taskReminders, tasks } from "@/db/schema";
 import { formatDay } from "@/lib/dates/calendar";
 import { getUserToday, isDueToday, isOverdue } from "@/lib/dates/today";
@@ -366,6 +367,7 @@ export async function overdueCounts(
         isNull(tasks.archivedAt),
         isNull(tasks.deletedAt),
         isNull(tasks.parentTaskId),
+        plainTasks,
         sql`${tasks.dueDate} is not null and ${tasks.dueDate} <= ${today}`,
         sql`${tasks.status} not in ('DONE', 'CANCELLED')`,
       ),

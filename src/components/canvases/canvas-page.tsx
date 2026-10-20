@@ -47,6 +47,7 @@ import type { Scene, SceneElement } from "@/lib/canvas/types";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type { SaveStatus } from "@/hooks/use-autosave";
 import { cn } from "@/lib/utils";
+import { Banner } from "./canvas-banner";
 import { CanvasTasksButton } from "./canvas-tasks-button";
 import { CardPicker, type CardChoice } from "./card-picker";
 import { DrawWithAiDialog } from "./draw-with-ai-dialog";
@@ -68,29 +69,6 @@ const STATUS_FOR: Record<CanvasSaveState, SaveStatus> = {
   failed: "failed",
   conflict: "idle",
 };
-
-function Banner({
-  children,
-  actions,
-  tone = "info",
-}: {
-  children: React.ReactNode;
-  actions?: React.ReactNode;
-  tone?: "info" | "warning";
-}) {
-  return (
-    <div
-      role="status"
-      className={cn(
-        "flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-4 py-2 type-body-md md:px-6",
-        tone === "warning" ? "bg-warning-subtle text-foreground" : "bg-primary-subtle text-primary",
-      )}
-    >
-      <p className="min-w-0 flex-1">{children}</p>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
-    </div>
-  );
-}
 
 /**
  * The canvas page (V3 feature 01 §7): a slim header, banners that never block drawing, and the drawing filling the

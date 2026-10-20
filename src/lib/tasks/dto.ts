@@ -10,6 +10,8 @@ import type { TaskPriority, TaskStatus } from "./status";
 
 export type TaskDTO = {
   id: string;
+  /** A sticky note is a task of its own kind (V3 feature 01 §13): it cannot repeat or have subtasks. */
+  kind: "TASK" | "STICKY";
   parentTaskId: string | null;
   title: string;
   emoji: string | null;
@@ -65,6 +67,7 @@ export type TodoDTO = {
 
 type TaskRowLike = {
   id: string;
+  kind?: string;
   parentTaskId: string | null;
   title: string;
   emoji: string | null;
@@ -92,6 +95,7 @@ export function toTaskDTO(
 ): TaskDTO {
   return {
     id: row.id,
+    kind: row.kind === "STICKY" ? "STICKY" : "TASK",
     parentTaskId: row.parentTaskId,
     title: row.title,
     emoji: row.emoji,

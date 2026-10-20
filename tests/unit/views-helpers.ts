@@ -20,6 +20,7 @@ export function task(over: Partial<ViewTask> = {}): ViewTask {
   const n = ++seq;
   return {
     id: id(),
+    kind: "TASK",
     parentTaskId: null,
     title: `Task ${n}`,
     emoji: null,

@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, ilike, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { findCandidates, loadContextItems } from "@/db/queries/ai";
+import { plainTasks } from "@/db/queries/task-filters";
 import { notes, projects, taskNotes, tasks } from "@/db/schema";
 import { extractKeywords, rankCandidates } from "@/lib/ai/context";
 import type {
@@ -82,7 +83,7 @@ export async function readItem(
       })
       .from(tasks)
       .leftJoin(projects, eq(projects.id, tasks.projectId))
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId), isNull(tasks.deletedAt)))
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId), isNull(tasks.deletedAt), plainTasks))
       .limit(1);
     if (!row) return null;
     const subs = await db
@@ -123,6 +124,7 @@ export async function readItem(
           eq(tasks.projectId, id),
           isNull(tasks.deletedAt),
           isNull(tasks.parentTaskId),
+          plainTasks,
         ),
       )
       .orderBy(desc(tasks.updatedAt))
@@ -248,6 +250,7 @@ export async function listTasksFor(
     isNull(tasks.deletedAt),
     isNull(tasks.archivedAt),
     isNull(tasks.parentTaskId),
+    plainTasks,
     inArray(tasks.status, [...OPEN_STATUSES]),
   ];
   if (options.filter === "overdue") conditions.push(lt(tasks.dueDate, today));
@@ -361,7 +364,12 @@ export async function describeItems(
           .select({ id: tasks.id, title: tasks.title })
           .from(tasks)
           .where(
-            and(eq(tasks.userId, userId), isNull(tasks.deletedAt), inArray(tasks.id, ids("task"))),
+            and(
+              eq(tasks.userId, userId),
+              isNull(tasks.deletedAt),
+              plainTasks,
+              inArray(tasks.id, ids("task")),
+            ),
           )
       : [],
     ids("project").length
@@ -420,6 +428,7 @@ export async function findPickerItems(
           eq(tasks.userId, userId),
           isNull(tasks.deletedAt),
           isNull(tasks.parentTaskId),
+          plainTasks,
           like ? ilike(tasks.title, like) : undefined,
         ),
       )
@@ -500,7 +509,12 @@ export async function buildProposal(userId: string, body: ProposalBody): Promise
           .from(tasks)
           .leftJoin(projects, eq(projects.id, tasks.projectId))
           .where(
-            and(eq(tasks.userId, userId), isNull(tasks.deletedAt), inArray(tasks.id, [...taskIds])),
+            and(
+              eq(tasks.userId, userId),
+              isNull(tasks.deletedAt),
+              plainTasks,
+              inArray(tasks.id, [...taskIds]),
+            ),
           )
       : [],
     noteIds.size

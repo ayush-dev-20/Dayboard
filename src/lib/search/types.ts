@@ -47,6 +47,8 @@ export type SearchHit = {
   path: string[];
   /** A journal entry's day, "YYYY-MM-DD" (V3 feature 02). The hit is a note labelled Journal that opens in the Journal. */
   journalDate: string | null;
+  /** A sticky note's board (V3 feature 01 §13). The hit is a task labelled Sticky note that opens its board. */
+  stickyBoardId: string | null;
   status: TaskStatus | null;
   /** Tasks and todos. */
   dueDate: string | null;

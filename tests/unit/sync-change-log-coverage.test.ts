@@ -12,14 +12,14 @@ const DIR = path.resolve(__dirname, "../../src/db/mutations");
 /** Writers that do not record a change yet. Each is removed when its module is covered (feature 05 slices). */
 const GAPS = new Set([
   "assistant.ts:applyProposal",
-  // Canvases (V3 feature 01) are server-backed like notes and are not in the sync protocol.
+  // Canvases (V3 feature 01) are server-backed like notes and are not in the sync protocol. (Deleting a sticky board for
+  // good logs the deletes of its sticky notes, which are tasks.)
   "canvases.ts:createCanvas",
   "canvases.ts:saveCanvas",
   "canvases.ts:updateCanvasMeta",
   "canvases.ts:archiveCanvas",
   "canvases.ts:deleteCanvas",
   "canvases.ts:restoreCanvas",
-  "canvases.ts:permanentlyDeleteCanvas",
   "canvases.ts:linkTaskCanvas",
   "canvases.ts:unlinkTaskCanvas",
   // The journal (V3 feature 02) creates notes that carry a date; notes are not in the sync protocol.

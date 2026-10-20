@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { and, count, eq, max, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import type { Executor } from "@/db/executor";
+import { plainTasks } from "@/db/queries/task-filters";
 import {
   embeddingChunks,
   embeddingUsageDays,
@@ -215,7 +216,7 @@ export async function loadSource(
         archivedAt: tasks.archivedAt,
       })
       .from(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId), plainTasks));
     if (!r || r.deletedAt || r.archivedAt) return null;
     return {
       title: r.title,

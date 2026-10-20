@@ -12,7 +12,7 @@ import type { TaskDTO, TodoDTO } from "@/lib/tasks/dto";
 
 // Progress counts top-level tasks and todos that are neither archived nor deleted. Written with the
 // outer table spelled out ("projects"."id"), like the subtask counts in queries/tasks.ts.
-const NOT_GONE_TASK = sql`t.user_id = "projects"."user_id" and t.deleted_at is null and t.archived_at is null and t.parent_task_id is null`;
+const NOT_GONE_TASK = sql`t.user_id = "projects"."user_id" and t.deleted_at is null and t.archived_at is null and t.parent_task_id is null and t.kind = 'TASK'`;
 const NOT_GONE_TODO = sql`d.user_id = "projects"."user_id" and d.deleted_at is null and d.archived_at is null`;
 
 const taskTotal = sql<number>`(select count(*)::int from tasks t where t.project_id = "projects"."id" and ${NOT_GONE_TASK})`;
@@ -88,7 +88,7 @@ export async function nextDueTasks(userId: string): Promise<Map<string, NextDueT
     select distinct on (t.project_id) t.project_id, t.id, t.title, t.emoji, to_char(t.due_date, 'YYYY-MM-DD') as due_date
     from tasks t
     where t.user_id = ${userId} and t.project_id is not null and t.deleted_at is null
-      and t.archived_at is null and t.parent_task_id is null and t.due_date is not null
+      and t.archived_at is null and t.parent_task_id is null and t.kind = 'TASK' and t.due_date is not null
       and t.status not in ('DONE', 'CANCELLED')
     order by t.project_id, t.due_date asc, t.due_time asc nulls last, t.sort_order asc`);
   return new Map(

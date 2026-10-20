@@ -13,6 +13,7 @@ import {
 import { busyWindows } from "@/lib/calendar/planning";
 import { getStatus } from "@/lib/calendar/store";
 import { plainNotes } from "@/db/queries/note-filters";
+import { plainTasks } from "@/db/queries/task-filters";
 import { addDays } from "@/lib/dates/calendar";
 import { getUserToday, type DayPrefs } from "@/lib/dates/today";
 import { env } from "@/lib/env";
@@ -46,6 +47,7 @@ async function activityBetween(userId: string, from: Date, to: Date): Promise<Ac
         and(
           eq(tasks.userId, userId),
           isNull(tasks.deletedAt),
+          plainTasks,
           eq(tasks.status, "DONE"),
           gte(tasks.completedAt, from),
           lt(tasks.completedAt, to),
@@ -59,6 +61,7 @@ async function activityBetween(userId: string, from: Date, to: Date): Promise<Ac
         and(
           eq(tasks.userId, userId),
           isNull(tasks.deletedAt),
+          plainTasks,
           gte(tasks.createdAt, from),
           lt(tasks.createdAt, to),
         ),
@@ -131,6 +134,7 @@ export async function loadFactsInput(
         and(
           eq(tasks.userId, userId),
           isNull(tasks.deletedAt),
+          plainTasks,
           eq(tasks.status, "DONE"),
           gte(tasks.completedAt, from),
           lt(tasks.completedAt, to),
@@ -157,6 +161,7 @@ export async function loadFactsInput(
         and(
           eq(tasks.userId, userId),
           isNull(tasks.deletedAt),
+          plainTasks,
           eq(tasks.status, "DONE"),
           gte(tasks.completedAt, from),
           lt(tasks.completedAt, to),
@@ -190,6 +195,7 @@ export async function loadFactsInput(
         and(
           eq(tasks.userId, userId),
           isNull(tasks.deletedAt),
+          plainTasks,
           isNull(tasks.archivedAt),
           inArray(tasks.status, [...OPEN_STATUSES]),
           isNotNull(tasks.dueDate),
@@ -208,6 +214,7 @@ export async function loadFactsInput(
         and(
           eq(tasks.userId, userId),
           isNull(tasks.deletedAt),
+          plainTasks,
           isNull(tasks.archivedAt),
           inArray(tasks.status, [...OPEN_STATUSES]),
           isNotNull(tasks.dueDate),
@@ -325,6 +332,7 @@ export async function loadFactsInput(
           and(
             eq(tasks.userId, userId),
             isNull(tasks.deletedAt),
+            plainTasks,
             inArray(
               tasks.id,
               moved.map((m) => m.taskId),

@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { searchWorkspace } from "@/db/queries/search";
+import { plainTasks } from "@/db/queries/task-filters";
 import { aiDailySuggestions, inboxItems, notes, projects, tags, tasks, todos } from "@/db/schema";
 import { startOfUserDay, getUserToday, type DayPrefs } from "@/lib/dates/today";
 import {
@@ -44,7 +45,7 @@ export async function loadTask(userId: string, id: string) {
       parentTaskId: tasks.parentTaskId,
     })
     .from(tasks)
-    .where(and(eq(tasks.id, id), eq(tasks.userId, userId), isNull(tasks.deletedAt)))
+    .where(and(eq(tasks.id, id), eq(tasks.userId, userId), isNull(tasks.deletedAt), plainTasks))
     .limit(1);
   if (!row) return null;
   const subs = await db
@@ -95,6 +96,7 @@ export async function loadOverdueTasks(userId: string, prefs: DayPrefs, limit = 
         isNull(tasks.deletedAt),
         isNull(tasks.archivedAt),
         isNull(tasks.parentTaskId),
+        plainTasks,
         open,
         isNotNull(tasks.dueDate),
         lte(tasks.dueDate, today),
@@ -118,7 +120,12 @@ export async function loadDailyStats(userId: string, prefs: DayPrefs): Promise<D
   const today = getUserToday(prefs, now);
   const dayStart = startOfUserDay(prefs, now);
   const yesterdayStart = startOfUserDay(prefs, new Date(dayStart.getTime() - 3_600_000 * 12));
-  const base = and(eq(tasks.userId, userId), isNull(tasks.deletedAt), isNull(tasks.archivedAt));
+  const base = and(
+    eq(tasks.userId, userId),
+    isNull(tasks.deletedAt),
+    isNull(tasks.archivedAt),
+    plainTasks,
+  );
 
   const [dated, high, done] = await Promise.all([
     db
@@ -251,7 +258,12 @@ export async function loadContextItems(
           })
           .from(tasks)
           .where(
-            and(eq(tasks.userId, userId), isNull(tasks.deletedAt), inArray(tasks.id, ids("task"))),
+            and(
+              eq(tasks.userId, userId),
+              isNull(tasks.deletedAt),
+              plainTasks,
+              inArray(tasks.id, ids("task")),
+            ),
           )
       : [],
     ids("todo").length
@@ -347,6 +359,7 @@ export async function loadPlanCandidates(
     isNull(tasks.deletedAt),
     isNull(tasks.archivedAt),
     isNull(tasks.parentTaskId),
+    plainTasks,
     open,
   );
   const columns = {

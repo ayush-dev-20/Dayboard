@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { askAttrs } from "@/lib/ai/ask-attrs";
-import { BookOpen, CheckSquare, CircleCheck, FileText, Folder, Shapes, Tag } from "lucide-react";
+import {
+  BookOpen,
+  CheckSquare,
+  CircleCheck,
+  FileText,
+  Folder,
+  Shapes,
+  StickyNote,
+  Tag,
+} from "lucide-react";
 import { ProjectToken } from "@/components/workspace/tokens";
 import { formatDay } from "@/lib/dates/calendar";
 import { pathLabel } from "@/lib/notes/tree";
@@ -54,7 +63,7 @@ export function SearchResult({
   /** Meaning-based search is on: show how each result matched, and why (feature 10 §7). */
   showWhy?: boolean;
 }) {
-  const Icon = hit.journalDate ? BookOpen : ICONS[hit.type];
+  const Icon = hit.journalDate ? BookOpen : hit.stickyBoardId ? StickyNote : ICONS[hit.type];
   const context: string[] = [];
   if (hit.type === "task" && hit.status && hit.status !== "PLANNED" && hit.status !== "INBOX") {
     context.push(STATUS_LABELS[hit.status]);
@@ -116,7 +125,11 @@ export function SearchResult({
         </span>
         <span className="mt-1 flex shrink-0 flex-col items-end gap-0.5 text-muted-foreground">
           <span className="type-label-caps">
-            {hit.journalDate ? "Journal" : TYPE_LABELS[hit.type]}
+            {hit.journalDate
+              ? "Journal"
+              : hit.stickyBoardId
+                ? "Sticky note"
+                : TYPE_LABELS[hit.type]}
           </span>
           {showWhy && hit.type !== "tag" ? (
             <span className="type-body-sm" data-testid="match-kind">

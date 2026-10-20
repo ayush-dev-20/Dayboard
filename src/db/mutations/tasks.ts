@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject } from "@/db/mutations/guards";
 import { rejectReusedId } from "@/db/mutations/reused-id";
+import { stickyPlacementFor, stickyRestorePatch } from "@/db/mutations/sticky-column";
 import { logTaskDeletes, logTaskUpserts } from "@/lib/sync/change-log";
 import { projectDoc, syncNoteLinks } from "@/db/mutations/note-links";
 import { taskMetaFor } from "@/db/queries/meta";
@@ -105,10 +106,18 @@ export async function createTask(
   return inTransaction(outer, async (tx) => {
     if (input.parentTaskId) {
       const [parent] = await tx
-        .select({ id: tasks.id, userId: tasks.userId, parentTaskId: tasks.parentTaskId })
+        .select({
+          id: tasks.id,
+          userId: tasks.userId,
+          parentTaskId: tasks.parentTaskId,
+          kind: tasks.kind,
+        })
         .from(tasks)
         .where(owned(userId, input.parentTaskId))
         .limit(1);
+      if (parent?.kind === "STICKY") {
+        throw new AppError("VALIDATION_ERROR", "Sticky notes can't have subtasks.");
+      }
       const check = checkSubtaskParent(parent ?? null, { userId });
       if (!check.ok) {
         throw check.reason === "NOT_FOUND"
@@ -258,6 +267,11 @@ export async function updateTask(
           fieldErrors: { recurrenceRule: "A repeating task needs a due date." },
         });
       }
+      if (task.kind === "STICKY") {
+        throw new AppError("VALIDATION_ERROR", "Sticky notes can't repeat.", {
+          fieldErrors: { recurrenceRule: "Sticky notes can't repeat." },
+        });
+      }
       if (task.parentTaskId) {
         throw new AppError("VALIDATION_ERROR", "Subtasks can't repeat.", {
           fieldErrors: { recurrenceRule: "Subtasks can't repeat." },
@@ -349,7 +363,11 @@ export async function completeTask(
         ),
       );
 
-    const patch: Partial<NewTask> = { ...statusPatch("DONE", now) };
+    // A sticky note follows its status to the board's Completed column.
+    const patch: Partial<NewTask> = {
+      ...statusPatch("DONE", now),
+      ...(await stickyPlacementFor(tx, task, "DONE")),
+    };
     let nextOccurrenceId: string | null = null;
 
     if (task.recurrenceRule && task.dueDate && !task.parentTaskId) {
@@ -459,7 +477,11 @@ export async function undoCompleteTask(
     if (!task) throw new AppError("NOT_FOUND");
     if (task.status !== "DONE") return { task: await dto(tx, task), removedOccurrence: false };
 
-    const patch: Partial<NewTask> = statusPatch(statusAfterUndo(input.previousStatus), new Date());
+    const undoneStatus = statusAfterUndo(input.previousStatus);
+    const patch: Partial<NewTask> = {
+      ...statusPatch(undoneStatus, new Date()),
+      ...(await stickyPlacementFor(tx, task, undoneStatus)),
+    };
     let removed = false;
 
     if (input.nextOccurrenceId) {
@@ -503,10 +525,14 @@ export async function setTaskStatus(
   if (status === "DONE") return (await completeTask(userId, id)).task;
 
   return db.transaction(async (tx) => {
-    await loadOwned(tx, userId, id);
+    const current = await loadOwned(tx, userId, id);
     const [updated] = await tx
       .update(tasks)
-      .set(statusPatch(status, new Date()))
+      .set({
+        ...statusPatch(status, new Date()),
+        // A sticky note follows its status to the first column of its board with that status.
+        ...(await stickyPlacementFor(tx, current, status)),
+      })
       .where(owned(userId, id))
       .returning();
     if (!updated) throw new AppError("NOT_FOUND");
@@ -630,7 +656,7 @@ export async function restoreTask(userId: string, id: string): Promise<TaskDTO> 
 
     await tx
       .update(tasks)
-      .set({ deletedAt: null })
+      .set({ deletedAt: null, ...(await stickyRestorePatch(tx, task)) })
       .where(owned(userId, id, true));
     const subtasks = await tx
       .update(tasks)

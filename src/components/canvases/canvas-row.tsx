@@ -26,11 +26,14 @@ export function CanvasRow({
   now,
   timeZone,
   className,
+  showProject = true,
 }: {
   canvas: CanvasListItemDTO;
   now: Date;
   timeZone: string;
   className?: string;
+  /** Off on a project's own page, where every row is in that project. */
+  showProject?: boolean;
 }) {
   const Icon = canvas.kind === "BOARD" ? Kanban : Shapes;
   return (
@@ -54,7 +57,7 @@ export function CanvasRow({
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-3">
-          {canvas.project ? (
+          {showProject && canvas.project ? (
             <span className="flex max-w-32 min-w-0">
               <span className="sr-only">Project: </span>
               <ProjectToken project={canvas.project} />

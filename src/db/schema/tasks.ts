@@ -18,6 +18,7 @@ import { uuidv7 } from "../../lib/ids";
 import type { TiptapDoc } from "../../lib/editor/types";
 import { user } from "./auth";
 import { taskPriorityEnum, taskStatusEnum } from "./enums";
+import { canvases } from "./canvases";
 import { projects } from "./projects";
 
 export const tasks = pgTable(
@@ -49,6 +50,14 @@ export const tasks = pgTable(
     recurrenceRule: text("recurrence_rule"),
     recurrenceParentId: uuid("recurrence_parent_id"),
     sortOrder: doublePrecision("sort_order").notNull(),
+    // Sticky boards (V3 feature 01 §13): a sticky note is a task of its own kind. `board_canvas_id` and `board_column_id`
+    // say where it sits (the column decides its status), `sticky_tone` is its colour. All null for an ordinary task.
+    kind: text("kind").notNull().default("TASK"),
+    boardCanvasId: uuid("board_canvas_id").references((): AnyPgColumn => canvases.id, {
+      onDelete: "cascade",
+    }),
+    boardColumnId: text("board_column_id"),
+    stickyTone: text("sticky_tone"),
     // Sync (V2 feature 05): bumped by the server on every write; the device that made the last change.
     version: integer("version").notNull().default(1),
     lastModifiedByDeviceId: uuid("last_modified_by_device_id"),
@@ -77,12 +86,24 @@ export const tasks = pgTable(
       "tasks_subtask_does_not_recur",
       sql`${t.parentTaskId} is null or ${t.recurrenceRule} is null`,
     ),
+    check("tasks_kind", sql`${t.kind} in ('TASK', 'STICKY')`),
+    check(
+      "tasks_sticky_has_place",
+      sql`(${t.kind} = 'STICKY') = (${t.boardCanvasId} is not null and ${t.boardColumnId} is not null)`,
+    ),
+    check(
+      "tasks_sticky_is_plain",
+      sql`${t.kind} <> 'STICKY' or (${t.recurrenceRule} is null and ${t.parentTaskId} is null)`,
+    ),
     index("tasks_user_status_idx").on(t.userId, t.status),
     index("tasks_user_due_date_idx").on(t.userId, t.dueDate),
     index("tasks_user_updated_at_idx").on(t.userId, t.updatedAt),
     index("tasks_user_deleted_at_idx").on(t.userId, t.deletedAt),
     index("tasks_user_project_idx").on(t.userId, t.projectId),
     index("tasks_parent_idx").on(t.parentTaskId),
+    index("tasks_board_order_idx")
+      .on(t.boardCanvasId, t.sortOrder)
+      .where(sql`${t.kind} = 'STICKY'`),
     // "Done on this day" (V3 feature 02) filters by person and completion time.
     index("tasks_user_completed_at_idx")
       .on(t.userId, t.completedAt)

@@ -22,6 +22,8 @@ export type TrashItemDTO = {
   descendants: number;
   /** A journal entry's day (V3 feature 02): the item is a note labelled Journal. Null for everything else. */
   journalDate: string | null;
+  /** A sticky note's board (V3 feature 01 §13): the item is a task labelled Sticky note. Null for everything else. */
+  stickyBoardId: string | null;
 };
 
 export type TrashCounts = Record<TrashType, number> & { total: number };

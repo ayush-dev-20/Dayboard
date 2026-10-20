@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
+import { plainTasks } from "@/db/queries/task-filters";
 import { tasks, userPreferences } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { OPEN_STATUSES } from "@/lib/tasks/status";
@@ -18,6 +19,7 @@ export async function setFocusTask(userId: string, taskId: string | null): Promi
           isNull(tasks.deletedAt),
           isNull(tasks.archivedAt),
           isNull(tasks.parentTaskId),
+          plainTasks,
           inArray(tasks.status, [...OPEN_STATUSES]),
         ),
       )

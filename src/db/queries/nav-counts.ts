@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { plainTasks } from "@/db/queries/task-filters";
 import { inboxItems, tasks } from "@/db/schema";
 import { getUserToday, type DayPrefs } from "@/lib/dates/today";
 import { dueInApp } from "@/lib/notifications/reminders";
@@ -28,6 +29,7 @@ export async function getNavCounts(
           isNull(tasks.deletedAt),
           isNull(tasks.archivedAt),
           isNull(tasks.parentTaskId),
+          plainTasks,
           inArray(tasks.status, [...OPEN_STATUSES]),
           lte(tasks.dueDate, today),
         ),

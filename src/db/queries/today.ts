@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } fro
 import { db } from "@/db/client";
 import { listNotes } from "@/db/queries/notes";
 import { selectTasks } from "@/db/queries/tasks";
+import { plainTasks } from "@/db/queries/task-filters";
 import { listOpenTodos } from "@/db/queries/todos";
 import { projectRefsFor } from "@/db/queries/meta";
 import { inboxItems, tasks, todos, userPreferences } from "@/db/schema";
@@ -110,7 +111,7 @@ export async function getTodayData(
     // Exact numbers for the progress ring and the rail (the lists above are capped).
     db
       .select({
-        tasksDone: sql<number>`(select count(*)::int from tasks t where t.user_id = ${userId} and t.deleted_at is null and t.archived_at is null and t.parent_task_id is null and t.status = 'DONE' and t.completed_at >= ${since.toISOString()}::timestamptz)`,
+        tasksDone: sql<number>`(select count(*)::int from tasks t where t.user_id = ${userId} and t.deleted_at is null and t.archived_at is null and t.parent_task_id is null and t.kind = 'TASK' and t.status = 'DONE' and t.completed_at >= ${since.toISOString()}::timestamptz)`,
         todosDone: sql<number>`(select count(*)::int from todos d where d.user_id = ${userId} and d.deleted_at is null and d.archived_at is null and d.is_complete and d.completed_at >= ${since.toISOString()}::timestamptz)`,
         todosDueToday: sql<number>`(select count(*)::int from todos d where d.user_id = ${userId} and d.deleted_at is null and d.archived_at is null and not d.is_complete and d.due_date = ${today})`,
         inboxOpen: sql<number>`(select count(*)::int from inbox_items i where i.user_id = ${userId} and i.deleted_at is null and i.status = 'OPEN')`,
@@ -186,6 +187,7 @@ export async function findFocusCandidates(
         isNull(tasks.deletedAt),
         isNull(tasks.archivedAt),
         isNull(tasks.parentTaskId),
+        plainTasks,
         open,
         term ? sql`${tasks.title} ilike ${`%${term}%`}` : undefined,
       ),

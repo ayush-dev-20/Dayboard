@@ -23,7 +23,7 @@ A person who finishes work every day has nowhere to write about it. Making the e
 ## What was deferred
 
 - **Slice C**: a starting template for new entries (feature 03). The seam is `/journal/today`'s "new" mode, which will call `getJournalTemplate` and `applyPlaceholders` with the entry's day.
-- Done on this day does not yet label **sticky notes** (`kind = 'STICKY'`) because sticky boards (canvas slice D) are not built; stickies are tasks, so they will already be listed, and a "Sticky note" label and board name are the only addition.
+- Sticky notes (`kind = 'STICKY'`, canvas slice D) are listed in Done on this day with their board's name, unless their board is in Trash or archived (`getDoneOnDay`, `countDoneByDay`).
 - No entries for past or future days (the list is the way back), freezing the Done list, mood, streaks, reminders, sharing, offline editing (notes are server-backed today). See the feature doc's out of scope.
 - Not tested on a real phone, Safari or Firefox. No journal design file exists; built from `DESIGN.md` and the Notes and Projects screens, so the owner has not signed off the look.
 

@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { projectRefsFor, tagsForNotes } from "@/db/queries/meta";
 import { getBreadcrumb, getChildren } from "@/db/queries/note-tree";
 import { plainNotes } from "@/db/queries/note-filters";
+import { plainTasks } from "@/db/queries/task-filters";
 import { notes, taskNotes, tasks } from "@/db/schema";
 import { makeSnippet, type NoteDTO, type NoteListItemDTO } from "@/lib/notes/dto";
 import { SNIPPET_LENGTH } from "@/lib/notes/dto";
@@ -223,6 +224,7 @@ export async function searchTasksForLinking(
         eq(tasks.userId, userId),
         isNull(tasks.deletedAt),
         isNull(tasks.parentTaskId),
+        plainTasks,
         term ? sql`${tasks.title} ilike ${`%${term}%`}` : undefined,
       ),
     )

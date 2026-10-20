@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
+  StickyNote,
   CheckSquare,
   CircleCheck,
   Ellipsis,
@@ -53,7 +54,7 @@ function TrashRow({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const Icon = item.journalDate ? BookOpen : ICONS[item.type];
+  const Icon = item.journalDate ? BookOpen : item.stickyBoardId ? StickyNote : ICONS[item.type];
 
   async function restore() {
     setBusy(true);
@@ -86,7 +87,11 @@ function TrashRow({
       <span className="flex w-20 shrink-0 items-center gap-2 type-body-md text-muted-foreground max-md:w-6">
         <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
         <span className="max-md:sr-only">
-          {item.journalDate ? "Journal" : TRASH_LABELS[item.type]}
+          {item.journalDate
+            ? "Journal"
+            : item.stickyBoardId
+              ? "Sticky note"
+              : TRASH_LABELS[item.type]}
         </span>
       </span>
       <span className="flex min-w-0 flex-1 items-center gap-2 text-[16px] md:text-[14px]">

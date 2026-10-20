@@ -16,6 +16,7 @@ import {
   History,
   MessageCircleQuestion,
   Mic,
+  StickyNote,
   Plus,
   Search,
   Shapes,
@@ -74,7 +75,7 @@ const QUICK_ACTIONS = [
 type Props = { mode: CommandMode; onModeChange: (mode: CommandMode) => void; onClose: () => void };
 
 function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) => void }) {
-  const Icon = hit.journalDate ? BookOpen : ICONS[hit.type];
+  const Icon = hit.journalDate ? BookOpen : hit.stickyBoardId ? StickyNote : ICONS[hit.type];
   return (
     <Command.Item
       value={`${hit.type}:${hit.id}`}
@@ -100,6 +101,9 @@ function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) 
         ) : null}
         {hit.journalDate ? (
           <span className="ml-2 type-label-caps text-muted-foreground">Journal</span>
+        ) : null}
+        {hit.stickyBoardId ? (
+          <span className="ml-2 type-label-caps text-muted-foreground">Sticky note</span>
         ) : null}
         {hit.archived ? (
           <span className="ml-2 type-label-caps text-muted-foreground">Archived</span>

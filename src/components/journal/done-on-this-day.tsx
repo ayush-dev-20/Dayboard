@@ -53,6 +53,11 @@ function Row({
         {item.parentTitle ? (
           <span className="ml-2 type-body-sm text-muted-foreground">in {item.parentTitle}</span>
         ) : null}
+        {item.board ? (
+          <span className="ml-2 type-body-sm text-muted-foreground">
+            Sticky note{item.board.title ? ` on ${item.board.title}` : ""}
+          </span>
+        ) : null}
       </button>
       {item.project ? (
         <span className="inline-flex max-w-32 shrink-0 items-center gap-1.5 type-body-sm text-muted-foreground max-sm:hidden">

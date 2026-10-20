@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { createCanvas } from "@/actions/canvases";
 import { createTask } from "@/actions/tasks";
 import { createTodo } from "@/actions/todos";
 import { AddRow } from "@/components/tasks/add-row";
@@ -12,9 +14,14 @@ import { FOCUS_ADD_EVENT } from "@/lib/shortcuts";
 
 type Mode = "task" | "todo" | null;
 
-/** Add a task, todo or note straight into this project. Tasks and todos use the same inline row as the lists. */
+/**
+ * Add a task, todo, note or canvas straight into this project. Tasks and todos use the same inline row as the lists;
+ * a canvas is made at once (empty, in this project) and opened.
+ */
 export function ProjectQuickAdd({ projectId }: { projectId: string }) {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>(null);
+  const [makingCanvas, setMakingCanvas] = useState(false);
 
   // The row appears on click; hand it the cursor once it has mounted.
   useEffect(() => {
@@ -22,6 +29,17 @@ export function ProjectQuickAdd({ projectId }: { projectId: string }) {
   }, [mode]);
 
   const toggle = (next: Exclude<Mode, null>) => setMode((m) => (m === next ? null : next));
+
+  async function addCanvas() {
+    setMakingCanvas(true);
+    const result = await createCanvas({ projectId });
+    if (!result.ok) {
+      setMakingCanvas(false);
+      toast.error(result.error.message);
+      return;
+    }
+    router.push(`/canvases/${result.data.id}`);
+  }
 
   return (
     <div className="mb-8">
@@ -38,6 +56,9 @@ export function ProjectQuickAdd({ projectId }: { projectId: string }) {
         >
           <Plus strokeWidth={1.5} aria-hidden /> Add note
         </Link>
+        <Button variant="secondary" disabled={makingCanvas} onClick={() => void addCanvas()}>
+          <Plus strokeWidth={1.5} aria-hidden /> Add canvas
+        </Button>
       </div>
 
       {mode === "task" ? (

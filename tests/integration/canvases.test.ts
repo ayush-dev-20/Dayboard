@@ -114,7 +114,8 @@ describe("create and save", () => {
     expect(image.message).toMatch(/Images and embedded pages/);
     expect(errorOf(await createCanvas({ sceneText: "forged" })).code).toBe("VALIDATION_ERROR");
     expect(errorOf(await createCanvas({ userId: bob.id })).code).toBe("VALIDATION_ERROR");
-    expect(errorOf(await createCanvas({ kind: "BOARD" })).code).toBe("VALIDATION_ERROR");
+    // A sticky board is its own kind now (slice D); anything else is refused.
+    expect(errorOf(await createCanvas({ kind: "WALL" })).code).toBe("VALIDATION_ERROR");
     expect(errorOf(await createCanvas({ title: "x".repeat(301) })).code).toBe("VALIDATION_ERROR");
   });
 

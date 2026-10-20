@@ -1,7 +1,7 @@
 # Feature: Canvas with AI diagrams and sticky boards
 
 **Phase:** V3 (feature 01)
-**Status:** In progress. **Slice A** (the canvas: drawing, list, sidebar tab, task links, cards, Outline, export, Trash, search), **slice B** (Draw with AI) and **slice C** (Refine with AI, Additions frame, Arrange again) are built and tested. Slice D (sticky boards) is not built: it waits for the journal feature (V3 02), which is changing the same `tasks` schema, Today queries and migration numbers.
+**Status:** Done, pending the owner's review. **Slice A** (the canvas: drawing, list, sidebar tab, task links, cards, Outline, export, Trash, search), **slice B** (Draw with AI), **slice C** (Refine with AI, Additions frame, Arrange again) and **slice D** (sticky boards) are built and tested.
 **Date:** 2026-10-20
 
 ## What was built (slice A)
@@ -15,6 +15,7 @@
 - **Outline** (`src/lib/canvas/outline.ts`, `OutlinePanel`): the scene as a plain list of sections, boxes (with a second line as the technology), cards, connections and free text. **Export** PNG, SVG and an Excalidraw file, made in the browser.
 - **Trash and search:** `canvas` is a Trash type (restore, delete for good, Empty trash) and a search type (`ILIKE` on the title and the scene text; a Canvases tab in Search; not in the meaning index or in "Ask my workspace").
 - **Limits:** 100 canvases per person (archived count, Trash does not; restoring counts).
+- **On a project's page (2026-10-20):** an **Add canvas** button next to Add task, Add todo and Add note makes an empty canvas in that project (`createCanvas({ projectId })`) and opens it, and a **Canvases** section lists the project's live canvases (`listCanvases(userId, { projectId })`, `CanvasRow` with `showProject={false}`). Archived and trashed ones are not listed; a project with only canvases is not shown as empty. Tests: `tests/integration/project-canvases.test.ts`, `e2e/project-canvases.spec.ts`.
 
 ## What was built (slice B: Draw with AI)
 
@@ -33,6 +34,21 @@
 - **Arrange again** (`arrangeAgain`): lays the AI-drawn parts out the way a fresh diagram would be, from the top-left of where they are, in one undo step; hand-drawn items are not touched. In the `…` menu, with **Refine with AI** (which also needs AI on); both show only when `readDiagram` finds a diagram.
 - **Audit:** `saveCanvas({ refine: { id, addedBoxes, addedConnections, changedBoxes, removedBoxes, removedConnections } })` writes one `canvas.refine` row (numbers only, unique per proposal, so it applies once). `use-canvas-save.ts` carries it like `addDiagram`.
 - **Facade:** `generateStructured` and the provider call options gained `attemptTimeoutMs` (each model in the fallback list gets its own time).
+
+## What was built (slice D: sticky boards)
+
+- **A sticky note is a task** (`tasks.kind = 'STICKY'`, migration `0021`) with a place: `board_canvas_id`, `board_column_id`, `sticky_tone`. A board is a canvas of kind `BOARD` whose `board_json` holds only the columns (`{ v: 1, columns: [{ id, name, status, tone, collapsed? }] }`); `sanitizeBoard` (`src/lib/canvas/board.ts`, pure, shared) is the one way columns reach the database. Presets (Status board, Simple, Blank) are built on the server.
+- **The column decides the status, and the status decides the column.** `moveSticky` sets the status from the target column with `statusPatch`; `setTaskStatus`, `completeTask` and `undoCompleteTask` call `stickyPlacementFor` (`db/mutations/sticky-column.ts`) so a status changed in Today or the task panel moves the sticky to the first column with that status (it stays, showing its status, if there is none). `changeColumnStatus` and `deleteBoardColumn` change the column and its stickies in one transaction with the version check; `saveCanvas({ board })` refuses to drop or re-status a column that holds stickies.
+- **Server code:** `db/mutations/stickies.ts` (create, update, move, duplicate, delete, restore, make-regular-task, column status and delete), `db/queries/stickies.ts` (`getBoard`, `listStickiesForToday`, `countStickies`), `actions/stickies.ts`, `lib/validations/stickies.ts`. Limits: 12 columns, 500 stickies per board, 200 per column, 600 characters of text (the first line is the title, cut at 500, the rest the description).
+- **Visibility:** `plainTasks` (`db/queries/task-filters.ts`) and `src/lib/tasks/query-classes.ts` with `tests/unit/task-query-classes.test.ts`: every query that reads `tasks` is `plain` (stickies left out) or `includes` (by id, search, Trash, reminders, sync, the board and Today's section). A new query that reads tasks fails that test until it is classed. `TaskDTO` has `kind`; the task panel hides Repeat, Subtasks, Archive, AI and Ask for a sticky.
+- **UI:** `components/boards/` (`board-page`, `board-column`, `sticky-card`, `add-sticky`, `tone-picker`, `use-board`); the drag setup is the one in `components/views/dnd.tsx` (mouse, long press, keyboard), plus Move to / Move up / Move down in the card menu. Columns autosave like a drawing (1.5 s, version, device draft, conflict banner); a sticky move is optimistic and goes back if the server refuses. On a phone one column shows at a time from a strip of tabs. Today has a "Sticky notes" section (`components/today/today-stickies.tsx`) outside the progress ring, the focus picker and the nav count. Search, ⌘K and Trash label a sticky "Sticky note"; Journal's Done on this day lists it with its board.
+- **Tests:** `tests/unit/canvas-board.test.ts` (39), `task-query-classes.test.ts`; `tests/integration/stickies.test.ts` (30: ownership, limits, moves, status both ways, columns, visibility, Today's rule, Trash and restore, sync log); `e2e/sticky-boards.spec.ts` (13, including mouse and keyboard drag, Today, phone, axe light and dark).
+
+### Slice D: things to know
+
+- Adding a query that reads `tasks`? Add it to `TASK_QUERY_CLASSES` (`plain` if it lists, counts or searches the person's tasks and must use `plainTasks`; `includes` if it reaches a task by id, link, search, Trash, reminder or sync). The unit test tells you.
+- The sync coverage test (`sync-change-log-coverage`) now has `canvases.ts:permanentlyDeleteCanvas` off its gaps list, because deleting a board for good logs a DELETE for each of its stickies.
+- Migration `0021` is applied to the test database only. Neon (production) still needs `0019`, `0020` and `0021`: run them only when the owner asks, after printing the host.
 
 ## Draw with AI accuracy (after the first real-model run, 2026-10-20)
 
@@ -53,7 +69,7 @@ A person designing something has nowhere to draw it. The canvas is a normal item
 
 ## What was deferred
 
-- **Slice D** (sticky boards) is its own change (migration on `tasks`, board page, Today section) and waits for the journal feature (V3 02) to land: both change the `tasks` schema, `views.ts`, `onboarding.ts`, `review/load.ts` and the migration numbers (journal has `0020`).
+- **Slice D open items:** a status change pushed by the offline sync engine (V2 05) does not move a sticky to its column (nothing runs that engine in the app yet); no swipe between columns on a phone; a reminder for a sticky on a board in Trash still fires; the column Status change has no Undo (it asks first); Restore from Trash opens the Tasks page with the panel, not the board. The open product questions are in the feature doc, §13.9.
 - Refine has not been tried against a real model yet (only the mock); its prompt `REFINE_DIAGRAM_V1` is the first draft.
 - `addSection` is not an op (every addition goes in one Additions frame); `updateNode` changes label and technology only. A long arrow's label was left off at draw time, so a refine does not see it.
 - Arrange again resets AI boxes to their laid-out size and does not recompute a hand-drawn arrow attached to an AI box.
@@ -74,6 +90,7 @@ A person designing something has nowhere to draw it. The canvas is a normal item
 
 - `src/db/schema/canvases.ts`, migration `0019_canvases.sql`; `src/lib/canvas/` (`types`, `schema`, `outline`, `dto`, `client-scene`); `src/lib/validations/canvases.ts`.
 - `src/db/mutations/canvases.ts`, `src/db/queries/canvases.ts`, `src/actions/canvases.ts`; shared files touched: `trash` (types, queries, mutations, action, list), `search` (types, query, command menu, results), `ai.ts` (skips canvases), `hybrid.ts`, `tasks` detail (query, DTO, `LinkedCanvases`), `use-open-task.ts`, `nav-items.ts` (explicit groups), `sidebar-nav.tsx`, `workspace-context.tsx`, the app layout, `proxy.ts`, More, the chat button.
+- Slice D: `src/lib/canvas/board.ts`, `src/db/schema/tasks.ts`, `drizzle/migrations/0021_sticky_boards.sql`, `src/db/mutations/{stickies,sticky-column}.ts`, `src/db/queries/{stickies,task-filters}.ts`, `src/actions/stickies.ts`, `src/lib/validations/stickies.ts`, `src/lib/tasks/query-classes.ts`, `src/components/boards/*`, `src/components/today/today-stickies.tsx`, `src/components/canvases/{new-canvas-button,canvas-banner}.tsx`, the route `src/app/(app)/canvases/[id]/page.tsx`, and a `plainTasks` / label change in about 25 query files (see the classification).
 - Slice C: `src/lib/canvas/{refine,read-back}.ts`, `src/app/api/ai/refine-diagram/route.ts`, `src/components/canvases/{refine-scene.ts,refine-with-ai-dialog.tsx}`, the `…` menu in `canvas-page.tsx`, `refine` in `use-canvas-save.ts`, `recordRefine` in `src/db/mutations/canvases.ts`, `refineProposalSchema` in `src/lib/validations/canvases.ts`, `mockRefine` in `mock-diagram.ts`; tests: `tests/unit/canvas-refine.test.ts`, `canvas-read-back.test.ts`, `tests/integration/canvas-refine.test.ts`, 5 "Refine with AI" tests in `e2e/canvases.spec.ts`.
 - Slice B: `src/lib/canvas/{diagram-spec,layout,scene-builder,audit}.ts`, `src/lib/ai/providers/mock-diagram.ts`, `src/app/api/ai/generate-diagram/route.ts`, `src/components/canvases/{draw-with-ai-dialog,draw-with-ai-button,diagram-scene,canvas-lib}.ts(x)`.
 - `src/components/canvases/`: `canvas-page.tsx`, `excalidraw-inner.tsx` (the only file that renders Excalidraw), `excalidraw-canvas.tsx` (the dynamic wrapper), `use-canvas-save.ts`, `canvas-tasks-button.tsx`, `card-picker.tsx`, `outline-panel.tsx`, `canvas-export.ts`, `canvas-row.tsx`, `new-canvas-button.tsx`; `src/app/(app)/canvases/**`.

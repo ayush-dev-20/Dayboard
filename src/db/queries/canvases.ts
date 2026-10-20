@@ -2,6 +2,8 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { projectRefsFor } from "@/db/queries/meta";
+import { countStickies } from "@/db/queries/stickies";
+import { plainTasks } from "@/db/queries/task-filters";
 import { canvases, notes, projects, taskCanvases, tasks } from "@/db/schema";
 import type { Canvas } from "@/db/schema";
 import type {
@@ -38,20 +40,37 @@ function toListItem(
 }
 
 async function withRefs(userId: string, rows: Canvas[]): Promise<CanvasListItemDTO[]> {
-  const refs = await projectRefsFor(
-    db,
-    userId,
-    rows.map((r) => r.projectId),
+  const [refs, stickies] = await Promise.all([
+    projectRefsFor(
+      db,
+      userId,
+      rows.map((r) => r.projectId),
+    ),
+    countStickies(
+      userId,
+      rows.filter((r) => r.kind === "BOARD").map((r) => r.id),
+    ),
+  ]);
+  return rows.map((row) =>
+    toListItem(row, refs, row.kind === "BOARD" ? (stickies.get(row.id) ?? 0) : null),
   );
-  return rows.map((row) => toListItem(row, refs));
 }
 
-/** Canvases that are not archived or in Trash, newest first. */
-export async function listCanvases(userId: string): Promise<CanvasListItemDTO[]> {
+/** Canvases that are not archived or in Trash, newest first. With `projectId`, only that project's (its page). */
+export async function listCanvases(
+  userId: string,
+  options: { projectId?: string } = {},
+): Promise<CanvasListItemDTO[]> {
   const rows = await db
     .select()
     .from(canvases)
-    .where(and(live(userId), isNull(canvases.archivedAt)))
+    .where(
+      and(
+        live(userId),
+        isNull(canvases.archivedAt),
+        options.projectId ? eq(canvases.projectId, options.projectId) : undefined,
+      ),
+    )
     .orderBy(desc(canvases.updatedAt));
   return withRefs(userId, rows);
 }
@@ -121,6 +140,7 @@ export async function listLinkedTasks(userId: string, canvasId: string): Promise
         eq(taskCanvases.userId, userId),
         eq(tasks.userId, userId),
         isNull(tasks.deletedAt),
+        plainTasks,
       ),
     )
     .orderBy(asc(taskCanvases.createdAt));
@@ -191,6 +211,7 @@ export async function searchTasksToLinkToCanvas(
         isNull(tasks.deletedAt),
         isNull(tasks.archivedAt),
         isNull(tasks.parentTaskId),
+        plainTasks,
         inArray(tasks.status, ["INBOX", "PLANNED", "IN_PROGRESS", "WAITING"]),
         term ? sql`${tasks.title} ilike ${`%${term}%`}` : undefined,
       ),
@@ -260,7 +281,7 @@ export async function getCardTarget(
     const [row] = await db
       .select({ id: tasks.id, title: tasks.title, emoji: tasks.emoji })
       .from(tasks)
-      .where(and(eq(tasks.id, id), eq(tasks.userId, userId), isNull(tasks.deletedAt)))
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId), isNull(tasks.deletedAt), plainTasks))
       .limit(1);
     return row
       ? { type, id: row.id, title: row.title, emoji: row.emoji, href: `/tasks?task=${row.id}` }

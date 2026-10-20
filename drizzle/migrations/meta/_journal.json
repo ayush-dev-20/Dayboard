@@ -148,6 +148,13 @@
       "when": 1792506389468,
       "tag": "0020_journal",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792512698741,
+      "tag": "0021_sticky_boards",
+      "breakpoints": true
     }
   ]
 }

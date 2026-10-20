@@ -65,6 +65,8 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
   const router = useRouter();
   const { nowMs } = useTaskContext();
   const [task, setTask] = useState<TaskDTO>(detail);
+  // A sticky note on a board (V3 feature 01 §13): no Repeat, no Subtasks, and no AI.
+  const sticky = detail.kind === "STICKY";
   const [subtasks, setSubtasks] = useState<TaskDTO[]>(detail.subtasks);
   const [titleDraft, setTitleDraft] = useState(detail.title);
   const [linkedNotes, setLinkedNotes] = useState<NoteRefDTO[]>(detail.notes);
@@ -230,11 +232,13 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
             time={task.startTime}
             onChange={({ date, time }) => void save({ startDate: date, startTime: time })}
           />
-          <RepeatPicker
-            rule={task.recurrenceRule}
-            dueDate={task.dueDate}
-            onChange={(recurrenceRule) => void save({ recurrenceRule }, { recurrenceRule })}
-          />
+          {sticky ? null : (
+            <RepeatPicker
+              rule={task.recurrenceRule}
+              dueDate={task.dueDate}
+              onChange={(recurrenceRule) => void save({ recurrenceRule }, { recurrenceRule })}
+            />
+          )}
         </div>
         <RemindMe
           taskId={task.id}
@@ -253,7 +257,7 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
         </div>
       </div>
 
-      {task.parentTaskId ? null : (
+      {task.parentTaskId || sticky ? null : (
         <SubtasksSection parentId={task.id} items={subtasks} onChange={setSubtasks} />
       )}
 
@@ -269,7 +273,7 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
         onChange={(tags) => setTask((t) => ({ ...t, tags }))}
       />
 
-      {aiEnabled ? (
+      {aiEnabled && !sticky ? (
         <TaskAi
           task={task}
           getDescriptionText={() => (liveDoc.current ? toPlainText(liveDoc.current) : "")}
@@ -291,14 +295,16 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
             <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <AskAboutMenuItem type="task" id={task.id} />
-            <DropdownMenuItem
-              onSelect={() =>
-                void archiveWithUndo({ id: task.id, archived: task.archived, onDone: onClose })
-              }
-            >
-              <Archive strokeWidth={1.5} aria-hidden /> {task.archived ? "Unarchive" : "Archive"}
-            </DropdownMenuItem>
+            {sticky ? null : <AskAboutMenuItem type="task" id={task.id} />}
+            {sticky ? null : (
+              <DropdownMenuItem
+                onSelect={() =>
+                  void archiveWithUndo({ id: task.id, archived: task.archived, onDone: onClose })
+                }
+              >
+                <Archive strokeWidth={1.5} aria-hidden /> {task.archived ? "Unarchive" : "Archive"}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive data-[highlighted]:text-destructive"

@@ -2,6 +2,7 @@ import "server-only";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { archiveTask, setTaskStatus, updateTask } from "@/db/mutations/tasks";
+import { plainTasks } from "@/db/queries/task-filters";
 import { auditLog, tasks, weeklyReviews, type WeeklyReview } from "@/db/schema";
 import { generateStructured, getProvider, isAIAvailable, PROMPT_VERSIONS } from "@/lib/ai";
 import { reviewFactsBlock, systemPrompts, todayLine } from "@/lib/ai/prompts";
@@ -460,7 +461,14 @@ export async function applyCarryForward(
       const [before] = await db
         .select({ dueDate: tasks.dueDate, status: tasks.status, archivedAt: tasks.archivedAt })
         .from(tasks)
-        .where(and(eq(tasks.id, change.taskId), eq(tasks.userId, userId), isNull(tasks.deletedAt)))
+        .where(
+          and(
+            eq(tasks.id, change.taskId),
+            eq(tasks.userId, userId),
+            isNull(tasks.deletedAt),
+            plainTasks,
+          ),
+        )
         .limit(1);
       if (!before) throw new AppError("NOT_FOUND");
       if (change.action === "RESCHEDULE") {
@@ -519,7 +527,14 @@ export async function undoCarryForward(
       const [now] = await db
         .select({ dueDate: tasks.dueDate, status: tasks.status, archivedAt: tasks.archivedAt })
         .from(tasks)
-        .where(and(eq(tasks.id, item.taskId), eq(tasks.userId, userId), isNull(tasks.deletedAt)))
+        .where(
+          and(
+            eq(tasks.id, item.taskId),
+            eq(tasks.userId, userId),
+            isNull(tasks.deletedAt),
+            plainTasks,
+          ),
+        )
         .limit(1);
       if (!now) continue;
       if (now.dueDate !== item.dueDate) {

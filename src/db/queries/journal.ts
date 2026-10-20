@@ -45,6 +45,7 @@ export async function countDoneByDay(
     select to_char(d.day, 'YYYY-MM-DD') as day,
       (select count(*)::int from tasks t
          where t.user_id = ${userId} and t.status = 'DONE' and t.deleted_at is null
+           and (t.kind <> 'STICKY' or exists (select 1 from canvases c where c.id = t.board_canvas_id and c.deleted_at is null and c.archived_at is null))
            and t.completed_at >= d.starts and t.completed_at < d.ends)
       + (select count(*)::int from todos o
          where o.user_id = ${userId} and o.is_complete and o.deleted_at is null
@@ -78,6 +79,10 @@ export async function getDoneOnDay(
         projectId: tasks.projectId,
         completedAt: tasks.completedAt,
         parentTitle: sql<string | null>`${parent}`,
+        boardId: tasks.boardCanvasId,
+        boardTitle: sql<
+          string | null
+        >`(select c.title from canvases c where c.id = ${tasks.boardCanvasId})`,
       })
       .from(tasks)
       .where(
@@ -85,6 +90,8 @@ export async function getDoneOnDay(
           eq(tasks.userId, userId),
           eq(tasks.status, "DONE"),
           isNull(tasks.deletedAt),
+          // A sticky note counts too, unless its board is in Trash or archived.
+          sql`(${tasks.kind} <> 'STICKY' or exists (select 1 from canvases c where c.id = ${tasks.boardCanvasId} and c.deleted_at is null and c.archived_at is null))`,
           sql`${tasks.completedAt} >= ${start.toISOString()}::timestamptz`,
           sql`${tasks.completedAt} < ${end.toISOString()}::timestamptz`,
         ),
@@ -120,6 +127,8 @@ export async function getDoneOnDay(
           eq(tasks.userId, userId),
           eq(tasks.status, "DONE"),
           isNull(tasks.deletedAt),
+          // A sticky note counts too, unless its board is in Trash or archived.
+          sql`(${tasks.kind} <> 'STICKY' or exists (select 1 from canvases c where c.id = ${tasks.boardCanvasId} and c.deleted_at is null and c.archived_at is null))`,
           sql`${tasks.completedAt} >= ${start.toISOString()}::timestamptz`,
           sql`${tasks.completedAt} < ${end.toISOString()}::timestamptz`,
         ),
@@ -152,6 +161,7 @@ export async function getDoneOnDay(
       completedAt: r.completedAt!.toISOString(),
       parentTitle: r.parentTitle,
       dueDate: null,
+      board: r.boardId ? { id: r.boardId, title: r.boardTitle ?? "" } : null,
     })),
     ...todoRows.map((r) => ({
       type: "todo" as const,
@@ -162,6 +172,7 @@ export async function getDoneOnDay(
       completedAt: r.completedAt!.toISOString(),
       parentTitle: null,
       dueDate: r.dueDate,
+      board: null,
     })),
   ].sort((a, b) => a.completedAt.localeCompare(b.completedAt) || a.id.localeCompare(b.id));
 

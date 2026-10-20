@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { CanvasRow } from "@/components/canvases/canvas-row";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { AttachmentsSection } from "@/components/files/attachments-section";
@@ -9,6 +10,7 @@ import { ProjectHeader } from "@/components/projects/project-header";
 import { ProjectQuickAdd } from "@/components/projects/project-quick-add";
 import { TaskContextProvider } from "@/components/tasks/task-context";
 import { NotesCollection, TasksCollection, TodosCollection } from "@/components/views/collections";
+import { listCanvases } from "@/db/queries/canvases";
 import { getProjectDetail } from "@/db/queries/projects";
 import { getViews, loadViewItems } from "@/db/queries/views";
 import type { SearchParams } from "@/lib/oauth-providers";
@@ -38,7 +40,10 @@ export default async function ProjectPage({
   const detail = await getProjectDetail(user.id, id);
   if (!detail) notFound();
 
-  const { context, dayPrefs, now, weekStart } = await loadTaskContext(user.id);
+  const [{ context, dayPrefs, now, weekStart }, canvases] = await Promise.all([
+    loadTaskContext(user.id),
+    listCanvases(user.id, { projectId: id }),
+  ]);
   const engine = { nowMs: now.getTime(), weekStart, prefs: dayPrefs };
   const { project } = detail;
   const progress = projectProgress({
@@ -50,6 +55,7 @@ export default async function ProjectPage({
     detail.openTasks.length === 0 &&
     detail.openTodos.length === 0 &&
     detail.notes.length === 0 &&
+    canvases.length === 0 &&
     detail.completedTaskCount === 0;
 
   // The same saved views as everywhere, each limited to this project (feature doc §5). A view id in
@@ -97,7 +103,7 @@ export default async function ProjectPage({
         {empty ? (
           <EmptyState
             title="Nothing here yet."
-            description="New tasks, todos and notes added here are assigned to this project."
+            description="New tasks, todos, notes and canvases added here are assigned to this project."
           />
         ) : (
           <div className="flex flex-col gap-10">
@@ -149,6 +155,27 @@ export default async function ProjectPage({
                   nothingAtAll={false}
                   nowMs={now.getTime()}
                 />
+              </section>
+            ) : null}
+            {canvases.length > 0 ? (
+              <section aria-labelledby="project-canvases">
+                <h2
+                  id="project-canvases"
+                  className="flex items-baseline gap-2 pb-2 type-label-caps text-muted-foreground"
+                >
+                  Canvases <span className="type-data-sm">{canvases.length}</span>
+                </h2>
+                <ul className="border-t border-border" aria-label="Canvases in this project">
+                  {canvases.map((canvas) => (
+                    <CanvasRow
+                      key={canvas.id}
+                      canvas={canvas}
+                      now={now}
+                      timeZone={dayPrefs.timezone}
+                      showProject={false}
+                    />
+                  ))}
+                </ul>
               </section>
             ) : null}
           </div>
