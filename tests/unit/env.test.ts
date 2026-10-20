@@ -250,4 +250,45 @@ describe("AI_FALLBACK_MODELS", () => {
       ]);
     });
   });
+
+  describe("push (V2 feature 14)", () => {
+    const keys = {
+      VAPID_PUBLIC_KEY: "BPublic",
+      VAPID_PRIVATE_KEY: "private",
+      VAPID_SUBJECT: "mailto:ops@example.com",
+    };
+
+    it("is off with none of the VAPID values", () => {
+      const env = parseEnv(base);
+      expect(env.pushProvider).toBeNull();
+      expect(env.pushAvailable).toBe(false);
+    });
+
+    it("is on with all three", () => {
+      const env = parseEnv({ ...base, ...keys });
+      expect(env.pushProvider).toBe("web-push");
+      expect(env.pushAvailable).toBe(true);
+    });
+
+    it("refuses a half-set key pair and names it", () => {
+      expect(problems({ ...base, VAPID_PUBLIC_KEY: "BPublic" }).join("\n")).toMatch(
+        /VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT together/,
+      );
+    });
+
+    it("wants a subject that is a mailto: or https: address", () => {
+      expect(problems({ ...base, ...keys, VAPID_SUBJECT: "ops@example.com" }).join("\n")).toMatch(
+        /VAPID_SUBJECT: must start with/,
+      );
+      expect(problems({ ...base, ...keys, VAPID_SUBJECT: "https://example.com/contact" })).toEqual(
+        [],
+      );
+    });
+
+    it("uses the mock when asked, and always in an E2E run", () => {
+      expect(parseEnv({ ...base, PUSH_PROVIDER: "mock" }).pushAvailable).toBe(true);
+      const e2e = parseEnv({ ...base, ...keys, E2E: "true" });
+      expect(e2e.pushProvider).toBe("mock");
+    });
+  });
 });

@@ -24,6 +24,8 @@ type Props = {
   onCancel: () => void;
   /** A sentence under the box (a refusal or a hint). */
   note?: string | null;
+  /** Extra controls between the quick phrases and the buttons (Ask AI puts its answer-source choice here). */
+  extra?: React.ReactNode;
 };
 
 export function InstructionForm({
@@ -38,6 +40,7 @@ export function InstructionForm({
   submitLabel,
   onCancel,
   note,
+  extra,
 }: Props) {
   const input = useRef<HTMLTextAreaElement>(null);
   const empty = value.trim() === "";
@@ -99,6 +102,7 @@ export function InstructionForm({
             </li>
           ))}
         </ul>
+        {extra}
         {note ? (
           <p role="alert" className="type-body-sm text-destructive">
             {note}

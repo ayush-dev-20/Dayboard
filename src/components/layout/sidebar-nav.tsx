@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
+import { Bell, PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
 import { useCommandMenu } from "@/components/command/command-context";
 import { Counter } from "@/components/motion/counter";
 import { Kbd } from "@/components/ui/kbd";
@@ -182,7 +182,7 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                           >
                             <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
                             {collapsed ? (
-                              count ? (
+                              count || (href === "/today" && counts.reminders > 0) ? (
                                 <span
                                   aria-hidden
                                   className="absolute top-1 right-1 size-1.5 rounded-full bg-primary"
@@ -191,15 +191,26 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                             ) : (
                               <>
                                 <span className={fade}>{label}</span>
-                                {count ? (
-                                  <span
-                                    className={cn(
-                                      "ml-auto type-data-sm text-muted-foreground",
-                                      fade,
-                                    )}
-                                  >
-                                    <span className="sr-only">, </span>
-                                    <Counter value={count} />
+                                {count || (href === "/today" && counts.reminders > 0) ? (
+                                  <span className={cn("ml-auto flex items-center gap-2", fade)}>
+                                    {href === "/today" && counts.reminders > 0 ? (
+                                      <span
+                                        data-testid="nav-reminders"
+                                        className="inline-flex items-center gap-1 type-data-sm text-primary"
+                                      >
+                                        <Bell className="size-3" strokeWidth={1.5} aria-hidden />
+                                        {counts.reminders}
+                                        <span className="sr-only">
+                                          {counts.reminders === 1 ? " reminder" : " reminders"}
+                                        </span>
+                                      </span>
+                                    ) : null}
+                                    {count ? (
+                                      <span className="type-data-sm text-muted-foreground">
+                                        <span className="sr-only">, </span>
+                                        <Counter value={count} />
+                                      </span>
+                                    ) : null}
                                   </span>
                                 ) : null}
                               </>

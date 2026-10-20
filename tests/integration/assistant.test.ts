@@ -572,9 +572,36 @@ describe("Ask AI about a selection", () => {
     expect(rows[0]).toMatchObject({
       feature: "ASK_SELECTION",
       status: "SUCCESS",
-      promptVersion: "ASK_SELECTION_V1",
+      promptVersion: "ASK_SELECTION_V2",
     });
     expect(JSON.stringify(rows)).not.toContain("Priya");
+  });
+
+  it("answers in note-only mode when no mode is sent, and from general knowledge in open mode", async () => {
+    const person = await createTestUser("ask-selection-modes");
+    const id = await note(person, "Plan", "Think of a way to add modules on Todo app ?");
+    const body = {
+      ownerType: "note",
+      ownerId: id,
+      selection: "Think of a way to add modules on Todo app ?",
+      question: "Answer this",
+    };
+    actAs(person);
+    // An older client sends no mode: the strict, note-only answer, which says the note does not hold it.
+    const strict = textOf(await events(await post(askSelection, body)));
+    expect(strict).toContain("doesn't say");
+    // Open mode: an answer that does not depend on the passage holding it.
+    actAs(person);
+    const open = textOf(await events(await post(askSelection, { ...body, mode: "open" })));
+    expect(open).toContain("Some ideas on");
+    expect(open).toContain("Think of a way to add modules on Todo app");
+    expect(open).not.toContain("doesn't say");
+    // Each question is one AI action under the same feature, however it was answered.
+    const rows = await usage(person.id);
+    expect(rows.filter((r) => r.feature === "ASK_SELECTION")).toHaveLength(2);
+    // An unknown mode is refused before any work is done.
+    actAs(person);
+    expect((await post(askSelection, { ...body, mode: "web" })).status).toBe(400);
   });
 
   it("works for a task, refuses another person's item and bad input, and writes nothing", async () => {

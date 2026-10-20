@@ -88,7 +88,11 @@ async function busyWeek(label: string) {
     .insert(projects)
     .values({ userId: who.id, name: `Home ${label}`, color: "slate" as never })
     .returning({ id: projects.id });
-  await done(who, "Finished one", "2026-10-13T10:00:00Z", { projectId: project!.id });
+  // Made inside the week (the review counts what a project gained in it), whatever day the test runs on.
+  await done(who, "Finished one", "2026-10-13T10:00:00Z", {
+    projectId: project!.id,
+    createdAt: at("2026-10-13T09:00:00Z"),
+  });
   await done(who, "Finished two", "2026-10-15T10:00:00Z");
   // Outside the week (before it begins at 06:00 UTC on the 12th, and after it ends on the 19th).
   await done(who, "Before", "2026-10-12T05:59:00Z");
@@ -134,6 +138,7 @@ async function busyWeek(label: string) {
   const carried = await task(who, "Due this week", {
     dueDate: "2026-10-14",
     projectId: project!.id,
+    createdAt: at("2026-10-13T09:00:00Z"),
   });
   await task(who, "Due next week", { dueDate: "2026-10-20" });
   await task(who, "No date");

@@ -12,6 +12,13 @@ import { insertBelow, trackRange, type SelectionInfo } from "@/components/editor
 import { useEditorSurface } from "@/components/editor/blocks/context";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/components/workspace/workspace-context";
+import {
+  ASK_ANSWER_LABELS,
+  ASK_MODE_LABELS,
+  ASK_MODES,
+  suggestAskMode,
+  type AskMode,
+} from "@/lib/ai/ask-mode";
 import type { StreamEvent } from "@/lib/ai/types";
 import { ASK_QUESTION_MAX, ASK_SELECTION_MAX } from "@/lib/validations/assistant";
 import { InstructionForm } from "./instruction-form";
@@ -21,7 +28,18 @@ import { InstructionForm } from "./instruction-form";
 // Insert below, which is one undo step. No tools and no workspace search here: that is what
 // "Continue in assistant" is for.
 
-const PRESETS = ["Explain this", "Summarize", "What is missing?"] as const;
+const PRESETS: Record<AskMode, readonly string[]> = {
+  note: ["Explain this", "Summarize", "What is missing?"],
+  open: ["Answer this", "Give me ideas", "Explain this"],
+};
+const PLACEHOLDERS: Record<AskMode, string> = {
+  note: "For example: what is the deadline?",
+  open: "For example: think of a way to do this",
+};
+const MODE_HINTS: Record<AskMode, string> = {
+  note: "Answers only from this note. It says so when the note does not have the answer.",
+  open: "Also uses what the AI knows. The answer is labelled as a suggestion, not from your notes.",
+};
 
 type Data = { text: string };
 const INITIAL: Data = { text: "" };
@@ -43,7 +61,11 @@ export function AskSelectionBody({
   const pathname = usePathname();
   const { state, run, retry, stop, reset } = useAIEvents("/api/ai/ask-selection", INITIAL, reduce);
   const [question, setQuestion] = useState("");
+  // A selection that is itself a question or a request starts in open mode; the person can change it.
+  const [mode, setMode] = useState<AskMode>(() => suggestAskMode(info.text));
   const [asked, setAsked] = useState<string | null>(null);
+  // The mode the answer on screen was asked in, so changing the switch later never relabels it.
+  const [askedMode, setAskedMode] = useState<AskMode>("note");
   const [problem, setProblem] = useState<string | null>(null);
   const tracker = useRef<ReturnType<typeof trackRange> | null>(null);
 
@@ -71,7 +93,8 @@ export function AskSelectionBody({
       return;
     }
     setAsked(value);
-    run({ ownerType: surface.surface, ownerId, selection: info.text, question: value });
+    setAskedMode(mode);
+    run({ ownerType: surface.surface, ownerId, selection: info.text, question: value, mode });
   }
 
   async function toAssistant() {
@@ -115,14 +138,15 @@ export function AskSelectionBody({
       <InstructionForm
         title="Ask AI"
         question="Ask about this text"
-        placeholder="For example: what is the deadline?"
-        presets={PRESETS}
+        placeholder={PLACEHOLDERS[mode]}
+        presets={PRESETS[mode]}
         selection={info.text}
         value={question}
         onChange={setQuestion}
         onSubmit={(value) => void submit(value)}
         submitLabel="Ask"
         onCancel={onClose}
+        extra={<ModeChoice mode={mode} onChange={setMode} />}
         note={
           tooLong
             ? "Select a shorter passage."
@@ -144,7 +168,9 @@ export function AskSelectionBody({
         <span className="font-semibold">You asked:</span> {asked}
       </p>
       <div>
-        <h3 className="type-label-caps text-muted-foreground">From your selection</h3>
+        <h3 className="type-label-caps text-muted-foreground" data-testid="ask-answer-source">
+          {ASK_ANSWER_LABELS[askedMode]}
+        </h3>
         <p
           aria-busy={streaming}
           className="mt-1 max-h-56 min-h-12 overflow-y-auto rounded-md bg-background p-3 type-body-md whitespace-pre-wrap"
@@ -203,5 +229,36 @@ export function AskSelectionBody({
         <Button onClick={onClose}>Close</Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Where the answer may come from: only this note, or the note and the AI's general knowledge. Two plain radio
+ * buttons, so nothing is guessed behind the person's back and the choice is announced as it is read.
+ */
+function ModeChoice({ mode, onChange }: { mode: AskMode; onChange: (mode: AskMode) => void }) {
+  return (
+    <fieldset className="flex flex-col gap-1.5" data-testid="ask-mode">
+      <legend className="type-label-md">Where should the answer come from?</legend>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {ASK_MODES.map((value) => (
+          <label
+            key={value}
+            className="flex min-h-11 cursor-pointer items-center gap-2 type-body-md md:min-h-8"
+          >
+            <input
+              type="radio"
+              name="ask-mode"
+              value={value}
+              checked={mode === value}
+              onChange={() => onChange(value)}
+              className="size-4 accent-[var(--primary)]"
+            />
+            {ASK_MODE_LABELS[value]}
+          </label>
+        ))}
+      </div>
+      <p className="type-body-sm text-muted-foreground">{MODE_HINTS[mode]}</p>
+    </fieldset>
   );
 }

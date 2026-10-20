@@ -31,6 +31,11 @@ const patterns = [
     name: "the GOOGLE_CALENDAR_CLIENT_SECRET variable name",
     test: (text) => text.includes("GOOGLE_CALENDAR_CLIENT_SECRET"),
   },
+  // Push (feature 14): the VAPID private key never reaches the browser. The public key is meant to.
+  {
+    name: "the VAPID_PRIVATE_KEY variable name",
+    test: (text) => text.includes("VAPID_PRIVATE_KEY"),
+  },
 ];
 const secret = process.env.AI_API_KEY;
 if (secret && secret.length >= 8) {
@@ -41,6 +46,7 @@ for (const name of [
   "STORAGE_ACCESS_KEY_ID",
   "TOKEN_ENCRYPTION_KEY",
   "GOOGLE_CALENDAR_CLIENT_SECRET",
+  "VAPID_PRIVATE_KEY",
 ]) {
   const value = process.env[name];
   if (value && value.length >= 8) {

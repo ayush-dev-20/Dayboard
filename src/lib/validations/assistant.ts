@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ASK_MODES } from "@/lib/ai/ask-mode";
 import { CONTEXT_TYPES, MAX_CONTEXTS, MAX_HISTORY, MESSAGE_MAX } from "@/lib/ai/assistant-types";
 import {
   dateSchema,
@@ -116,6 +117,8 @@ export const ASK_SELECTION_MAX = 6000;
 export const ASK_QUESTION_MAX = 500;
 export const askSelectionRequestSchema = z.strictObject({
   ownerType: z.enum(["note", "task"]),
+  /** `note` answers only from the note; `open` may also use general knowledge. Older clients send none. */
+  mode: z.enum(ASK_MODES).default("note"),
   ownerId: idSchema,
   selection: z
     .string()

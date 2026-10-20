@@ -1,7 +1,7 @@
 # Feature: AI weekly review
 
 **Phase:** V2 (feature 15)
-**Status:** In progress. Built and tested against the mock provider, plus one real Gemini call with a sample week. Not built: the "ready" notification (feature 14 does not exist) and the offline copy of reviews.
+**Status:** In progress. Built and tested against the mock provider, plus one real Gemini call with a sample week. The "ready" notification is queued from `generateReview` (feature 14, `push-notifications-and-reminders_v2.md`). Not built: the offline copy of reviews.
 **Date:** 2026-10-15
 
 ## What was built
@@ -20,7 +20,7 @@ The product rule is that facts are observed and suggestions are advice, and a mo
 
 ## What was deferred
 
-- **The "ready" notification** (feature 14 is not built). The seam is the end of `generateReview` for a final review; the Today card is the only signal.
+- **The "ready" notification** is now sent by feature 14: the end of `generateReview` calls `enqueueNotification` for a final (`AUTO`) review, keyed by the review id, and delivery applies the person's category switch and quiet hours. A "week so far" never notifies.
 - **Offline reading** (the last twelve reviews cached, "shows the cached review offline"): feature 04 owns the local database and the offline shell has no review screen. Generating needs a connection and says so.
 - **Reasons `PLAN_DAY`, `OVERDUE_CLEANUP`, `BOARD_DRAG`, `CALENDAR_DRAG`** in the schedule history: those callers are client components that pass no reason, so their moves are recorded as `MANUAL`. Only `MANUAL` and `REVIEW` are written.
 - **`setWeeklyReviewPreferences`**: the settings use the existing `updatePreferences` action with three new fields.

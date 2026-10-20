@@ -9,6 +9,7 @@ import { reviewSuggestionsOutputSchema } from "@/lib/ai/schemas";
 import { checkLimits } from "@/lib/ai/usage";
 import { getUserToday, localDay } from "@/lib/dates/today";
 import { AppError } from "@/lib/errors";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { logger } from "@/lib/logger";
 import { getPreferences } from "@/lib/preferences";
 import { buildFacts, weekHadActivity } from "./load";
@@ -244,6 +245,15 @@ export async function generateReview(
   if (!saved) throw new AppError("INTERNAL_ERROR");
 
   const withSuggestions = await produceSuggestions(userId, saved, prefs, now);
+  // A finished review tells the person once, if they asked to hear about it (V2 feature 14). A "week so far" never does.
+  if (options.origin === "AUTO" && !saved.partial) {
+    await enqueueNotification(db, {
+      userId,
+      category: "WEEKLY_REVIEW_READY",
+      dedupeKey: `review:${saved.id}`,
+      reviewId: saved.id,
+    });
+  }
   return { review: toDTO(withSuggestions, prefs.timezone, now), outcome: "CREATED" };
 }
 

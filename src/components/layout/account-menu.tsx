@@ -1,5 +1,6 @@
 "use client";
 
+import { revokeThisDeviceOnSignOut } from "@/lib/notifications/client";
 import { useRouter } from "next/navigation";
 import { LogOut, SlidersHorizontal } from "lucide-react";
 import {
@@ -36,6 +37,8 @@ export function AccountMenu({ name, email, variant = "bar", compact }: Props) {
     if (!(await confirmAndWipeRecordings(userId))) return;
     // Assistant conversations live only in this browser; signing out removes them (feature 11 §3).
     wipeAllAssistantData();
+    // This device stops receiving this person's notifications (feature 14 §5), while the session can still say so.
+    await revokeThisDeviceOnSignOut();
     // The offline caches hold this person's pages and data (feature 03 §6).
     await clearWorkerCaches();
     await authClient.signOut();

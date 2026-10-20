@@ -7,6 +7,7 @@ import { ensureEmbeddingHandlers } from "@/lib/search/semantic/handlers";
 import { ensureCalendarHandlers } from "@/lib/calendar/handlers";
 import { ensureVoiceHandlers } from "@/lib/voice/handlers";
 import { ensureReviewHandlers } from "@/lib/review/handlers";
+import { ensureNotificationHandlers } from "@/lib/notifications/handlers";
 
 // The job types this release ships (V2 feature 08 §5). Later features register theirs in their own modules.
 // Each entry point calls `ensureBuiltinHandlers` once before it runs jobs.
@@ -24,6 +25,8 @@ export function ensureBuiltinHandlers(): void {
   ensureVoiceHandlers();
   // The weekly review jobs (V2 feature 15) live in their own module.
   ensureReviewHandlers();
+  // The reminder and push delivery jobs (V2 feature 14) live in their own module.
+  ensureNotificationHandlers();
   if (!findHandler("system.ping")) {
     registerHandler({
       type: "system.ping",

@@ -10,6 +10,7 @@ import { runAction, type ActionResult } from "@/lib/actions";
 import { auth, FRESH_SESSION_SECONDS } from "@/lib/auth";
 import { canUnlink, isSessionFresh, LAST_METHOD_MESSAGE } from "@/lib/auth-methods";
 import { AppError } from "@/lib/errors";
+import { recomputeAllReminders } from "@/lib/notifications/reminders";
 import { requireUser } from "@/lib/session";
 import {
   changeEmailSchema,
@@ -62,15 +63,19 @@ export async function updatePreferences(input: unknown): Promise<ActionResult> {
       }
     }
 
-    await db
-      .update(userPreferences)
-      .set({
-        ...rest,
-        ...(startOfDay ? { startOfDay: `${startOfDay}:00` } : {}),
-        ...(workStart ? { workStart: `${workStart}:00` } : {}),
-        ...(workEnd ? { workEnd: `${workEnd}:00` } : {}),
-      })
-      .where(eq(userPreferences.userId, user.id));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(userPreferences)
+        .set({
+          ...rest,
+          ...(startOfDay ? { startOfDay: `${startOfDay}:00` } : {}),
+          ...(workStart ? { workStart: `${workStart}:00` } : {}),
+          ...(workEnd ? { workEnd: `${workEnd}:00` } : {}),
+        })
+        .where(eq(userPreferences.userId, user.id));
+      // A new time zone moves every reminder (feature 14 §3): "14:30" is 14:30 wherever the person now is.
+      if (values.timezone) await recomputeAllReminders(tx, user.id);
+    });
 
     revalidatePath("/", "layout");
   });

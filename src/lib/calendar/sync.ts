@@ -5,9 +5,11 @@ import {
   calendarAccounts,
   calendarEvents,
   calendarSources,
+  calendarTaskLinks,
   type CalendarSource,
 } from "@/db/schema";
 import { logger } from "@/lib/logger";
+import { reconcileTaskReminders } from "@/lib/notifications/reminders";
 import { accessTokenFor, refreshCalendars } from "./store";
 import { getCalendarProvider } from "./providers";
 import { CalendarProviderError, type NormalizedEvent } from "./types";
@@ -143,6 +145,18 @@ async function syncSource(
       )
       .returning({ id: calendarEvents.id });
     removed += stale.length;
+
+    // A moved, cancelled or removed event moves the reminder of a task linked to it (V2 feature 14 §3).
+    const linked = await tx
+      .select({ taskId: calendarTaskLinks.taskId })
+      .from(calendarTaskLinks)
+      .where(and(eq(calendarTaskLinks.sourceId, source.id), eq(calendarTaskLinks.userId, userId)));
+    await reconcileTaskReminders(
+      tx,
+      userId,
+      linked.map((row) => row.taskId),
+      now,
+    );
 
     await tx
       .update(calendarSources)

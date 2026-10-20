@@ -376,7 +376,7 @@ describe("today", () => {
     await task(person, { title: "c", dueDate: addDays(day, 3) });
     await capture(person, "x");
     await capture(person, "y");
-    expect(await getNavCounts(person.id, prefs)).toEqual({ today: 2, inbox: 2 });
+    expect(await getNavCounts(person.id, prefs)).toEqual({ today: 2, inbox: 2, reminders: 0 });
   });
 });
 

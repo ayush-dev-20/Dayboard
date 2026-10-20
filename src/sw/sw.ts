@@ -12,6 +12,8 @@ import {
   isStorable,
   shellAssetPaths,
 } from "./policy";
+import { decideClick, notificationFor, parsePush } from "./push";
+import { urlBase64ToBytes } from "../lib/notifications/push-keys";
 
 // Replaced at build time by scripts/build-sw.mjs. Each build gets its own id, so each deploy
 // produces a new worker and new cache names.
@@ -30,11 +32,48 @@ interface FetchEvent extends Event {
 }
 interface WorkerScope {
   skipWaiting(): Promise<void>;
-  clients: { claim(): Promise<void> };
+  clients: {
+    claim(): Promise<void>;
+    matchAll(options: {
+      type: "window";
+      includeUncontrolled: boolean;
+    }): Promise<WindowClientLike[]>;
+    openWindow(url: string): Promise<unknown>;
+  };
   addEventListener(type: "install" | "activate", listener: Listener<ExtendableEvent>): void;
   addEventListener(type: "fetch", listener: Listener<FetchEvent>): void;
-  addEventListener(type: "message", listener: Listener<MessageEvent>): void;
-  addEventListener(type: "push" | "notificationclick", listener: Listener<Event>): void;
+  addEventListener(type: "message", listener: Listener<ExtendableMessageEvent>): void;
+  addEventListener(type: "push", listener: Listener<PushEvent>): void;
+  addEventListener(type: "notificationclick", listener: Listener<NotificationClickEvent>): void;
+  addEventListener(
+    type: "pushsubscriptionchange",
+    listener: Listener<SubscriptionChangeEvent>,
+  ): void;
+  registration: {
+    showNotification(title: string, options?: unknown): Promise<void>;
+    pushManager: { subscribe(options: unknown): Promise<PushSubscriptionLike> };
+  };
+}
+interface ExtendableMessageEvent extends MessageEvent {
+  waitUntil(promise: Promise<unknown>): void;
+}
+interface PushEvent extends ExtendableEvent {
+  data: { text(): string } | null;
+}
+interface NotificationClickEvent extends ExtendableEvent {
+  action: string;
+  notification: { close(): void; data?: { url?: unknown; token?: unknown } | null };
+}
+interface PushSubscriptionLike {
+  toJSON(): { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+}
+interface SubscriptionChangeEvent extends ExtendableEvent {
+  oldSubscription?: { options?: { applicationServerKey?: ArrayBuffer | null } } | null;
+}
+interface WindowClientLike {
+  url: string;
+  focus(): Promise<unknown>;
+  navigate?(url: string): Promise<unknown>;
 }
 
 const worker = self as unknown as WorkerScope;
@@ -146,11 +185,100 @@ worker.addEventListener("fetch", (event) => {
 });
 
 worker.addEventListener("message", (event) => {
-  const data = event.data as { type?: unknown } | null;
+  const data = event.data as { type?: unknown; deviceId?: unknown } | null;
   if (data?.type === "SKIP_WAITING") void worker.skipWaiting();
+  // The page tells the worker which device it is, so a subscription the browser replaces can be re-registered
+  // later without the page open (the worker cannot read the page's storage).
+  if (data?.type === "PUSH_DEVICE" && typeof data.deviceId === "string") {
+    event.waitUntil(rememberDevice(data.deviceId));
+  }
 });
 
-// Feature 14 (push notifications) fills these in. They are here so the worker already receives
-// them and the registration does not change later.
-worker.addEventListener("push", () => undefined);
-worker.addEventListener("notificationclick", () => undefined);
+// Push notifications (V2 feature 14 §4). What to show and what a click does is decided in `push.ts`; this only
+// applies it.
+
+worker.addEventListener("push", (event) => {
+  let raw: string | null = null;
+  try {
+    raw = event.data ? event.data.text() : null;
+  } catch {
+    raw = null;
+  }
+  // An unreadable payload still shows a generic notification: a push that shows nothing can cost the subscription.
+  const plan = notificationFor(parsePush(raw));
+  event.waitUntil(worker.registration.showNotification(plan.title, plan.options));
+});
+
+/** Focuses a window of the app on the link, or opens one. Sign-in is handled by the page the link lands on. */
+async function openPath(path: string): Promise<void> {
+  const target = new URL(path, self.location.origin).href;
+  const windows = await worker.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const existing = windows.find((w) => w.url.startsWith(self.location.origin));
+  if (existing) {
+    await existing.focus();
+    if (existing.navigate) await existing.navigate(target);
+    return;
+  }
+  await worker.clients.openWindow(target);
+}
+
+worker.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const decision = decideClick(event.action, event.notification.data);
+  event.waitUntil(
+    (async () => {
+      if (decision.kind === "snooze") {
+        try {
+          const response = await fetch("/api/notifications/snooze", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ token: decision.token }),
+          });
+          if (response.ok) return;
+        } catch {
+          // Offline, or signed out: fall through and open the task so the person can deal with it there.
+        }
+      }
+      await openPath(decision.url);
+    })(),
+  );
+});
+
+async function rememberDevice(deviceId: string): Promise<void> {
+  const cache = await caches.open(names.pushDevice);
+  await cache.put("/__push-device", new Response(deviceId));
+}
+
+worker.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const cache = await caches.open(names.pushDevice);
+        const deviceId = await (await cache.match("/__push-device"))?.text();
+        if (!deviceId) return;
+        const info = (await (
+          await fetch("/api/notifications/vapid-key", { credentials: "same-origin" })
+        ).json()) as { publicKey?: string; csrf?: string };
+        const key =
+          event.oldSubscription?.options?.applicationServerKey ??
+          (info.publicKey ? urlBase64ToBytes(info.publicKey) : null);
+        if (!key || !info.csrf) return;
+        const subscription = await worker.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: key,
+        });
+        const json = subscription.toJSON();
+        // The server replaces this device's old endpoint with the new one.
+        await fetch("/api/notifications/subscribe", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json", "x-csrf-token": info.csrf },
+          body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, deviceId }),
+        });
+      } catch {
+        // Not signed in, offline, or the browser refused: the device shows as not enabled in Settings.
+      }
+    })(),
+  );
+});

@@ -1,5 +1,33 @@
 # Feature 14 — Push Notifications & Reminders
 
+## 0. Reality check and progress (2026-10-19)
+
+Checked against the code and `agent_docs/` before building. Every "Action" is the builder's proposal and can be vetoed.
+
+| Spec says | What the project has | Action |
+|---|---|---|
+| Reuses feature 03's service worker "(push placeholder)" | `src/sw/sw.ts` has empty `push` and `notificationclick` listeners; its types declare only `push \| notificationclick` | Fill them in, add `pushsubscriptionchange`, and extend the worker's local event types |
+| `push_subscriptions.device_id` is "the sync device id (05)" | That id lives only in the per-person Dexie database (`src/lib/local/workspace.ts`), and **nothing in the app opens the local workspace yet** (`openWorkspace` has no caller outside `src/lib/local`). A browser has no device id today | A push-only device id made on first use and kept in `localStorage`, sent on subscribe; a person's second subscription from the same device id replaces the first. When sync is wired in, adopt that id (one line). ADR 0013 |
+| `task_reminders` "Syncable (05) so reminders set offline reach the server"; `reminder.set` operation | The sync protocol carries **tasks only**; todos, projects, tags and the rest are listed as gaps (`tests/unit/sync-change-log-coverage.test.ts`). No offline screen exists | Reminders are set with a Server Action and need a connection. Offline queueing is deferred with the rest of the offline entities; the table keeps `task_id`/`spec` so it can join the protocol later |
+| In-app fallback "from the local database, so it works offline" | No local workspace runs in the app | The Today banner and nav count read the server's due reminders (loaded with the page, refreshed by a small route and a client timer). It keeps showing what was loaded while offline, but does not learn of new ones until the connection returns |
+| Overdue summary job "daily at the person's start of day + 30 min" | Schedules are **global** (`every 5m`, `daily 03:00 UTC`); there is no per-person schedule | A seeded `overdue.scan` every 15 minutes queues one `overdue.summary` per person whose local start of day + 30 minutes has passed today (the same shape as feature 15's `review.scan`) |
+| `notification.enqueue` helper for "weekly review ready (15), sync failure (05)" | Feature 15 left its seam at the end of `generateReview`. Feature 05's conflict records and sync status UI are **not built**, so nothing can raise a sync failure | Build the helper and the categories. Wire weekly review ready. `SYNC_FAILURE` has the category, switch and delivery path, and no producer yet; its switch is hidden until sync status exists (the spec's "only when those features are on") |
+| Snooze token "single-use" | No store for used tokens in the spec's tables | The token binds the reminder id **and its `remind_at`**; a snooze moves `remind_at`, so the same token cannot be used twice. No new table |
+| Subscribe needs "same-origin check and a double-submit token" | The repo's routes rely on a JSON content type (`readJson`) and Better Auth's `trustedOrigins`. No CSRF-token helper exists | Origin check plus a double-submit cookie token issued by `GET /api/notifications/vapid-key`, one helper (`src/lib/notifications/csrf.ts`) |
+| `PushSender` interface with a `web-push` implementation and a mock | Calendar, storage and AI each have this shape, selected by `*_PROVIDER` / `E2E` in `src/lib/env-schema.ts` | Same: `PUSH_PROVIDER=mock` in tests and E2E; VAPID variables half-set fail at startup like calendar; `check:bundle` also looks for `VAPID_PRIVATE_KEY` |
+| Subscription label parsing ("Chrome on Android") | `describeUserAgent` (`src/lib/user-agent.ts`, used by Settings → Account sessions) | Reused: `"{browser} on {device}"` |
+| Quiet hours held "and delivered when the window ends" | Jobs have `run_at` and `RetryAfter`; the queue `notifications` exists (`QUEUES`) | A held delivery is re-queued with `runAt` = window end under a new dedupe key; the log row says `SUPPRESSED_QUIET` |
+| "Calendar-related": a task linked to an event gets `CALENDAR_START` | `calendar_task_links (task_id, provider_event_id)` and `calendar_events` exist (feature 12), synced every 15 minutes | Computed from the linked event's start; recomputed when a sync moves it (the sync's upsert calls the same reconcile) |
+| Recompute "when a task's date, time, status or the person's time zone changes" | Every task write passes through `logTaskUpserts` / `logTaskDeletes` (`src/lib/sync/change-log.ts`, 14 call sites, covered by a unit test); project moves and Trash purges write tasks directly | One `reconcileTaskReminders(tx, userId, ids)` called from those two helpers, so a new mutation cannot skip it; plus a call from the time-zone change and from the Trash purge |
+| Settings → Notifications "new tab" | `settings-tabs.tsx` is a fixed list; App tab holds install state | New tab and page; the "This device" card reads the install state (`installView`) for the iOS message |
+| E2E: "browser permission granted via Playwright context permissions with a fake subscription endpoint" | Headless Chromium has no push service, so `pushManager.subscribe` fails there | The E2E stubs `PushManager.subscribe` with an init script that returns a fixed fake subscription |
+| Tick mode "delays delivery… document it" and spec 16 "say so in Settings" | Tick mode runs every five minutes from a GitHub workflow | The Notifications tab says reminders can arrive a few minutes late when the app has no worker running (shown when no worker heartbeat is fresh) |
+| Packages: `web-push` after ADR 0013 | No ADR 0013 (the number is reserved by the feature README); `web-push` is not installed | ADR 0013 written first; `web-push` added |
+
+**Progress (2026-10-20):** built and tested against the mock sender: the four tables, reminders that follow their tasks, delivery with quiet hours, categories, titles-off and the app-open check, devices (list, test, revoke, sign-out), the service worker handlers, Settings → Notifications, "Remind me", the Today banner and nav count, and the weekly review's ready notification. **Not built:** reminders set offline, a sync-failure producer, and the manual real-device checks. See `agent_docs/push-notifications-and-reminders_v2.md`.
+
+---
+
 ## 1. Scope
 
 - **Task reminders**, including a default lead time for tasks with a due time, custom reminders, snooze
@@ -169,16 +197,16 @@ All owner-scoped, Zod-validated, rate-limited where noted. Errors use typed code
 
 ## 9. Definition of done
 
-- [ ] A task with a due time reminds the person on a device that enabled notifications; custom reminders, snooze and deep links work
-- [ ] Preferences per category, quiet hours and titles-off all take effect; nothing is sent in a disabled category
-- [ ] Devices can be listed, tested and revoked; sign-out unsubscribes; one person can never receive another's notifications or manage another's subscriptions
-- [ ] Push failures degrade to in-app reminders; unsupported browsers see an honest explanation
-- [ ] Delivery is idempotent across workers and retries; expired subscriptions are cleaned
-- [ ] No marketing or growth notifications exist
-- [ ] VAPID keys never reach the client bundle
-- [ ] ADR 0013 written before building
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build`, `check:bundle` pass
-- [ ] `agent_docs/push-notifications-and-reminders_v2.md` written and indexed (with the manual device results)
+- [x] A task with a due time reminds the person on a device that enabled notifications; custom reminders, snooze and deep links work _(against the mock sender; a real device is a manual check)_
+- [x] Preferences per category, quiet hours and titles-off all take effect; nothing is sent in a disabled category
+- [x] Devices can be listed, tested and revoked; sign-out unsubscribes; one person can never receive another's notifications or manage another's subscriptions
+- [x] Push failures degrade to in-app reminders; unsupported browsers see an honest explanation
+- [x] Delivery is idempotent across workers and retries; expired subscriptions are cleaned
+- [x] No marketing or growth notifications exist
+- [x] VAPID keys never reach the client bundle
+- [x] ADR 0013 written before building
+- [x] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build`, `check:bundle` pass _(2026-10-20: unit 1664, integration 521, E2E 312 + 153 across two runs; six flaky specs failed under load and passed alone)_
+- [ ] `agent_docs/push-notifications-and-reminders_v2.md` written and indexed (with the manual device results) _(written and indexed; the manual device results are not in yet)_
 
 ---
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { wipeAllAssistantData } from "@/components/assistant/threads";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { authClient } from "@/lib/auth-client";
+import { revokeThisDeviceOnSignOut } from "@/lib/notifications/client";
 import { confirmAndWipeRecordings } from "@/lib/voice/client/sign-out";
 import { clearWorkerCaches } from "@/lib/pwa/clear-caches";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,8 @@ export function SignOutButton({ className }: { className?: string }) {
     if (!(await confirmAndWipeRecordings(userId))) return;
     // Assistant conversations live only in this browser; signing out removes them (feature 11 §3).
     wipeAllAssistantData();
+    // This device stops receiving this person's notifications (feature 14 §5), while the session can still say so.
+    await revokeThisDeviceOnSignOut();
     // The offline caches hold this person's pages and data (feature 03 §6).
     await clearWorkerCaches();
     await authClient.signOut();

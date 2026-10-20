@@ -20,7 +20,8 @@ export const PROMPT_VERSIONS = {
   PLAN_DAY: "PLAN_DAY_V2",
   EDIT_SELECTION: "EDIT_SELECTION_V2",
   ASSISTANT: "ASSISTANT_V1",
-  ASK_SELECTION: "ASK_SELECTION_V1",
+  // V2 adds the open mode (general knowledge as well as the note); the note-only wording is unchanged.
+  ASK_SELECTION: "ASK_SELECTION_V2",
   // Embedding has no prompt; the label records which version of the chunking and model setup ran.
   EMBED: "EMBED_V1",
   EMBED_QUERY: "EMBED_QUERY_V1",
@@ -248,6 +249,16 @@ export const editSelectionPrompt = (
 // ---- Ask AI about a selection (feature 11 §6B) --------------------------------------------------
 
 export const askSelectionSystem = `You answer a question about a passage the person selected in their own notes, using only that passage and the text around it. ${DATA_RULE} If the text does not contain the answer, say so briefly instead of guessing. Do not claim to have searched anything else or to have changed anything. Keep the answer short and reply in the language of the question. ${STYLE}`;
+
+/**
+ * Ask AI in its open mode (feature 11 §6B): the selection and the text around it are context, and the model may
+ * answer from what it knows. It must not pass its own knowledge off as the person's notes; the screen also labels
+ * the answer as a suggestion.
+ */
+export const askSelectionOpenSystem = `You help the person think about a passage they selected in their own notes. ${DATA_RULE} Use the passage and the text around it as context, and answer from your own general knowledge as well. If the passage or the text around it already holds the answer, use it. Never present your own knowledge as something their notes say. If the passage is itself a question or a request, answer it. Do not claim to have searched the web or their other notes, and do not claim to have changed anything. Be concrete and useful: give a short list when there are several options. Keep the answer short and reply in the language of the question. ${STYLE}`;
+
+export const askSelectionSystemFor = (mode: "note" | "open") =>
+  mode === "open" ? askSelectionOpenSystem : askSelectionSystem;
 
 export const askSelectionPrompt = (question: string, selection: string, around: string) =>
   [

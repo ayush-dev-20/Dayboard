@@ -12,8 +12,8 @@ export type WorkspaceValue = {
   userId: string;
   projects: ProjectRef[];
   tags: TagDTO[];
-  /** The small numbers beside Today and Inbox in the sidebar. */
-  counts: { today: number; inbox: number };
+  /** The small numbers beside Today and Inbox in the sidebar, and the reminders waiting in the app. */
+  counts: { today: number; inbox: number; reminders: number };
   /** AI is configured and the person has it switched on. When false, no AI surface renders. */
   aiEnabled: boolean;
   /** Show the floating chat button (feature 11 §6A). Off hides only the button. */
@@ -30,7 +30,7 @@ const WorkspaceContext = createContext<WorkspaceValue>({
   userId: "",
   projects: [],
   tags: [],
-  counts: { today: 0, inbox: 0 },
+  counts: { today: 0, inbox: 0, reminders: 0 },
   aiEnabled: false,
   assistantLauncher: true,
   filesEnabled: false,

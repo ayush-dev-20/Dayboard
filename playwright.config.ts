@@ -81,6 +81,10 @@ export default defineConfig({
       JOBS_TICK_SECRET: "e2e-tick-secret-0123456789abcdefghijkl",
       // Calendar (feature 12): the mock provider, never Google, and a fixed test key (32 bytes, base64).
       CALENDAR_PROVIDER: "mock",
+      PUSH_PROVIDER: "mock",
+      VAPID_PUBLIC_KEY: "",
+      VAPID_PRIVATE_KEY: "",
+      VAPID_SUBJECT: "",
       GOOGLE_CALENDAR_CLIENT_ID: "",
       GOOGLE_CALENDAR_CLIENT_SECRET: "",
       GOOGLE_CALENDAR_REDIRECT_URI: "",

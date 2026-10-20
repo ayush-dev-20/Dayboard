@@ -36,6 +36,14 @@ const rawSchema = z.object({
   TOKEN_ENCRYPTION_KEY_PREVIOUS: optionalString,
   // `mock` is for tests and local work without Google. E2E runs always use it.
   CALENDAR_PROVIDER: z.preprocess(blankToUndefined, z.enum(["google", "mock"]).optional()),
+  // Web Push (V2 feature 14, docs/decisions/0013). All three, or none: with none, push is off and reminders show in
+  // the app only. Generate the pair with `npx web-push generate-vapid-keys`; changing it ends every subscription.
+  VAPID_PUBLIC_KEY: optionalString,
+  VAPID_PRIVATE_KEY: optionalString,
+  // A mailto: or https: address the push services can reach the operator at.
+  VAPID_SUBJECT: optionalString,
+  // `mock` records sends instead of making them (tests and local work). E2E runs always use it.
+  PUSH_PROVIDER: z.preprocess(blankToUndefined, z.enum(["web-push", "mock"]).optional()),
   // Background jobs (V2 feature 08). Concurrency and polling apply to the worker process only.
   WORKER_CONCURRENCY: z.preprocess(
     blankToUndefined,
@@ -206,6 +214,17 @@ export function parseEnv(
     );
   }
 
+  // Push: the three VAPID values come together, and the subject must be an address the services can use.
+  const vapidSet = [v.VAPID_PUBLIC_KEY, v.VAPID_PRIVATE_KEY, v.VAPID_SUBJECT].filter(
+    Boolean,
+  ).length;
+  if (vapidSet > 0 && vapidSet < 3) {
+    problems.push("Push: set VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT together");
+  }
+  if (v.VAPID_SUBJECT && !/^(mailto:|https:\/\/)/.test(v.VAPID_SUBJECT)) {
+    problems.push("VAPID_SUBJECT: must start with mailto: or https://");
+  }
+
   // Every problem found above is reported together, before anything is built from the values.
   if (problems.length > 0) throw new EnvError(problems);
 
@@ -218,6 +237,12 @@ export function parseEnv(
     calendarProvider !== null &&
     Boolean(v.TOKEN_ENCRYPTION_KEY) &&
     (calendarProvider === "mock" || googleCalendarConfigured);
+
+  // E2E runs never reach a push service. Otherwise the provider is the one asked for, or the real one when keyed.
+  const pushProvider: "web-push" | "mock" | null = e2e
+    ? "mock"
+    : (v.PUSH_PROVIDER ?? (vapidSet === 3 ? "web-push" : null));
+  const pushAvailable = pushProvider === "mock" || (pushProvider === "web-push" && vapidSet === 3);
 
   const emailProvider: "resend" | "console" = v.RESEND_API_KEY ? "resend" : "console";
 
@@ -251,6 +276,8 @@ export function parseEnv(
     embeddingsAvailable,
     calendarProvider,
     calendarAvailable,
+    pushProvider,
+    pushAvailable,
     aiFallbackModels,
     storageDriver,
     storageAvailable: storageDriver !== null,

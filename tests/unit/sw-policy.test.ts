@@ -99,4 +99,9 @@ describe("cacheNames", () => {
     expect(names.shell.startsWith(CACHE_PREFIX)).toBe(true);
     expect(names.static.startsWith(CACHE_PREFIX)).toBe(true);
   });
+
+  it("keeps the push device id across builds, under the prefix sign-out looks for", () => {
+    expect(cacheNames("abc").pushDevice).toBe(cacheNames("xyz").pushDevice);
+    expect(cacheNames("abc").pushDevice.startsWith(CACHE_PREFIX)).toBe(true);
+  });
 });

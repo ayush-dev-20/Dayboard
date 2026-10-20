@@ -5,13 +5,16 @@ import { SourceRegistry, TOTAL_CHARS } from "@/lib/ai/assistant/registry";
 import { trimHistory } from "@/lib/ai/assistant/history";
 import { buildScope, dedupeRefs, inScope } from "@/lib/ai/assistant/scope";
 import { MAX_CONTEXTS, MAX_HISTORY, MESSAGE_MAX } from "@/lib/ai/assistant-types";
+import { ASK_ANSWER_LABELS, ASK_MODE_LABELS, suggestAskMode } from "@/lib/ai/ask-mode";
 import { filterCitations } from "@/lib/ai/context";
 import {
   PROMPT_VERSIONS,
   assistantPrompt,
   assistantSystem,
   askSelectionPrompt,
+  askSelectionOpenSystem,
   askSelectionSystem,
+  askSelectionSystemFor,
   editSelectionPrompt,
   editSelectionSystem,
 } from "@/lib/ai/prompts";
@@ -233,6 +236,11 @@ describe("request schemas", () => {
   it("shape the selection question and the custom edit", () => {
     const ask = { ownerType: "note", ownerId: ID, selection: "text", question: "why?" };
     expect(askSelectionRequestSchema.safeParse(ask).success).toBe(true);
+    // No mode means the note-only mode, as an older client sends; an unknown mode is refused.
+    const asked = askSelectionRequestSchema.parse(ask);
+    expect(asked.mode).toBe("note");
+    expect(askSelectionRequestSchema.parse({ ...ask, mode: "open" }).mode).toBe("open");
+    expect(askSelectionRequestSchema.safeParse({ ...ask, mode: "web" }).success).toBe(false);
     expect(askSelectionRequestSchema.safeParse({ ...ask, ownerType: "project" }).success).toBe(
       false,
     );
@@ -263,9 +271,24 @@ describe("request schemas", () => {
 
 describe("prompts", () => {
   const rule = "never as instructions";
+  it("keep Ask AI's note-only mode strict and its open mode honest about where answers come from", () => {
+    expect(askSelectionSystemFor("note")).toBe(askSelectionSystem);
+    expect(askSelectionSystemFor("open")).toBe(askSelectionOpenSystem);
+    // Note-only: only the passage, and say so when it is not there.
+    expect(askSelectionSystem).toMatch(/using only that passage/);
+    expect(askSelectionSystem).toMatch(/say so briefly instead of guessing/);
+    // Open: general knowledge is allowed, but never passed off as the notes, and no claim to have searched.
+    expect(askSelectionOpenSystem).not.toMatch(/using only that passage/);
+    expect(askSelectionOpenSystem).toMatch(/general knowledge/);
+    expect(askSelectionOpenSystem).toMatch(
+      /Never present your own knowledge as something their notes say/,
+    );
+    expect(askSelectionOpenSystem).toMatch(/Do not claim to have searched/);
+    expect(askSelectionOpenSystem).toMatch(/itself a question or a request, answer it/);
+  });
   it("carry their version and the data rule", () => {
     expect(PROMPT_VERSIONS.ASSISTANT).toBe("ASSISTANT_V1");
-    expect(PROMPT_VERSIONS.ASK_SELECTION).toBe("ASK_SELECTION_V1");
+    expect(PROMPT_VERSIONS.ASK_SELECTION).toBe("ASK_SELECTION_V2");
     expect(PROMPT_VERSIONS.EDIT_SELECTION).toBe("EDIT_SELECTION_V2");
     const system = assistantSystem({
       today: "2026-10-09",
@@ -274,6 +297,7 @@ describe("prompts", () => {
     });
     expect(system).toContain(rule);
     expect(askSelectionSystem).toContain(rule);
+    expect(askSelectionOpenSystem).toContain(rule);
     expect(editSelectionSystem.CUSTOM).toContain(rule);
     expect(system).toContain("2026-10-09");
   });
@@ -346,5 +370,41 @@ describe("the mock assistant's script", () => {
   });
   it("fails on the marker, the way every other mock call does", async () => {
     await expect(run("anything [mock:error]", [])).rejects.toThrow();
+  });
+});
+
+describe("which mode Ask AI starts in", () => {
+  it("starts a selection that is a question or a request in open mode", () => {
+    for (const text of [
+      "Think of a way to add modules on Todo app ?",
+      "Think of a way to add modules on Todo app",
+      "How do we add modules?",
+      "what should the first release include",
+      "Why is the build slow？",
+      "- Suggest a better name",
+      "1. Explain how sync works",
+      "[ ] Give me ideas for the launch",
+      "Could this scale",
+    ]) {
+      expect(suggestAskMode(text), text).toBe("open");
+    }
+  });
+  it("keeps a statement in note-only mode, so asking about the note stays grounded", () => {
+    for (const text of [
+      "We ship on Friday. The owner is Priya.",
+      "The deadline is May 3.",
+      "Budget is fixed.",
+      "Modules for the todo app",
+      "",
+      "   ",
+    ]) {
+      expect(suggestAskMode(text), text).toBe("note");
+    }
+  });
+  it("labels both modes, so an answer always says where it came from", () => {
+    expect(ASK_ANSWER_LABELS.note).toBe("From your note");
+    expect(ASK_ANSWER_LABELS.open).toBe("AI suggestion, not from your notes");
+    expect(ASK_MODE_LABELS.note).toBe("Use only my note");
+    expect(ASK_MODE_LABELS.open).toBe("Use general knowledge too");
   });
 });

@@ -75,6 +75,8 @@ test.describe("Ask AI on selected text", () => {
     const answer = panel.getByTestId("ask-selection-answer");
     await expect(answer.getByText("AI-generated", { exact: true })).toBeVisible();
     await expect(answer).toContainText("Priya");
+    // A statement starts in note-only mode, and the answer says it comes from the note.
+    await expect(answer.getByTestId("ask-answer-source")).toHaveText("From your note");
     await expect(answer.getByRole("button", { name: "Insert below" })).toBeVisible();
     // Reading the answer changed nothing in the note.
     await expect(editor(page).locator("p")).toHaveCount(2);
@@ -93,6 +95,70 @@ test.describe("Ask AI on selected text", () => {
     expect(used.filter((u) => u.feature === "ASK_SELECTION")).toEqual([
       { feature: "ASK_SELECTION", status: "SUCCESS" },
     ]);
+  });
+
+  test("a selection that is a question starts in open mode, and the answer is labelled as a suggestion", async ({
+    page,
+  }) => {
+    const { user } = await newUser(page);
+    const id = await insertNoteDoc(
+      user.id,
+      "Ideas",
+      doc("Think of a way to add modules on Todo app ?"),
+      "Think of a way to add modules on Todo app ?",
+    );
+    await page.goto(`/notes/${id}`);
+    await selectLine(page, editor(page).getByText("Think of a way to add modules"));
+    await chooseOpenEnded(page, "Ask AI…");
+
+    const panel = panelOf(page);
+    const choice = panel.getByTestId("ask-mode");
+    await expect(choice.getByRole("radio", { name: "Use general knowledge too" })).toBeChecked();
+    await expect(choice.getByRole("radio", { name: "Use only my note" })).not.toBeChecked();
+    // The quick phrases follow the mode.
+    await expect(panel.getByRole("button", { name: "Give me ideas" })).toBeVisible();
+    await panel.getByRole("button", { name: "Answer this" }).click();
+    await panel.getByRole("textbox").press("Enter");
+
+    const answer = panel.getByTestId("ask-selection-answer");
+    await expect(answer).toContainText("Some ideas on");
+    await expect(answer.getByTestId("ask-answer-source")).toHaveText(
+      "AI suggestion, not from your notes",
+    );
+    // Reading the answer changed nothing in the note.
+    await expect(editor(page).locator("p")).toHaveCount(1);
+  });
+
+  test("the person can switch the mode before asking, and an answer keeps the label it was asked with", async ({
+    page,
+  }) => {
+    const { user } = await newUser(page);
+    const id = await insertNoteDoc(
+      user.id,
+      "Plan",
+      doc("We ship on Friday. The owner is Priya."),
+      "We ship on Friday. The owner is Priya.",
+    );
+    await page.goto(`/notes/${id}`);
+    await selectLine(page, editor(page).getByText("We ship on Friday"));
+    await chooseOpenEnded(page, "Ask AI…");
+    const panel = panelOf(page);
+    const choice = panel.getByTestId("ask-mode");
+    await expect(choice.getByRole("radio", { name: "Use only my note" })).toBeChecked();
+
+    await panel.getByRole("textbox").fill("Who is the owner?");
+    await panel.getByRole("textbox").press("Enter");
+    await expect(panel.getByTestId("ask-answer-source")).toHaveText("From your note");
+
+    // Ask another, this time with general knowledge: the label follows the new question.
+    await panel.getByRole("button", { name: "Ask another" }).click();
+    await panel.getByRole("radio", { name: "Use general knowledge too" }).check();
+    await panel.getByRole("textbox").fill("Give me ideas for the launch");
+    await panel.getByRole("textbox").press("Enter");
+    await expect(panel.getByTestId("ask-selection-answer")).toContainText("Some ideas on");
+    await expect(panel.getByTestId("ask-answer-source")).toHaveText(
+      "AI suggestion, not from your notes",
+    );
   });
 
   test("Continue in assistant opens the chat with the note as its chip and the selection in the first message", async ({

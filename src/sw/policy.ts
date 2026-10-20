@@ -73,5 +73,7 @@ export function cacheNames(buildId: string) {
   return {
     shell: `${CACHE_PREFIX}shell-${buildId}`,
     static: `${CACHE_PREFIX}static-${buildId}`,
+    // The id of this device for push (feature 14). Not per build, so an update keeps it; sign-out still removes it.
+    pushDevice: `${CACHE_PREFIX}push-device`,
   };
 }

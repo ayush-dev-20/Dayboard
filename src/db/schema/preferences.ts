@@ -44,6 +44,12 @@ export const userPreferences = pgTable(
     workStart: time("work_start").notNull().default("09:00:00"),
     workEnd: time("work_end").notNull().default("18:00:00"),
     planningSeesTitles: boolean("planning_sees_titles").notNull().default(false),
+    // V2 feature 14: quiet hours (local time; both set, or neither), the default reminder lead for a task with a
+    // time, and whether a notification shows the task's title (off: a generic line, nothing private on a lock screen).
+    quietHoursStart: time("quiet_hours_start"),
+    quietHoursEnd: time("quiet_hours_end"),
+    defaultReminderLeadMinutes: smallint("default_reminder_lead_minutes").notNull().default(15),
+    notifyShowTitles: boolean("notify_show_titles").notNull().default(true),
     // Today's focus (feature 04). Cleared if the task is permanently deleted.
     focusTaskId: uuid("focus_task_id").references(() => tasks.id, { onDelete: "set null" }),
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
@@ -62,6 +68,14 @@ export const userPreferences = pgTable(
       sql`${t.weeklyReviewDay} is null or ${t.weeklyReviewDay} between 0 and 6`,
     ),
     check("user_preferences_review_hour_range", sql`${t.weeklyReviewHour} between 0 and 23`),
+    check(
+      "user_preferences_quiet_hours_pair",
+      sql`(${t.quietHoursStart} is null) = (${t.quietHoursEnd} is null)`,
+    ),
+    check(
+      "user_preferences_reminder_lead_range",
+      sql`${t.defaultReminderLeadMinutes} between 0 and 1440`,
+    ),
   ],
 );
 

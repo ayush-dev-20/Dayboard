@@ -15,6 +15,8 @@ import { TodayCapture } from "@/components/today/today-capture";
 import { TodayGrid, TodayShell } from "@/components/today/today-layout";
 import { TodayNoteDialog } from "@/components/today/today-note-dialog";
 import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
+import { ReminderBanner } from "@/components/notifications/reminder-banner";
+import { dueInApp, upcomingInApp } from "@/lib/notifications/reminders";
 import { ReviewReadyCard } from "@/components/review/review-ready-card";
 import { unreadReviewFor } from "@/lib/review/service";
 import { InstallTip } from "@/components/pwa/install-tip";
@@ -75,17 +77,21 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
   const noteId = noteParam && idSchema.safeParse(noteParam).success ? noteParam : null;
   const { taskId: askedTask } = parseTasksParams(raw);
   const taskId = noteId ? null : askedTask;
-  const [data, counts, readyReview, detail, openNote] = await Promise.all([
-    getTodayData(user.id, dayPrefs, prefs.focusTaskId, now),
-    prefs.checklistDismissedAt ? Promise.resolve(null) : checklistCounts(user.id),
-    // A finished weekly review nobody has opened (V2 feature 15): one quiet card, never repeated once dismissed.
-    unreadReviewFor(user.id),
-    taskId ? getTaskDetail(user.id, taskId) : Promise.resolve(null),
-    // Someone else's id, or a deleted note, is just no dialog: Today shows as it always does.
-    noteId
-      ? Promise.all([getNote(user.id, noteId), getBacklinks(user.id, noteId)])
-      : Promise.resolve(null),
-  ]);
+  const [data, counts, readyReview, detail, openNote, dueReminders, upcomingReminders] =
+    await Promise.all([
+      getTodayData(user.id, dayPrefs, prefs.focusTaskId, now),
+      prefs.checklistDismissedAt ? Promise.resolve(null) : checklistCounts(user.id),
+      // A finished weekly review nobody has opened (V2 feature 15): one quiet card, never repeated once dismissed.
+      unreadReviewFor(user.id),
+      taskId ? getTaskDetail(user.id, taskId) : Promise.resolve(null),
+      // Someone else's id, or a deleted note, is just no dialog: Today shows as it always does.
+      noteId
+        ? Promise.all([getNote(user.id, noteId), getBacklinks(user.id, noteId)])
+        : Promise.resolve(null),
+      // Reminders that have come due and wait in the app (V2 feature 14 §5), and what is coming, for the timer.
+      dueInApp(user.id, now),
+      upcomingInApp(user.id, now),
+    ]);
   const checklist = counts ? deriveChecklist(counts) : null;
   // Calendar (V2 feature 12): refresh a stale calendar after the page is sent. Nothing when it is not set up.
   refreshCalendarsInBackground(user.id);
@@ -118,6 +124,8 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
                   <PlanDay focusId={data.focus?.id ?? null} />
                   <DayProgress done={data.progress.done} total={data.progress.total} />
                 </PageHeader>
+
+                <ReminderBanner initial={dueReminders} upcoming={upcomingReminders} />
 
                 <InstallTip />
 

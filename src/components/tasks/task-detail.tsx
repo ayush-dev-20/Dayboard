@@ -28,6 +28,7 @@ import { TaskAi } from "./task-ai";
 import { RelatedPanel } from "@/components/assistant/related-panel";
 import { AskAboutMenuItem } from "@/components/assistant/ask-about";
 import { AttachmentsSection } from "@/components/files/attachments-section";
+import { RemindMe } from "./remind-me";
 import { RelatedNotes } from "./related-notes";
 import { TagsSection } from "./tags-section";
 import { SubtasksSection } from "./subtasks-section";
@@ -233,6 +234,14 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
             onChange={(recurrenceRule) => void save({ recurrenceRule }, { recurrenceRule })}
           />
         </div>
+        <RemindMe
+          taskId={task.id}
+          dueDate={task.dueDate}
+          dueTime={task.dueTime}
+          startDate={task.startDate}
+          startTime={task.startTime}
+          closed={task.status === "DONE" || task.status === "CANCELLED" || task.archived}
+        />
         <div className="-ml-1.5 flex flex-wrap items-center">
           <ProjectPickerControl
             value={task.project}

@@ -7,6 +7,7 @@ export * from "./inbox";
 export * from "./jobs";
 export * from "./search";
 export * from "./notes";
+export * from "./notifications";
 export * from "./preferences";
 export * from "./projects";
 export * from "./review";

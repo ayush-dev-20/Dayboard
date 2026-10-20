@@ -10,6 +10,7 @@ const TABS = [
   { href: "/settings/productivity", label: "Productivity" },
   { href: "/settings/ai", label: "AI" },
   { href: "/settings/tags", label: "Tags" },
+  { href: "/settings/notifications", label: "Notifications", short: "Alerts" },
   { href: "/settings/calendar", label: "Calendar" },
   { href: "/settings/app", label: "App" },
 ] as const;

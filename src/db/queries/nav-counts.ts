@@ -3,9 +3,10 @@ import { and, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inboxItems, tasks } from "@/db/schema";
 import { getUserToday, type DayPrefs } from "@/lib/dates/today";
+import { dueInApp } from "@/lib/notifications/reminders";
 import { OPEN_STATUSES } from "@/lib/tasks/status";
 
-export type NavCounts = { today: number; inbox: number };
+export type NavCounts = { today: number; inbox: number; reminders: number };
 
 /**
  * The small numbers beside Today and Inbox in the sidebar: open tasks due today or overdue, and
@@ -17,7 +18,7 @@ export async function getNavCounts(
   now: Date = new Date(),
 ): Promise<NavCounts> {
   const today = getUserToday(prefs, now);
-  const [due, inbox] = await Promise.all([
+  const [due, inbox, reminders] = await Promise.all([
     db
       .select({ n: sql<number>`count(*)::int` })
       .from(tasks)
@@ -41,6 +42,8 @@ export async function getNavCounts(
           eq(inboxItems.status, "OPEN"),
         ),
       ),
+    // Reminders that have come due and are waiting in the app (feature 14 §5): the Today banner's count.
+    dueInApp(userId, now),
   ]);
-  return { today: due[0]?.n ?? 0, inbox: inbox[0]?.n ?? 0 };
+  return { today: due[0]?.n ?? 0, inbox: inbox[0]?.n ?? 0, reminders: reminders.length };
 }

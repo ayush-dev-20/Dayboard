@@ -7,7 +7,7 @@ Checked against the code and `agent_docs/` before building:
 | Spec assumes | What the project had | Action |
 |---|---|---|
 | Feature 08 jobs and a per-user scheduled job at the person's day and hour | A worker, tick mode and **global** schedules only (`every 1h`, `daily 03:00 UTC`) | A seeded hourly `review.scan` queues one `review.generate` per person who is due (like feature 10's scan); ADR 0026 |
-| Feature 14 notification enqueue and a `WEEKLY_REVIEW_READY` category | Feature 14 is not built | Not built: the Today card is the only signal; the seam is the end of `generateReview` |
+| Feature 14 notification enqueue and a `WEEKLY_REVIEW_READY` category | Feature 14 was not built at first | Wired when feature 14 landed (2026-10-20): the end of `generateReview` queues `enqueueNotification` for a final review |
 | `task_schedule_history` written by "the single task-update path" | `updateTask` is that path (actions, the assistant, and the sync push all call it) | Written there, inside its transaction; plus a `feature_epochs` row so "not enough history" can be told from "none" |
 | Feature 12 calendar events as an optional input | Built; busy windows exist (`planning.busyWindows`) | Used, only when a calendar is connected and selected |
 | Feature 11 proposal and audit pattern; the `WEEKLY_REVIEW` audit source | Built; the audit check already allows `WEEKLY_REVIEW` | Reused: one server action, one audit row, Undo |
@@ -16,7 +16,7 @@ Checked against the code and `agent_docs/` before building:
 | `weekly_reviews` columns | As listed | Plus `suggestions_error`, `suggestions_at`, `carry_applied_at` (reason line, once a day, applied once) |
 | Nav item "Weekly review" under Plan | Plan had Today, Inbox, Tasks | Added; also in More on phones |
 
-**Progress:** built and tested with the mock provider and one real Gemini call (sample week): the facts, the suggestions with validation, the hourly scan and the generation job, Generate now, the carry-forward proposal with Undo, the schedule history, the Today card, the page and settings. **Not built:** the ready notification and offline reading. See `agent_docs/ai-weekly-review_v2.md`.
+**Progress:** built and tested with the mock provider and one real Gemini call (sample week): the facts, the suggestions with validation, the hourly scan and the generation job, Generate now, the carry-forward proposal with Undo, the schedule history, the Today card, the page and settings. **Not built:** offline reading. (The ready notification was added with feature 14.) See `agent_docs/ai-weekly-review_v2.md`.
 
 ---
 
@@ -207,7 +207,7 @@ Applying proposals uses existing commands, not a review-specific write endpoint.
 - [x] Carry-forward changes are proposals applied only on confirm, audited and undoable
 - [x] The review works without AI (facts only) and without a calendar
 - [x] Repeated postponements are observed from a real history log, with an honest "not enough history" state
-- [ ] A "ready" notification and a Today card exist and are not repeated _(the Today card is built and tested; the notification needs feature 14)_
+- [x] A "ready" notification and a Today card exist and are not repeated _(the Today card is built and tested; the notification is queued once per final review, keyed by its id, and sent by feature 14)_
 - [x] Private data stays out of logs and usage rows; reviews are deleted with the account
 - [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass _(all pass except a full E2E run, which was not repeated after this feature; the review spec, 17 cases, and the specs this touches pass)_
 - [x] `agent_docs/ai-weekly-review_v2.md` written and indexed

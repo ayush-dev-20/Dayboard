@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Executor } from "@/db/executor";
 import { changeLog, tasks } from "@/db/schema";
+import { reconcileTaskReminders } from "@/lib/notifications/reminders";
 
 // Versions and the change log (V2 feature 05, docs/decisions/0007). Every write to a syncable row calls
 // one of these helpers inside the same transaction, so a pull never misses a committed change.
@@ -52,6 +53,12 @@ export async function logTaskUpserts(
       version: row.version,
       deviceId,
     })),
+  );
+  // Every task write passes through here, so this is where reminders follow the task (V2 feature 14 §3).
+  await reconcileTaskReminders(
+    tx,
+    userId,
+    rows.map((row) => row.id),
   );
 }
 

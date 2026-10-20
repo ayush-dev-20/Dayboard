@@ -372,6 +372,13 @@ function askSelection(fixture: Obj): string {
   const question = str(fixture.question).replaceAll(MARKERS, "").trim();
   const selection = str(fixture.selection).replaceAll(MARKERS, "").trim();
   const first = sentences(selection)[0] ?? selection;
+  // Open mode answers from general knowledge, so it does not depend on the words of the passage.
+  if (str(fixture.mode) === "open") {
+    const topic = (question.length >= selection.length ? question : selection)
+      .replace(/[?？\s]+$/u, "")
+      .slice(0, 80);
+    return `Some ideas on “${topic}”: 1. Start with the smallest version. 2. Add one piece at a time. 3. Test each step before the next.`;
+  }
   if (/summar/i.test(question)) return `In short: ${first}`;
   if (/explain/i.test(question)) return `The passage says: ${first}`;
   if (/missing/i.test(question)) return "The passage does not say who is responsible or by when.";

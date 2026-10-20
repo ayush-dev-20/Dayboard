@@ -1,6 +1,6 @@
 import { streamText } from "@/lib/ai";
 import { aiRoute, ndjsonResponse, openGate } from "@/lib/ai/gate";
-import { askSelectionPrompt, askSelectionSystem } from "@/lib/ai/prompts";
+import { askSelectionPrompt, askSelectionSystemFor } from "@/lib/ai/prompts";
 import { loadNote, loadTask } from "@/db/queries/ai";
 import { AppError } from "@/lib/errors";
 import { askSelectionRequestSchema } from "@/lib/validations/assistant";
@@ -8,6 +8,8 @@ import { askSelectionRequestSchema } from "@/lib/validations/assistant";
 export const dynamic = "force-dynamic";
 
 const MAX_ANSWER_TOKENS = 800;
+/** Open mode gives ideas and options, which need a little more room than a one-line answer from the note. */
+const MAX_OPEN_ANSWER_TOKENS = 1000;
 /** About this much text on each side of the selection is sent as context (feature 11 §6B). */
 const AROUND_CHARS = 3000;
 
@@ -22,8 +24,10 @@ function around(text: string, selection: string): string {
 }
 
 // Ask AI about selected text (feature 11 §6B). A single streamed answer from the selection and the
-// text around it, which is read by id and owner. No tools, no workspace search, no writes: the person
-// copies or inserts the answer themselves.
+// text around it, which is read by id and owner. In `note` mode the model may use only that text; in `open`
+// mode it may also use what it knows (the screen labels the answer as a suggestion). Either way it sends the
+// same text and nothing else from the workspace: no tools, no workspace search, no writes. The person copies
+// or inserts the answer themselves.
 export async function POST(request: Request) {
   return aiRoute(async () => {
     const { ctx, input } = await openGate(request, "ASK_SELECTION", askSelectionRequestSchema);
@@ -40,10 +44,10 @@ export async function POST(request: Request) {
         userId: ctx.user.id,
         feature: "ASK_SELECTION",
         tier: "fast",
-        system: askSelectionSystem,
+        system: askSelectionSystemFor(input.mode),
         prompt: askSelectionPrompt(input.question, input.selection, around(saved, input.selection)),
-        maxOutputTokens: MAX_ANSWER_TOKENS,
-        fixture: { question: input.question, selection: input.selection },
+        maxOutputTokens: input.mode === "open" ? MAX_OPEN_ANSWER_TOKENS : MAX_ANSWER_TOKENS,
+        fixture: { question: input.question, selection: input.selection, mode: input.mode },
         signal: request.signal,
       });
       let ok = false;

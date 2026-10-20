@@ -758,3 +758,87 @@ export async function weeklyReviewAuditOf(userId: string) {
 export async function setFinal(userId: string) {
   await sql`update weekly_reviews set partial = false, viewed_at = null, dismissed_at = null where user_id = ${userId}`;
 }
+
+// -- Push notifications and reminders (V2 feature 14) --------------------------------------------------------------
+
+export async function remindersOf(taskId: string) {
+  return sql<
+    {
+      id: string;
+      kind: string;
+      status: string;
+      remind_at: Date;
+      snoozed_until: Date | null;
+      spec: unknown;
+    }[]
+  >`select id, kind, status, remind_at, snoozed_until, spec from task_reminders where task_id = ${taskId} order by remind_at`;
+}
+
+/** A reminder that is due (or will be, at `remindAt`), made directly, for tests of the app and of delivery. */
+export async function insertReminder(
+  userId: string,
+  taskId: string,
+  seed: { remindAt: Date; status?: string; kind?: string; spec?: unknown },
+) {
+  const [row] = await sql<{ id: string }[]>`
+    insert into task_reminders (id, user_id, task_id, remind_at, kind, spec, status)
+    values (gen_random_uuid(), ${userId}, ${taskId}, ${seed.remindAt}, ${seed.kind ?? "CUSTOM"},
+            ${sql.json((seed.spec ?? { type: "at" }) as never)}, ${seed.status ?? "PENDING"})
+    returning id`;
+  return row!.id;
+}
+
+export async function insertPushSubscription(
+  userId: string,
+  endpoint: string,
+  deviceId = crypto.randomUUID(),
+) {
+  const [row] = await sql<{ id: string }[]>`
+    insert into push_subscriptions (id, user_id, device_id, endpoint, p256dh, auth, user_agent_label, last_seen_at)
+    values (gen_random_uuid(), ${userId}, ${deviceId}, ${endpoint}, 'BPubKey12345678', 'AuthKey123456',
+            'Chrome on Mac', now() - interval '1 hour')
+    returning id`;
+  return row!.id;
+}
+
+export async function pushSubscriptionsOf(userId: string) {
+  return sql<{ id: string; endpoint: string; revoked: boolean; user_agent_label: string }[]>`
+    select id, endpoint, revoked_at is not null as revoked, user_agent_label
+    from push_subscriptions where user_id = ${userId} order by created_at`;
+}
+
+/** The tab was last seen long ago, so the device is pushed to rather than treated as open. */
+export async function ageSubscriptions(userId: string) {
+  await sql`update push_subscriptions set last_seen_at = now() - interval '1 hour' where user_id = ${userId}`;
+}
+
+export async function notificationLogOf(userId: string) {
+  return sql<{ category: string; status: string; dedupe_key: string }[]>`
+    select category, status, dedupe_key from notification_log where user_id = ${userId} order by created_at`;
+}
+
+export async function setQuietHoursDb(userId: string, start: string | null, end: string | null) {
+  await sql`update user_preferences set quiet_hours_start = ${start}, quiet_hours_end = ${end} where user_id = ${userId}`;
+}
+
+export async function setCategoryDb(userId: string, category: string, enabled: boolean) {
+  await sql`
+    insert into notification_preferences (user_id, category, enabled) values (${userId}, ${category}, ${enabled})
+    on conflict (user_id, category) do update set enabled = excluded.enabled`;
+}
+
+/** Makes the reminder scan due now, so the next tick looks for due reminders. */
+export async function makeReminderScanDue() {
+  await sql`update job_schedules set next_run_at = now() where name in ('reminders.scan', 'overdue.scan')`;
+}
+
+export async function notificationSettingsOf(userId: string) {
+  const [row] = await sql<
+    { lead: number; titles: boolean; quiet_start: string | null; quiet_end: string | null }[]
+  >`select default_reminder_lead_minutes as lead, notify_show_titles as titles,
+           to_char(quiet_hours_start, 'HH24:MI') as quiet_start, to_char(quiet_hours_end, 'HH24:MI') as quiet_end
+    from user_preferences where user_id = ${userId}`;
+  const categories = await sql<{ category: string; enabled: boolean }[]>`
+    select category, enabled from notification_preferences where user_id = ${userId} order by category`;
+  return { ...row!, categories };
+}
