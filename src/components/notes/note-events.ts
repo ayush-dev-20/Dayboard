@@ -1,3 +1,4 @@
+import type { JournalSidebarEntry } from "@/lib/journal/dto";
 import type { NoteTreeRow } from "@/lib/notes/dto";
 
 // What the open page tells the rest of the app about notes (V2 feature 07 §5): a note was renamed,
@@ -9,6 +10,8 @@ export type NoteEvent =
   | { type: "title"; id: string; title: string }
   | { type: "emoji"; id: string; emoji: string | null }
   | { type: "created"; note: NoteTreeRow }
+  /** A journal entry was made (V3 feature 02): the sidebar's Journal list adds it. The Notes tree ignores it. */
+  | { type: "journal"; entry: JournalSidebarEntry }
   /** Notes moved, were archived, trashed or restored: read the tree and link states again. */
   | { type: "structure" };
 

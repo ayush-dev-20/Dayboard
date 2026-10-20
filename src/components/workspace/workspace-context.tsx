@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type { JournalSidebarEntry } from "@/lib/journal/dto";
 import type { NoteTreeRow } from "@/lib/notes/dto";
 import type { ProjectRef } from "@/lib/projects/dto";
 import type { TagDTO } from "@/lib/tags";
@@ -24,6 +25,8 @@ export type WorkspaceValue = {
   voiceEnabled: boolean;
   /** The latest canvases under Canvases in the sidebar (V3 feature 01): five at most, newest first. */
   canvases: { id: string; title: string; emoji: string | null; kind: "DRAWING" | "BOARD" }[];
+  /** The latest journal entries under Journal in the sidebar (V3 feature 02): five at most, newest day first. */
+  journalEntries: JournalSidebarEntry[];
   /** The notes under Notes in the sidebar: the first 50 top-level notes and what is under them. */
   noteTree: { rows: NoteTreeRow[]; rootTotal: number };
 };
@@ -38,6 +41,7 @@ const WorkspaceContext = createContext<WorkspaceValue>({
   filesEnabled: false,
   voiceEnabled: false,
   canvases: [],
+  journalEntries: [],
   noteTree: { rows: [], rootTotal: 0 },
 });
 

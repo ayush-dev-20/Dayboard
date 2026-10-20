@@ -14,7 +14,7 @@ export async function checklistCounts(userId: string): Promise<ChecklistCounts> 
     select
       (select count(*)::int from inbox_items where user_id = ${userId} and deleted_at is null) as inbox,
       (select count(*)::int from tasks where user_id = ${userId} and deleted_at is null) as tasks,
-      (select count(*)::int from notes where user_id = ${userId} and deleted_at is null) as notes,
+      (select count(*)::int from notes where user_id = ${userId} and deleted_at is null and journal_date is null) as notes,
       (select count(*)::int from task_notes where user_id = ${userId}) as links`);
   return row ?? { inbox: 0, tasks: 0, notes: 0, links: 0 };
 }

@@ -2,6 +2,38 @@
 
 > **Build priority: second V3 feature** (owner, 2026-10-13), after the canvas (01). It needs only V1 and the V2 notes work that is already built. Behaviour is in V3 product spec §5; where this doc is more detailed, this doc wins for this feature.
 
+## 0. Reality check and progress (2026-10-20)
+
+Checked against the code and `agent_docs/` before building (hand-offs read: notes, nested notes, views, search and Trash, sync, offline, semantic search, assistant, weekly review, canvas). Every "Action" is the builder's proposal and can be vetoed.
+
+| Spec says | What the project has | Action |
+|---|---|---|
+| "No new table"; one migration; "reuse an index if one exists" | Next free migration is `0020`. `notes` has no date column. **`tasks` and `todos` have no index on `completed_at`** (`tasks_user_status_idx`, `_due_date_`, `_updated_at_` only) | One expand-only migration `0020`: `journal_date`, the partial unique index, the check, and the two `completed_at` partial indexes. The plan is read with `EXPLAIN` at build time and an index the plan does not use is dropped from the migration before it is applied anywhere |
+| `plainNotes` "used by every query that lists notes", "exported from `src/db/queries/notes.ts`" | **21 files** read the `notes` table (counted 2026-10-20). Only about 8 list notes *as the Notes collection*: `listNotes` (also feeds Today's "Recently updated notes" and a project page's notes), `countNotes`, `listNotesForViews` (all views, project pages), `getNoteTree` and `getOutline` (sidebar tree, Tree view, Move to), the onboarding checklist count, the weekly review's "notes created" count, and the structure mutations (`createSubNote`, `moveNote` targets). The other ~13 read a note by id or by relationship (search, Trash, assistant, backlinks, pickers, semantic index) | Build the opt-**out** list only: `plainNotes` is added to the ~8 collection queries and everything else stays untouched (entries are included by default, as the spec wants). The classification test keeps a map `NOTE_QUERY_CLASSES` (`plain` or `includes`) in `src/lib/notes/query-classes.ts` and fails when an exported function in a file that reads `notes` is missing from it |
+| "A project's page (if the entry has a project)" and "a tag's page" include entries, but "saved views of notes" are excluded | A project page lists its notes through the same views engine as the Notes page (`listNotesForViews`), so both statements cannot hold. There is **no tag page**: a tag is a filter on the Notes list | **Entries are left out of a project's notes and of the tag filter** (they are views of the Notes collection). An entry with a project is reached from Journal, search or a link. **Vetoable** |
+| "The Notes count" is excluded; "the assistant's tools" include entries | The sidebar has no notes count. The **onboarding checklist** counts notes (`checklistCounts`), and the **weekly review** counts notes created per project (`src/lib/review/load.ts`) | Both use `plainNotes`: a daily entry must not tick "write your first note" or inflate "notes created". **Vetoable** (spec silent) |
+| "Entries ... found by search, Trash, assistant tools, backlinks, pickers" and "opens `/journal/{id}`" | 21 files build a link to `/notes/{id}` (pills, backlinks, breadcrumbs, assistant, review, task chips, notes tree, project quick add, clipboard...) | Add `journalDate` where the label or glyph shows (search hit, Trash item, note picker hit, backlink) and build `/journal/{id}` there. **`/notes/{id}` redirects an entry to `/journal/{id}`**, so every other link still works. Search keeps type `note` (no new search type); the hit carries `journalDate` and the label **Journal** |
+| `createJournalEntry` returns `exists` and "creates nothing" | The editor creates a note on the first edit (`useNoteSync` calls `createNote` with a fixed `create` object and gets `{id, version}`). The spec does not say what happens to the text already typed when the answer is `exists` (two tabs) | `useNoteSync` takes an optional `createEntry` function. On `exists` the editor saves what was typed as the **device draft of the existing entry** and opens it, where the existing **Recover / Discard** banner offers it back. Nothing typed is lost and nothing is merged silently. **Vetoable** |
+| "Content is checked with the note's `sanitizeDoc`"; "the sub-note block is not offered" | `saveNoteContent` validates input with `noteRichTextSchema` (sub-notes allowed) *before* the note is known; `sanitizeDoc` has an `allowSubNotes` option; the slash menu filters by `surfaces: ("note" \| "task")` | The slash item and the picker's "as a sub-note" are hidden on a new editor surface `journal` (a variant of `note`). On the server, saving an entry runs the doc through `allowSubNotes: false` once the row is read, and a pasted sub-note block becomes a link (`subNotesToLinks`, as in task descriptions) |
+| `getUserToday(prefs)` and "new pure helpers in `src/lib/dates/journal.ts`" | `src/lib/dates/{today,calendar}.ts` have `getUserToday`, `startOfUserDay`, `addDays`, `parseDateString`; `@date-fns/tz` (`TZDate`) is used for day starts; `greeting.ts` has `formatLongDate(now, tz)` (takes an instant, locale-formatted) | New `journal.ts` with `journalTitle`, `journalShortDate` (`Tue 13 Oct`) and `dayBounds`, built on the same `TZDate` approach as `startOfUserDay`. `formatLongDate` stays for the greeting |
+| Done on this day: "completed sticky notes (`kind = 'STICKY'`)" | `tasks` has no `kind`: sticky boards are canvas slice D, **not built** | Slice B reads tasks without `kind`. When slice D lands, one `or kind = 'STICKY'` row-label is added in `getDoneOnDay` (noted in both hand-offs); stickies are tasks, so they are already listed as tasks |
+| "Each completed occurrence of a repeating task" | Completing a repeating task marks the row DONE (with `completed_at`) and **inserts a new row** for the next date (`completeTask`), so every occurrence is its own DONE row | Nothing special: the plain `status = 'DONE'` query lists each occurrence |
+| "Complete a task ... open today's entry" E2E 6: "the next day's rollover (clock set)" | There is **no server clock seam** (only `notificationClock` for push); the day is computed on the server | No new seam. Rollover is covered in integration with an explicit `now`, and in E2E by switching the person's time zone between two zones 25 h apart, which moves "today" by a day |
+| Library "Notes, Journal, Canvases, Projects, Templates, Assistant"; `NAV_GROUPS` "built with slice indexes" | Already fixed in the canvas work: `NAV_GROUPS` uses explicit lists; Library reads Notes, Canvases, Projects, Assistant | Add `/journal` after Notes. `MORE_PREFIXES`, the More page, `PROTECTED_PREFIXES` in `src/proxy.ts` and `isNoteEditorPath` (`/journal/{id}` and `/journal/today`) gain it. Templates joins when feature 03 is built |
+| "A **+** at the end of the row ... the first row-level add control" | Confirmed: `SidebarSectionToggle` and `useSidebarSection` exist (Projects, Canvases); no row has a `+` | Build it as a small shared `SidebarRowAction` beside the toggle, 44 px target on touch |
+| Entry "opens the task in its side panel, or the todo's edit dialog, in place" | A task side panel opens on Today and on canvas pages through `useTaskPanelPath` (`?task=`); the todo edit dialog is used by the todos page | Journal entry pages open a task the same way as the canvas page (`?task=`). The todo dialog is reused if it can be opened from outside the todos list, otherwise the todo opens in Tasks' todo view (decided at build time and noted in the hand-off) |
+| "Works offline like notes do" | Notes are **not** offline or synced yet (sync and local DB cover tasks only; `notes` is not in `snapshot`/`pull`) | Nothing to do. `journal_date` is not part of any sync payload. The sync coverage test enumerates `src/db/mutations`, so the new `journal.ts` writers are listed in `GAPS` like the note writers |
+| Spec silence: a blank title, a page left open past the rollover, an archived entry holding the day | A note's title may be blank (shown "Untitled"); the unique index ignores only deleted entries | A blank entry title shows the date as its title (nothing stored). A page open at midnight keeps its entry; the next add button press opens the new day. An **archived entry still holds its day** (the spec's `/journal/today` already opens it with the archived banner) |
+| No Journal design file | `designs/` has no journal screen (the HTML predates V2/V3) | Built from `DESIGN.md` and the Notes and Projects designs; recorded in the hand-off for the owner's review |
+
+**No ADR needed:** no package, no stack change, no departure from V3 product §5. (The `/notes/{id}` redirect and the classification map are implementation details, recorded in the hand-off.)
+
+**Order of work (proposed):** slices A and B together as the spec says (one migration, one change), in this order: migration and schema, date helpers and their tests, query condition and the classification test, mutations and actions, `/journal/today` and the entry page on `NoteEditor`, Journal list, sidebar, search/Trash/picker labels, Done on this day and Add to entry, tests, docs. Slice C waits for feature 03.
+
+**Progress (2026-10-20):** slices A and B are built and tested (migration `0020`, the Journal tab, list, sidebar section, entry page, Done on this day, Add to entry); see `agent_docs/journal-daily-notes_v3.md`. Slice C (the starting template) waits for feature 03.
+
+---
+
 ## 1. Scope
 
 - A **Journal** sidebar tab (not part of the Today page): one **entry per day**, written in the **same editor and the same page component as a note**.
@@ -211,17 +243,31 @@ Visual baselines: the Journal list (empty and with entries) at 1440 and 360, lig
 
 ## 10. Definition of done
 
-- [ ] The migration is expand-only (a nullable column, a partial unique index, a check, two partial indexes) and leaves existing notes unchanged
-- [ ] A person can open today's entry in one click, write in the full note editor, find it in Journal and search, and no one else can reach it
-- [ ] The title is filled in as the date and day; renaming never changes which day the entry belongs to; the day follows the person's time zone and start of day
-- [ ] One entry per day, also under concurrency and across devices
-- [ ] Entries are left out of the Notes list, tree and views through one shared condition, and a test classifies every note query
-- [ ] **Done on this day** is correct for tasks, todos, sub-tasks, repeating tasks, archived and trashed items and day boundaries; it is not stored in the note; Add to entry copies it
-- [ ] The sidebar section folds like Projects and Notes; the + and the command menu entries work; the phone path works through More
-- [ ] Nothing about writing was rebuilt: the entry page uses the note component
-- [ ] Axe passes; 360 px; reduced motion
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass
-- [ ] `agent_docs/journal-daily-notes_v3.md` written and indexed; an "As built" section here lists every deviation
+- [x] The migration is expand-only (a nullable column, a partial unique index, a check, two partial indexes) and leaves existing notes unchanged
+- [x] A person can open today's entry in one click, write in the full note editor, find it in Journal and search, and no one else can reach it
+- [x] The title is filled in as the date and day; renaming never changes which day the entry belongs to; the day follows the person's time zone and start of day
+- [x] One entry per day, also under concurrency and across devices
+- [x] Entries are left out of the Notes list, tree and views through one shared condition, and a test classifies every note query
+- [x] **Done on this day** is correct for tasks, todos, sub-tasks, repeating tasks, archived and trashed items and day boundaries; it is not stored in the note; Add to entry copies it
+- [x] The sidebar section folds like Projects and Notes; the + and the command menu entries work; the phone path works through More
+- [x] Nothing about writing was rebuilt: the entry page uses the note component
+- [x] Axe passes; 360 px; reduced motion
+- [x] `pnpm lint`, `typecheck`, `test:integration` and `build` pass; `pnpm test` passes except one machine-load timing test in `clipboard-html.test.ts` that this feature does not touch; `test:e2e` was run for the journal, notes, nested notes, Trash, search, sidebar, Today, views, projects, canvases and accessibility specs (full suite not run)
+- [x] `agent_docs/journal-daily-notes_v3.md` written and indexed; an "As built" section here lists every deviation (slices A and B; slice C is open until feature 03)
+
+### As built (slices A and B, 2026-10-20)
+
+Deviations from this document, in one place (details in `agent_docs/journal-daily-notes_v3.md`):
+
+- **Entries are included or left out by an opt-out list**, not by editing every note query: `plainNotes` is used by the ~9 queries that list the Notes collection, and `NOTE_QUERY_CLASSES` (`src/lib/notes/query-classes.ts`) names the choice for every query that reads `notes`; `tests/unit/note-query-classes.test.ts` fails when one is missing.
+- **A project's notes and a tag filter leave entries out** (they are views of the Notes collection), so §3's "a project's page and a tag's page" are not built; there is no tag page. The weekly review and the onboarding checklist also leave entries out.
+- **`/notes/{id}` redirects an entry to `/journal/{id}`**, and search, Trash, the `@` picker and the task "Link note" picker build the Journal address and show the calendar glyph, date or the label Journal. Search keeps type `note` (no new search type); the hit carries `journalDate`.
+- **When `createJournalEntry` answers `exists`** (another tab or device), the typed text is kept as a device draft of the existing entry, which opens with the usual "Recover / Discard" banner.
+- **A blank title** shows the date (nothing is stored); a **renamed entry shows its date under the title** (a default title is not repeated).
+- The sub-note block is off through a `subNotes` flag on the editor surface (`EditorContextValue.subNotes`, `RichTextEditor subNotes={false}`); the server turns a sub-note block into a link on save instead of refusing the whole save.
+- **No server clock seam:** the rollover is tested by moving the person's time zone between two zones 25 hours apart, and in integration with an explicit `now`.
+- `getDayPrefs(userId)` was added to `src/lib/preferences.ts`; the completion indexes `tasks_user_completed_at_idx` and `todos_user_completed_at_idx` are in the migration (no index existed; the Done query filters by person and time).
+- The Done list is empty-state text and a count even for a day with nothing finished; sticky notes are not labelled yet (sticky boards are not built).
 
 ---
 

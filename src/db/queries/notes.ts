@@ -3,9 +3,12 @@ import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { projectRefsFor, tagsForNotes } from "@/db/queries/meta";
 import { getBreadcrumb, getChildren } from "@/db/queries/note-tree";
+import { plainNotes } from "@/db/queries/note-filters";
 import { notes, taskNotes, tasks } from "@/db/schema";
 import { makeSnippet, type NoteDTO, type NoteListItemDTO } from "@/lib/notes/dto";
 import { SNIPPET_LENGTH } from "@/lib/notes/dto";
+
+export { journalEntries, plainNotes } from "@/db/queries/note-filters";
 
 export type NoteFilters = {
   /** A project id, or "none" for notes with no (visible) project. */
@@ -54,6 +57,7 @@ export async function listNotes(
     .where(
       and(
         eq(notes.userId, userId),
+        plainNotes,
         isNull(notes.deletedAt),
         options.archived ? isNotNull(notes.archivedAt) : isNull(notes.archivedAt),
         options.topLevelOnly ? isNull(notes.parentNoteId) : undefined,
@@ -105,6 +109,7 @@ export async function countNotes(
     .where(
       and(
         eq(notes.userId, userId),
+        plainNotes,
         isNull(notes.deletedAt),
         isNull(notes.parentNoteId),
         ...filterConditions(userId, filters),
@@ -173,6 +178,7 @@ export async function getNote(userId: string, id: string): Promise<NoteDTO | nul
     breadcrumb,
     children,
     depth: row.depth,
+    journalDate: row.journalDate,
   };
 }
 
@@ -181,10 +187,15 @@ export async function searchNotesForLinking(
   userId: string,
   query: string,
   limit = 8,
-): Promise<{ id: string; title: string; emoji: string | null }[]> {
+): Promise<{ id: string; title: string; emoji: string | null; journalDate: string | null }[]> {
   const term = query.trim().replace(/[\\%_]/g, (c) => `\\${c}`);
   return db
-    .select({ id: notes.id, title: notes.title, emoji: notes.emoji })
+    .select({
+      id: notes.id,
+      title: notes.title,
+      emoji: notes.emoji,
+      journalDate: notes.journalDate,
+    })
     .from(notes)
     .where(
       and(

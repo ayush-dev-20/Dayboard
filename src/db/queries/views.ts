@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm
 import { db } from "@/db/client";
 import { ensureDefaultViews, listViews } from "@/db/mutations/views";
 import { projectRefsFor, tagsForNotes, taskMetaFor } from "@/db/queries/meta";
+import { plainNotes } from "@/db/queries/note-filters";
 import { subtaskDone, subtaskTotal } from "@/db/queries/tasks";
 import { notes, tasks, todos } from "@/db/schema";
 import { makeSnippet, SNIPPET_LENGTH } from "@/lib/notes/dto";
@@ -158,6 +159,8 @@ export async function listNotesForViews(
     .where(
       and(
         eq(notes.userId, userId),
+        // Journal entries are not part of the Notes collection (V3 feature 02 §3).
+        plainNotes,
         isNull(notes.deletedAt),
         scope.archivedOnly ? isNotNull(notes.archivedAt) : isNull(notes.archivedAt),
         // The views list top-level notes; sub-notes are reached through their parent, the sidebar

@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   CalendarCheck,
   Ellipsis,
   File,
@@ -24,7 +25,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // The weekly review (V2 feature 15): facts first, then suggestions. It works without AI.
   { href: "/review", label: "Weekly review", icon: CalendarCheck },
   { href: "/notes", label: "Notes", icon: File },
-  // Canvases (V3 feature 01): drawings and sticky boards. Journal and Templates join this group when they are built.
+  // The journal (V3 feature 02): one entry per day, written in the note editor.
+  { href: "/journal", label: "Journal", icon: BookOpen },
+  // Canvases (V3 feature 01): drawings and sticky boards. Templates joins this group when it is built.
   { href: "/canvases", label: "Canvases", icon: Shapes },
   { href: "/projects", label: "Projects", icon: Folder },
   // The workspace assistant (V2 feature 11): shown only while AI is on. Speech bubble, never a sparkle.
@@ -43,7 +46,7 @@ export const NAV_GROUPS: readonly { label: string | null; items: readonly NavIte
   { label: "Plan", items: itemsFor("/today", "/inbox", "/tasks", "/review") },
   {
     label: "Library",
-    items: itemsFor("/notes", "/canvases", "/projects", "/assistant"),
+    items: itemsFor("/notes", "/journal", "/canvases", "/projects", "/assistant"),
   },
   { label: null, items: itemsFor("/search", "/trash", "/settings") },
 ];
@@ -64,6 +67,7 @@ export const MOBILE_NAV_ITEMS: readonly NavItem[] = [
 const MORE_PREFIXES = [
   "/more",
   "/review",
+  "/journal",
   "/canvases",
   "/projects",
   "/assistant",
@@ -75,7 +79,8 @@ const MORE_PREFIXES = [
 // The note editor takes the whole phone screen: no top bar or bottom navigation, so the formatting
 // bar can sit right above the keyboard (design: Notes, mobile with keyboard).
 export function isNoteEditorPath(pathname: string): boolean {
-  return /^\/notes\/[^/]+$/.test(pathname);
+  // A journal entry is a note: `/journal/today` and `/journal/{id}` are the same full-screen page.
+  return /^\/(notes|journal)\/[^/]+$/.test(pathname);
 }
 
 /** A canvas page fills the whole panel, so the floating chat button gets out of the way there. */

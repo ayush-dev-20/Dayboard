@@ -33,6 +33,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | AI weekly review                      | V2    | In progress | [ai-weekly-review_v2.md](ai-weekly-review_v2.md)                                 |
 | Push notifications and reminders      | V2    | In progress | [push-notifications-and-reminders_v2.md](push-notifications-and-reminders_v2.md) |
 | Canvas with AI diagrams               | V3    | In progress | [canvas-with-ai-diagrams_v3.md](canvas-with-ai-diagrams_v3.md)                   |
+| Journal (daily notes)                 | V3    | In progress | [journal-daily-notes_v3.md](journal-daily-notes_v3.md)                           |
 
 Status is `Done` or `In progress`.
 

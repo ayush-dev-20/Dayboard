@@ -4,8 +4,9 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { Extension } from "@tiptap/react";
 import { PluginKey } from "@tiptap/pm/state";
 import Suggestion from "@tiptap/suggestion";
-import { Archive, FilePlus2, FileText } from "lucide-react";
+import { Archive, CalendarDays, FilePlus2, FileText } from "lucide-react";
 import { findNotesForLink } from "@/actions/notes";
+import { journalShortDate } from "@/lib/dates/journal";
 import { pathLabel } from "@/lib/notes/tree";
 import type { NotePickerHit } from "@/db/queries/note-tree";
 import { cn } from "@/lib/utils";
@@ -103,7 +104,13 @@ const NotePickerList = forwardRef<ListHandle, ListProps>(function NotePickerList
             const path = hit.path.length > 0 ? pathLabel(hit.path) : null;
             return (
               <div key={itemKey(item)} {...common} className={base}>
-                {hit.emoji ? (
+                {hit.journalDate ? (
+                  <CalendarDays
+                    className="size-4 shrink-0 text-muted-foreground"
+                    strokeWidth={1.5}
+                    aria-label="Journal entry"
+                  />
+                ) : hit.emoji ? (
                   <span aria-hidden className="shrink-0 leading-none">
                     {hit.emoji}
                   </span>
@@ -116,7 +123,11 @@ const NotePickerList = forwardRef<ListHandle, ListProps>(function NotePickerList
                 )}
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate">{hit.title.trim() || "Untitled"}</span>
-                  {path ? (
+                  {hit.journalDate ? (
+                    <span className="truncate type-body-sm text-muted-foreground">
+                      Journal · {journalShortDate(hit.journalDate)}
+                    </span>
+                  ) : path ? (
                     <span className="truncate type-body-sm text-muted-foreground">{path}</span>
                   ) : null}
                 </span>
@@ -184,7 +195,9 @@ export const NoteLinkPicker = Extension.create<Options>({
           const title = query.trim();
           if (title) {
             found.push({ kind: "create-note", title });
-            if (ctx.surface === "note") found.push({ kind: "create-sub", title });
+            if (ctx.surface === "note" && ctx.subNotes !== false) {
+              found.push({ kind: "create-sub", title });
+            }
           }
           return found;
         },

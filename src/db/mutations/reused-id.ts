@@ -15,7 +15,7 @@ export async function rejectReusedId<T>(insert: () => Promise<T>): Promise<T> {
 }
 
 // The driver may wrap the database error, so look a few levels down for Postgres' code 23505.
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   for (let depth = 0; depth < 3 && typeof current === "object" && current !== null; depth++) {
     if ((current as { code?: unknown }).code === "23505") return true;

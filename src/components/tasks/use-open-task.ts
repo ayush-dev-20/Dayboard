@@ -6,13 +6,13 @@ import { DESKTOP_QUERY } from "@/hooks/use-media-query";
 import { setSheetMode } from "./sheet-state";
 
 /**
- * The page the task panel docks to: Today and a canvas have their own (the panel opens beside the day or the
+ * The page the task panel docks to: Today, a canvas and a journal entry have their own (the panel opens beside the day or the
  * drawing, not on the Tasks page), and every other page uses the Tasks page.
  */
 export function useTaskPanelPath(): string {
   const pathname = usePathname();
   if (pathname === "/today") return "/today";
-  if (/^\/canvases\/[^/]+$/.test(pathname)) return pathname;
+  if (/^\/(canvases|journal)\/[^/]+$/.test(pathname)) return pathname;
   return "/tasks";
 }
 

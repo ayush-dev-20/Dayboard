@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { plainNotes } from "@/db/queries/note-filters";
 import { notes } from "@/db/schema";
 import type { BacklinkDTO, NoteChildDTO, NoteCrumbDTO, NoteTreeRow } from "@/lib/notes/dto";
 import { noteState, type NoteMeta } from "@/lib/notes/links";
@@ -47,6 +48,7 @@ export async function getNoteTree(
       with recursive roots as (
         select id from notes
         where user_id = ${userId} and parent_note_id is null and deleted_at is null and archived_at is null
+          and journal_date is null
         order by sort_order asc, created_at desc
         limit ${limit}
       ),
@@ -66,6 +68,7 @@ export async function getNoteTree(
       .where(
         and(
           eq(notes.userId, userId),
+          plainNotes,
           isNull(notes.parentNoteId),
           isNull(notes.deletedAt),
           isNull(notes.archivedAt),
@@ -90,7 +93,9 @@ export async function getOutline(userId: string, limit = OUTLINE_LIMIT): Promise
       depth: notes.depth,
     })
     .from(notes)
-    .where(and(eq(notes.userId, userId), isNull(notes.deletedAt), isNull(notes.archivedAt)))
+    .where(
+      and(eq(notes.userId, userId), plainNotes, isNull(notes.deletedAt), isNull(notes.archivedAt)),
+    )
     .orderBy(asc(notes.sortOrder), desc(notes.createdAt))
     .limit(limit);
   return rows;
@@ -248,6 +253,7 @@ export async function searchNotesForNoteLink(
       emoji: notes.emoji,
       updatedAt: notes.updatedAt,
       archivedAt: notes.archivedAt,
+      journalDate: notes.journalDate,
       bodyMatch: term ? sql<boolean>`${notes.contentText} ilike ${pattern}` : sql<boolean>`false`,
     })
     .from(notes)
@@ -274,6 +280,7 @@ export async function searchNotesForNoteLink(
     updatedAt: r.updatedAt.toISOString(),
     path: (paths.get(r.id) ?? []).map((c) => c.title),
     bodyMatch: r.bodyMatch,
+    journalDate: r.journalDate,
     archived: r.archivedAt !== null,
   }));
   return rankPickerResults(candidates, query, { excludeId }) as NotePickerHit[];

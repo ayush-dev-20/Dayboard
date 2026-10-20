@@ -10,6 +10,8 @@ export type EditorContextValue = {
   ownerId: string | null;
   /** The browser has no connection. */
   offline: boolean;
+  /** A sub-note can be made here. Off for a journal entry, which always stays in the Journal (V3 feature 02). */
+  subNotes?: boolean;
   /** File storage is set up: images and files can be added (feature 09). */
   filesEnabled: boolean;
   /**

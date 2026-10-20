@@ -3,11 +3,12 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { FileText, Search, X } from "lucide-react";
+import { CalendarDays, FileText, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { findNotesToLink, linkTaskNote, unlinkTaskNote } from "@/actions/notes";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { handlePickerKeys } from "@/components/workspace/picker-list";
+import { journalShortDate } from "@/lib/dates/journal";
 import type { NoteRefDTO } from "@/lib/tasks/dto";
 
 type Props = {
@@ -126,8 +127,21 @@ export function RelatedNotes({ taskId, notes, onChange }: Props) {
                   onClick={() => void link(note)}
                   className="flex h-11 w-full items-center gap-2 rounded-md px-2 text-left type-body-md hover:bg-accent focus-visible:bg-accent md:h-8"
                 >
-                  {note.emoji ? <span aria-hidden>{note.emoji}</span> : null}
+                  {note.journalDate ? (
+                    <CalendarDays
+                      className="size-4 shrink-0 text-muted-foreground"
+                      strokeWidth={1.5}
+                      aria-label="Journal entry"
+                    />
+                  ) : note.emoji ? (
+                    <span aria-hidden>{note.emoji}</span>
+                  ) : null}
                   <span className="min-w-0 flex-1 truncate">{note.title || "Untitled"}</span>
+                  {note.journalDate ? (
+                    <span className="shrink-0 type-body-sm text-muted-foreground">
+                      {journalShortDate(note.journalDate)}
+                    </span>
+                  ) : null}
                 </button>
               ))}
               {candidates.length === 0 ? (

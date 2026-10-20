@@ -920,3 +920,63 @@ export async function auditRowsOf(userId: string) {
   >`
     select source, action, summary, proposal_id, entity_refs from audit_log where user_id = ${userId} order by created_at`;
 }
+
+// ---- Journal (V3 feature 02) ----
+
+/** A journal entry for a given day, written straight to the table. */
+export async function insertJournalEntry(
+  userId: string,
+  date: string,
+  seed: { title?: string; text?: string; archived?: boolean; deleted?: boolean } = {},
+) {
+  const text = seed.text ?? "";
+  const [row] = await sql<{ id: string }[]>`
+    insert into notes (id, user_id, title, content_json, content_text, journal_date, archived_at, deleted_at)
+    values (gen_random_uuid(), ${userId}, ${seed.title ?? ""}, ${sql.json(docOf(text))}, ${text}, ${date},
+            ${seed.archived ? sql`now()` : null}, ${seed.deleted ? sql`now()` : null})
+    returning id`;
+  return row!.id;
+}
+
+/** The person's entries, newest day first. */
+export async function journalEntriesOf(userId: string) {
+  return sql<
+    {
+      id: string;
+      journal_date: string;
+      title: string;
+      content_text: string;
+      deleted_at: Date | null;
+      archived_at: Date | null;
+    }[]
+  >`select id, to_char(journal_date, 'YYYY-MM-DD') as journal_date, title, content_text, deleted_at, archived_at
+    from notes where user_id = ${userId} and journal_date is not null order by journal_date desc`;
+}
+
+/** A task that was completed at a given instant (the day it belongs to follows the person's own day). */
+export async function insertDoneTask(userId: string, title: string, completedAt: string) {
+  seedOrder += 1;
+  const [row] = await sql<{ id: string }[]>`
+    insert into tasks (id, user_id, title, status, priority, completed_at, sort_order)
+    values (gen_random_uuid(), ${userId}, ${title}, 'DONE', 'NONE', ${completedAt}::timestamptz, ${seedOrder * 1024})
+    returning id`;
+  return row!.id;
+}
+
+export async function insertDoneTodo(userId: string, title: string, completedAt: string) {
+  seedOrder += 1;
+  const [row] = await sql<{ id: string }[]>`
+    insert into todos (id, user_id, title, is_complete, completed_at, sort_order)
+    values (gen_random_uuid(), ${userId}, ${title}, true, ${completedAt}::timestamptz, ${seedOrder * 1024})
+    returning id`;
+  return row!.id;
+}
+
+export async function setTimezone(userId: string, timezone: string) {
+  await sql`update user_preferences set timezone = ${timezone} where user_id = ${userId}`;
+}
+
+/** Marks a finished task as not done again, as another window would. */
+export async function reopenTaskElsewhere(userId: string, title: string) {
+  await sql`update tasks set status = 'PLANNED', completed_at = null where user_id = ${userId} and title = ${title}`;
+}

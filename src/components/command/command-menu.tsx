@@ -7,6 +7,7 @@ import { Command } from "cmdk";
 import { pathLabel } from "@/lib/notes/tree";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import {
+  BookOpen,
   CheckSquare,
   CircleCheck,
   Copy,
@@ -66,13 +67,14 @@ const QUICK_ACTIONS = [
   { id: "new-task", label: "New task", href: "/tasks?focus=add" },
   { id: "new-todo", label: "New todo", href: "/tasks?view=todos&focus=add" },
   { id: "new-note", label: "New note", href: "/notes/new" },
+  { id: "new-journal", label: "New journal entry", href: "/journal/today" },
   { id: "new-project", label: "New project", href: "/projects?new=1" },
 ] as const;
 
 type Props = { mode: CommandMode; onModeChange: (mode: CommandMode) => void; onClose: () => void };
 
 function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) => void }) {
-  const Icon = ICONS[hit.type];
+  const Icon = hit.journalDate ? BookOpen : ICONS[hit.type];
   return (
     <Command.Item
       value={`${hit.type}:${hit.id}`}
@@ -95,6 +97,9 @@ function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) 
             </mark>
             {hit.snippet.after}
           </span>
+        ) : null}
+        {hit.journalDate ? (
+          <span className="ml-2 type-label-caps text-muted-foreground">Journal</span>
         ) : null}
         {hit.archived ? (
           <span className="ml-2 type-label-caps text-muted-foreground">Archived</span>
@@ -120,7 +125,7 @@ function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) 
  */
 export function CommandMenu({ mode, onModeChange, onClose }: Props) {
   const router = useRouter();
-  const onNote = /^\/notes\/(?!new$)[^/]+$/.test(usePathname());
+  const onNote = /^\/(notes\/(?!new$)|journal\/(?!today$))[^/]+$/.test(usePathname());
   const { aiEnabled } = useWorkspace();
   const voiceAvailable = useVoiceAvailable();
   const ask = useAIStream("/api/ai/ask");
@@ -415,6 +420,20 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                           aria-hidden
                         />{" "}
                         Write a note with AI
+                      </Command.Item>
+                    ) : null}
+                    {mode === "search" ? (
+                      <Command.Item
+                        value="journal-today"
+                        onSelect={() => go("/journal/today")}
+                        className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 type-body-md data-[selected=true]:bg-primary-subtle md:min-h-9"
+                      >
+                        <BookOpen
+                          className="size-4 text-muted-foreground"
+                          strokeWidth={1.5}
+                          aria-hidden
+                        />{" "}
+                        Journal: today&apos;s entry
                       </Command.Item>
                     ) : null}
                     <Command.Item

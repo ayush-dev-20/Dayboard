@@ -35,6 +35,10 @@ import { GeneratePanel, type GenerateResult } from "@/components/ai/generate-pan
 import { TasksPreviewDialog } from "@/components/ai/tasks-preview-dialog";
 import { useAICall, useAIStream } from "@/components/ai/use-ai";
 import { useWorkspace } from "@/components/workspace/workspace-context";
+import { DoneOnThisDay } from "@/components/journal/done-on-this-day";
+import { journalTitle } from "@/lib/dates/journal";
+import { doneDocument } from "@/lib/journal/done-doc";
+import type { DoneOnDay } from "@/lib/journal/dto";
 import { insertSummary, parseSummary } from "@/lib/ai/summary";
 import type { PreviewTask } from "@/lib/ai/tasks-output";
 import { EmojiButton } from "@/components/emoji/emoji-picker";
@@ -72,7 +76,7 @@ import type { SaveStatus } from "@/hooks/use-autosave";
 import { isEmptyDoc } from "@/lib/editor/projection";
 import { COPY_NOTE_EVENT } from "@/lib/shortcuts";
 import type { TiptapDoc } from "@/lib/editor/types";
-import { clearDraft, readDraft } from "@/lib/notes/draft";
+import { clearDraft, readDraft, writeDraft } from "@/lib/notes/draft";
 import { subNotesWord } from "@/lib/notes/cascade";
 import type { BacklinkDTO, LinkedTaskDTO, NoteChildDTO, NoteDTO } from "@/lib/notes/dto";
 import { collectNoteRefs } from "@/lib/notes/links";
@@ -99,6 +103,12 @@ type Props = {
   start?: { project: ProjectRef | null; linkTaskId: string | null; ai?: boolean };
   /** What links to this note (V2 feature 07 §4), read on the server with the note. */
   backlinks?: BacklinkDTO[];
+  /**
+   * A journal entry (V3 feature 02): the note page for one day. `note` is null for today's entry before anything is
+   * typed. Back goes to Journal, the sub-note and Move to actions are not offered, and the day's finished work is
+   * listed under the text.
+   */
+  journal?: { date: string; done: DoneOnDay; timeZone: string };
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -152,7 +162,7 @@ function saveStatus(state: NoteSaveState): SaveStatus {
  * The full-page note editor, for new and existing notes alike. A new note is created on the first
  * change, then the address bar is updated without remounting, so the cursor never moves.
  */
-export function NoteEditor({ note, start, backlinks = [] }: Props) {
+export function NoteEditor({ note, start, backlinks = [], journal }: Props) {
   const router = useRouter();
   // Inside the peek dialog (Today): no back arrow or tree button, the dialog's own buttons, and Trash closes it.
   const dialog = useExpandableDialog();
@@ -163,7 +173,7 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
     () => true,
   );
 
-  const [title, setTitle] = useState(note?.title ?? "");
+  const [title, setTitle] = useState(note?.title ?? (journal ? journalTitle(journal.date) : ""));
   const [emoji, setEmoji] = useState<string | null>(note?.emoji ?? null);
   const [project, setProject] = useState<ProjectRef | null>(
     note?.project ?? start?.project ?? null,
@@ -188,7 +198,7 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
   );
   const [moveOpen, setMoveOpen] = useState(false);
   const [askTopLevel, setAskTopLevel] = useState(false);
-  const liveTitle = useRef(note?.title ?? "");
+  const liveTitle = useRef(note?.title ?? (journal ? journalTitle(journal.date) : ""));
   const liveEmoji = useRef<string | null>(note?.emoji ?? null);
   const [projectOpen, setProjectOpen] = useState(false);
   const [extractOpen, setExtractOpen] = useState(false);
@@ -199,7 +209,26 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
       ? { id: note.id, version: note.version, title: note.title, doc: note.contentJson }
       : null,
     create: { projectId: project?.id ?? null, linkTaskId: start?.linkTaskId ?? null },
+    newTitle: journal ? journalTitle(journal.date) : undefined,
+    journal: journal
+      ? {
+          onExists: (id, doc, typedTitle) => {
+            // The day already has an entry: what was typed waits there as a draft, offered by "Recover".
+            if (doc)
+              writeDraft(id, { doc, title: typedTitle, savedAt: Date.now(), baseVersion: 1 });
+            toast("Today already has an entry. Opening it.");
+            router.replace(`/journal/${id}`);
+          },
+        }
+      : undefined,
     onCreated: (id) => {
+      if (journal) {
+        window.history.replaceState(window.history.state, "", `/journal/${id}`);
+        // The sidebar's Journal list learns about it now; the Notes tree does not (entries are not in it).
+        emitNoteEvent({ type: "journal", entry: { id, date: journal.date, firstLine: "" } });
+        if (liveEmoji.current) void updateNoteMeta({ id, emoji: liveEmoji.current });
+        return;
+      }
       window.history.replaceState(window.history.state, "", `/notes/${id}`);
       // The sidebar tree learns about it now; there is no refresh while the editor keeps running.
       emitNoteEvent({
@@ -445,7 +474,7 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
   /** Where to go once the note is gone: back to the page under the dialog, or to the list. */
   function leave() {
     if (dialog) dialog.close();
-    else router.push("/notes");
+    else router.push(journal ? "/journal" : "/notes");
   }
 
   async function trash() {
@@ -469,7 +498,12 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
         label: "Undo",
         onClick: async () => {
           const undo = await restoreNote({ id: noteId });
-          if (!undo.ok) toast.error("Couldn't restore that. Try Trash.");
+          if (!undo.ok)
+            toast.error(
+              undo.error.code === "CONFLICT"
+                ? undo.error.message
+                : "Couldn't restore that. Try Trash.",
+            );
           else {
             emitNoteEvent({ type: "structure" });
             router.refresh();
@@ -500,6 +534,20 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
       duration: 6000,
       action: { label: "Open", onClick: () => router.push(`/notes/${made.id}`) },
     });
+  }
+
+  // "Add to entry" in the Done section: the list goes to the end of the text as one undo step, and the entry saves it
+  // like any edit. It writes nothing to the server by itself.
+  function addDoneToEntry(): boolean {
+    const doc = journal ? doneDocument(journal.done.items) : null;
+    const editor = editorRef.current;
+    if (!doc || !editor) return false;
+    const applied = appendDoc(editor, doc);
+    if (!applied.ok) {
+      toast.error(applied.reason);
+      return false;
+    }
+    return true;
   }
 
   // A menu item opens a picker only once the menu has finished closing; otherwise the menu hands
@@ -582,28 +630,47 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
         {dialog ? null : (
           <Link
             href={
-              project && !note
-                ? `/projects/${project.id}`
-                : note && note.breadcrumb.length > 0
-                  ? `/notes/${note.breadcrumb[note.breadcrumb.length - 1]!.id}`
-                  : "/notes"
+              journal
+                ? "/journal"
+                : project && !note
+                  ? `/projects/${project.id}`
+                  : note && note.breadcrumb.length > 0
+                    ? `/notes/${note.breadcrumb[note.breadcrumb.length - 1]!.id}`
+                    : "/notes"
             }
             aria-label={
-              note && note.breadcrumb.length > 0 ? "Back to the parent note" : "Back to notes"
+              journal
+                ? "Back to journal"
+                : note && note.breadcrumb.length > 0
+                  ? "Back to the parent note"
+                  : "Back to notes"
             }
             className="-ml-2 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-8"
           >
             <ArrowLeft className="size-4" strokeWidth={1.5} aria-hidden />
           </Link>
         )}
-        <NoteBreadcrumb
-          ancestors={note?.breadcrumb ?? []}
-          project={project}
-          title={title}
-          isNew={!note && !noteId}
-        />
+        {journal ? (
+          <nav
+            aria-label="Breadcrumb"
+            className="min-w-0 flex-1 truncate type-body-md text-muted-foreground max-md:hidden"
+          >
+            <Link href="/journal" className="hover:text-foreground">
+              Journal
+            </Link>
+            <span aria-hidden> / </span>
+            <span className="text-foreground">{title.trim() || journalTitle(journal.date)}</span>
+          </nav>
+        ) : (
+          <NoteBreadcrumb
+            ancestors={note?.breadcrumb ?? []}
+            project={project}
+            title={title}
+            isNew={!note && !noteId}
+          />
+        )}
         <span className="flex-1 md:hidden" />
-        {dialog ? null : <NotesTreeSheet />}
+        {dialog || journal ? null : <NotesTreeSheet />}
 
         <SaveState status={saveStatus(sync.state)} />
         <LinkedTasks noteId={noteId} tasks={tasks} onChange={setTasks} />
@@ -669,25 +736,29 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
                 <SmilePlus strokeWidth={1.5} aria-hidden /> Emoji
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                disabled={!noteId}
-                title={noteId ? undefined : needsNote}
-                onSelect={() => {
-                  afterMenu.current = () => void addSubNote();
-                }}
-              >
-                <FilePlus2 strokeWidth={1.5} aria-hidden /> New sub-note
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={!noteId}
-                title={noteId ? undefined : needsNote}
-                onSelect={() => {
-                  afterMenu.current = () => setMoveOpen(true);
-                }}
-              >
-                <FolderInput strokeWidth={1.5} aria-hidden /> Move to…
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {journal ? null : (
+                <>
+                  <DropdownMenuItem
+                    disabled={!noteId}
+                    title={noteId ? undefined : needsNote}
+                    onSelect={() => {
+                      afterMenu.current = () => void addSubNote();
+                    }}
+                  >
+                    <FilePlus2 strokeWidth={1.5} aria-hidden /> New sub-note
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!noteId}
+                    title={noteId ? undefined : needsNote}
+                    onSelect={() => {
+                      afterMenu.current = () => setMoveOpen(true);
+                    }}
+                  >
+                    <FolderInput strokeWidth={1.5} aria-hidden /> Move to…
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onSelect={() => void copyNote("note")}>
                 <Copy strokeWidth={1.5} aria-hidden /> Copy note
               </DropdownMenuItem>
@@ -698,6 +769,8 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
+                    disabled={Boolean(journal) && !noteId}
+                    title={journal && !noteId ? needsNote : undefined}
                     onSelect={() => {
                       afterMenu.current = () => {
                         generateFocus.current = true;
@@ -849,10 +922,15 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
         variant="document"
         writingHelp={aiEnabled}
         surface="note"
+        subNotes={!journal}
         ownerId={noteId}
         ensureOwner={ensureOwner}
         label="Note content"
-        placeholder="Start writing. The note is created when you type."
+        placeholder={
+          journal
+            ? "Write about your day. The entry is created when you type."
+            : "Start writing. The note is created when you type."
+        }
         onChange={(doc) => {
           liveDoc.current = doc;
           setHasText(!isEmptyDoc(doc));
@@ -869,16 +947,24 @@ export function NoteEditor({ note, start, backlinks = [] }: Props) {
         beforeContent={
           <>
             {titleField}
+            {journal && title.trim() !== journalTitle(journal.date) ? (
+              <p className="-mt-2 mb-4 type-body-md text-muted-foreground">
+                {journalTitle(journal.date)}
+              </p>
+            ) : null}
             {noteId ? <BacklinksPanel noteId={noteId} initial={backlinks} /> : null}
           </>
         }
       />
 
+      {journal ? (
+        <DoneOnThisDay done={journal.done} timeZone={journal.timeZone} onAdd={addDoneToEntry} />
+      ) : null}
       <SubNotesSection notes={unplaced} />
       <AttachmentsSection ownerType="NOTE" ownerId={noteId} />
       {noteId ? <RelatedPanel type="note" id={noteId} /> : null}
 
-      {aiEnabled && !noteId && !generateOpen ? (
+      {aiEnabled && !noteId && !generateOpen && !journal ? (
         <p className="mt-2">
           <Button
             variant="secondary"

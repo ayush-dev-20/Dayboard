@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { createJournalEntry } from "@/actions/journal";
 import { createNote, loadNote, saveNoteContent, saveNoteTitle } from "@/actions/notes";
 import type { TiptapDoc } from "@/lib/editor/types";
 import type { NoteDTO } from "@/lib/notes/dto";
@@ -19,6 +20,13 @@ type Options = {
   create: { projectId?: string | null; linkTaskId?: string | null };
   /** Called once the new note exists, with its id (the address bar is updated, the editor keeps running). */
   onCreated: (id: string) => void;
+  /**
+   * A new journal entry (V3 feature 02): it is made by `createJournalEntry`, which picks the day on the server and
+   * may answer that the day already has one (another tab or device). Then `onExists` gets the id and what was typed.
+   */
+  journal?: { onExists: (id: string, doc: TiptapDoc | null, title: string) => void };
+  /** The title a new note starts with (a journal entry starts with its date). */
+  newTitle?: string;
 };
 
 const CONTENT_DELAY_MS = 800;
@@ -53,14 +61,14 @@ export type NoteSync = {
  * back online. A new note is created on its first change, so abandoned "new note" clicks leave
  * nothing behind.
  */
-export function useNoteSync({ initial, create, onCreated }: Options): NoteSync {
+export function useNoteSync({ initial, create, onCreated, journal, newTitle }: Options): NoteSync {
   const [state, dispatch] = useReducer(noteSaveReducer, INITIAL_SAVE_STATE);
 
   const [noteId, setNoteId] = useState<string | null>(initial?.id ?? null);
   const idRef = useRef<string | null>(initial?.id ?? null);
   const versionRef = useRef(initial?.version ?? 1);
   const docRef = useRef<TiptapDoc | null>(initial?.doc ?? null);
-  const titleRef = useRef(initial?.title ?? "");
+  const titleRef = useRef(initial?.title ?? newTitle ?? "");
   const emojiRef = useRef<string | null>(null);
   const dirtyDoc = useRef<TiptapDoc | null>(null);
   const dirtyTitle = useRef<string | null>(null);
@@ -72,13 +80,13 @@ export function useNoteSync({ initial, create, onCreated }: Options): NoteSync {
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const failedRef = useRef(false);
   const settled = useRef<(() => void)[]>([]);
-  const optionsRef = useRef({ create, onCreated });
+  const optionsRef = useRef({ create, onCreated, journal });
   // `run` calls itself again (more typing arrived, or a retry); going through a ref keeps it from
   // referring to itself while it is being declared.
   const runRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
-    optionsRef.current = { create, onCreated };
+    optionsRef.current = { create, onCreated, journal };
   });
 
   const isDirty = () => dirtyDoc.current !== null || dirtyTitle.current !== null;
@@ -111,15 +119,27 @@ export function useNoteSync({ initial, create, onCreated }: Options): NoteSync {
 
     try {
       if (!idRef.current) {
-        const result = await createNote({
-          title: titleRef.current,
-          emoji: emojiRef.current,
-          contentJson: docRef.current ?? undefined,
-          projectId: optionsRef.current.create.projectId ?? null,
-          linkTaskId: optionsRef.current.create.linkTaskId ?? null,
-        });
+        const journalOptions = optionsRef.current.journal;
+        const result = journalOptions
+          ? await createJournalEntry({
+              title: titleRef.current || undefined,
+              contentJson: docRef.current ?? undefined,
+            })
+          : await createNote({
+              title: titleRef.current,
+              emoji: emojiRef.current,
+              contentJson: docRef.current ?? undefined,
+              projectId: optionsRef.current.create.projectId ?? null,
+              linkTaskId: optionsRef.current.create.linkTaskId ?? null,
+            });
         if (!result.ok) {
           failed = true;
+        } else if ("outcome" in result.data && result.data.outcome === "exists") {
+          // Today already has an entry (made in another tab or on another device). Nothing was created here and
+          // nothing typed is thrown away: it goes to the existing entry as a draft, to recover there.
+          if (dirtyDoc.current === sentDoc) dirtyDoc.current = null;
+          if (dirtyTitle.current === sentTitle) dirtyTitle.current = null;
+          journalOptions?.onExists(result.data.id, docRef.current, titleRef.current);
         } else {
           idRef.current = result.data.id;
           versionRef.current = result.data.version;

@@ -278,7 +278,9 @@ const searchSchema = z.strictObject({ query: z.string().max(100) });
 
 export async function findNotesToLink(
   input: unknown,
-): Promise<ActionResult<{ id: string; title: string; emoji: string | null }[]>> {
+): Promise<
+  ActionResult<{ id: string; title: string; emoji: string | null; journalDate: string | null }[]>
+> {
   return runAction("notes.findToLink", async () => {
     const user = await requireUser();
     const { query } = searchSchema.parse(input);

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { NoteEditor } from "@/components/notes/note-editor";
 import { RecordOpened } from "@/components/search/record-opened";
 import { getBacklinks } from "@/db/queries/note-tree";
@@ -17,6 +17,8 @@ export default async function NotePage({ params }: { params: Promise<{ id: strin
 
   const [note, backlinks] = await Promise.all([getNote(user.id, id), getBacklinks(user.id, id)]);
   if (!note) notFound();
+  // A journal entry has its own page (V3 feature 02): every older link to it still lands there.
+  if (note.journalDate) redirect(`/journal/${note.id}`);
 
   // Keyed by id, so moving from one note to another never carries state over.
   return (

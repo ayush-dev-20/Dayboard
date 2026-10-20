@@ -8,6 +8,7 @@ import { orderAtTopOf } from "@/db/mutations/note-tree";
 import { notes, taskNotes } from "@/db/schema";
 import { AppError } from "@/lib/errors";
 import { orderBetween, renumber } from "@/lib/tasks/ordering";
+import { subNotesToLinks } from "@/lib/editor/clipboard/fit";
 import type { TiptapDoc } from "@/lib/editor/types";
 import type { CreateNoteInput } from "@/lib/validations/notes";
 
@@ -98,20 +99,42 @@ export async function saveNoteContent(
   input: { id: string; contentJson: TiptapDoc; baseVersion: number },
 ): Promise<SaveResult> {
   return db.transaction(async (tx) => {
-    const { text, titles } = await projectDoc(tx, userId, input.contentJson);
+    const doc = await forNoteKind(tx, userId, input.id, input.contentJson);
+    const { text, titles } = await projectDoc(tx, userId, doc);
     const [row] = await tx
       .update(notes)
       .set({
-        contentJson: input.contentJson,
+        contentJson: doc,
         contentText: text,
         version: sql`${notes.version} + 1`,
       })
       .where(and(owned(userId, input.id), eq(notes.version, input.baseVersion)))
       .returning({ version: notes.version, updatedAt: notes.updatedAt });
     if (!row) return conflictOrMissing(tx, userId, input.id);
-    await syncNoteLinks(tx, userId, { type: "NOTE", id: input.id }, input.contentJson, titles);
+    await syncNoteLinks(tx, userId, { type: "NOTE", id: input.id }, doc, titles);
     return { outcome: "saved", version: row.version, updatedAt: row.updatedAt.toISOString() };
   });
+}
+
+/**
+ * A journal entry holds no sub-note blocks (V3 feature 02 §3), so the hierarchy never has a note under a
+ * dated one. A block that arrives anyway (a paste from another note) is kept as a link. Ordinary notes pass
+ * through, and the extra read only happens when the text has a sub-note block at all.
+ */
+async function forNoteKind(
+  executor: Executor,
+  userId: string,
+  id: string,
+  doc: TiptapDoc,
+): Promise<TiptapDoc> {
+  if (!JSON.stringify(doc).includes('"subNote"')) return doc;
+  const [row] = await executor
+    .select({ journalDate: notes.journalDate })
+    .from(notes)
+    .where(owned(userId, id))
+    .limit(1);
+  if (!row?.journalDate) return doc;
+  return { ...doc, content: subNotesToLinks(doc.content ?? []) };
 }
 
 export async function saveNoteTitle(

@@ -32,7 +32,13 @@ export type TaskDTO = {
   tags: TagDTO[];
 };
 
-export type NoteRefDTO = { id: string; title: string; emoji: string | null };
+export type NoteRefDTO = {
+  id: string;
+  title: string;
+  emoji: string | null;
+  /** A journal entry's day (V3 feature 02), so a picker can show it with a calendar glyph. */
+  journalDate?: string | null;
+};
 
 export type TaskDetailDTO = TaskDTO & {
   descriptionJson: TiptapDoc | null;

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  date,
   doublePrecision,
   index,
   integer,
@@ -12,6 +13,7 @@ import {
   timestamp,
   uuid,
   type AnyPgColumn,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { uuidv7 } from "../../lib/ids";
 import type { TiptapDoc } from "../../lib/editor/types";
@@ -50,6 +52,9 @@ export const notes = pgTable(
     // restoring brings back exactly that set and nothing that was already there.
     deletedCascadeId: uuid("deleted_cascade_id"),
     archivedCascadeId: uuid("archived_cascade_id"),
+    // Journal (V3 feature 02): the calendar day an entry belongs to, in the person's own time zone. Set by the
+    // server only; null for every ordinary note. At most one live entry per person per day (index below).
+    journalDate: date("journal_date", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -62,6 +67,14 @@ export const notes = pgTable(
     check("notes_title_length", sql`char_length(${t.title}) <= 300`),
     check("notes_depth_range", sql`${t.depth} between 1 and 5`),
     check("notes_not_own_parent", sql`${t.parentNoteId} is null or ${t.parentNoteId} <> ${t.id}`),
+    // An entry is always a top-level note.
+    check(
+      "notes_journal_top_level",
+      sql`${t.journalDate} is null or (${t.parentNoteId} is null and ${t.depth} = 1)`,
+    ),
+    uniqueIndex("notes_user_journal_date_idx")
+      .on(t.userId, t.journalDate)
+      .where(sql`${t.journalDate} is not null and ${t.deletedAt} is null`),
     index("notes_user_updated_at_idx").on(t.userId, t.updatedAt.desc()),
     index("notes_user_deleted_at_idx").on(t.userId, t.deletedAt),
     index("notes_user_project_idx").on(t.userId, t.projectId),

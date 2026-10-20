@@ -14,12 +14,12 @@ import {
 // own while its parent is alive is listed itself.
 function union(userId: string) {
   return sql`
-    select 'task'::text as type, t.id, t.title, t.emoji, t.deleted_at, 0::int as sub_notes, 0::int as descendants from tasks t
+    select 'task'::text as type, t.id, t.title, t.emoji, t.deleted_at, 0::int as sub_notes, 0::int as descendants, null::text as journal_date from tasks t
       where t.user_id = ${userId} and t.deleted_at is not null
         and (t.parent_task_id is null or not exists (
           select 1 from tasks p where p.id = t.parent_task_id and p.deleted_at is not null))
     union all
-    select 'todo', d.id, d.title, d.emoji, d.deleted_at, 0, 0 from todos d
+    select 'todo', d.id, d.title, d.emoji, d.deleted_at, 0, 0, null from todos d
       where d.user_id = ${userId} and d.deleted_at is not null
     union all
     -- A note trashed together with its parent travels with it: only the top of such a group is
@@ -32,20 +32,21 @@ function union(userId: string) {
           select id from notes where id = n.id
           union all
           select c.id from notes c join sub s on c.parent_note_id = s.id)
-        select count(*)::int - 1 from sub)
+        select count(*)::int - 1 from sub),
+      to_char(n.journal_date, 'YYYY-MM-DD')
       from notes n
       where n.user_id = ${userId} and n.deleted_at is not null
         and (n.parent_note_id is null or n.deleted_cascade_id is null or not exists (
           select 1 from notes p where p.id = n.parent_note_id and p.deleted_at is not null
             and p.deleted_cascade_id = n.deleted_cascade_id))
     union all
-    select 'project', p.id, p.name, null, p.deleted_at, 0, 0 from projects p
+    select 'project', p.id, p.name, null, p.deleted_at, 0, 0, null from projects p
       where p.user_id = ${userId} and p.deleted_at is not null
     union all
-    select 'inbox', i.id, left(split_part(i.text, E'\\n', 1), 200), null, i.deleted_at, 0, 0 from inbox_items i
+    select 'inbox', i.id, left(split_part(i.text, E'\\n', 1), 200), null, i.deleted_at, 0, 0, null from inbox_items i
       where i.user_id = ${userId} and i.deleted_at is not null
     union all
-    select 'canvas', c.id, case when c.title = '' then 'Untitled canvas' else c.title end, c.emoji, c.deleted_at, 0, 0 from canvases c
+    select 'canvas', c.id, case when c.title = '' then 'Untitled canvas' else c.title end, c.emoji, c.deleted_at, 0, 0, null from canvases c
       where c.user_id = ${userId} and c.deleted_at is not null`;
 }
 
@@ -57,6 +58,7 @@ type Row = {
   deleted_at: Date;
   sub_notes: number;
   descendants: number;
+  journal_date: string | null;
 };
 
 export type TrashCursor = { at: string; id: string };
@@ -78,7 +80,7 @@ export async function listTrash(
     : sql`true`;
 
   const rows = (await db.execute(sql`
-    select u.type, u.id, u.title, u.emoji, u.deleted_at, u.sub_notes, u.descendants from (${union(userId)}) u
+    select u.type, u.id, u.title, u.emoji, u.deleted_at, u.sub_notes, u.descendants, u.journal_date from (${union(userId)}) u
     where ${typeCond} and ${cursorCond}
     order by u.deleted_at desc, u.id desc
     limit ${TRASH_PAGE + 1}`)) as unknown as Row[];
@@ -94,6 +96,7 @@ export async function listTrash(
       deletedAt: new Date(r.deleted_at).toISOString(),
       subNotes: r.sub_notes,
       descendants: r.descendants,
+      journalDate: r.journal_date,
     })),
     next:
       rows.length > TRASH_PAGE && last

@@ -57,6 +57,7 @@ function hit(
     project: null,
     snippet: null,
     path: [],
+    journalDate: null,
     status: null,
     dueDate: null,
     done: false,
@@ -220,6 +221,7 @@ async function searchNotes(
       archivedAt: notes.archivedAt,
       projectId: notes.projectId,
       updatedAt: notes.updatedAt,
+      journalDate: notes.journalDate,
       rank: rankOf(notes.title, q),
       window: windowOf(sql`${notes.contentText}`, q),
     })
@@ -263,7 +265,8 @@ async function searchNotes(
       id: r.id,
       title: r.title || "Untitled",
       emoji: r.emoji,
-      href: `/notes/${r.id}`,
+      href: r.journalDate ? `/journal/${r.id}` : `/notes/${r.id}`,
+      journalDate: r.journalDate,
       archived: r.archivedAt !== null,
       project: (r.projectId && refs.get(r.projectId)) || null,
       path: (paths.get(r.id) ?? []).map((c) => c.title),
@@ -518,6 +521,7 @@ export async function recentItems(userId: string, limit = 5): Promise<SearchHit[
         archivedAt: notes.archivedAt,
         projectId: notes.projectId,
         updatedAt: notes.updatedAt,
+        journalDate: notes.journalDate,
       })
       .from(notes)
       .where(and(eq(notes.userId, userId), isNull(notes.deletedAt)))
@@ -551,7 +555,8 @@ export async function recentItems(userId: string, limit = 5): Promise<SearchHit[
         id: r.id,
         title: r.title || "Untitled",
         emoji: r.emoji,
-        href: `/notes/${r.id}`,
+        href: r.journalDate ? `/journal/${r.id}` : `/notes/${r.id}`,
+        journalDate: r.journalDate,
         archived: r.archivedAt !== null,
         project: (r.projectId && refs.get(r.projectId)) || null,
         path: (paths.get(r.id) ?? []).map((c) => c.title),

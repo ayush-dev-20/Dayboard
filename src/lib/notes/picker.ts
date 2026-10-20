@@ -10,6 +10,8 @@ export type PickerCandidate = {
   /** Titles of the note's parents, top-level first: tells two notes with the same title apart. */
   path: string[];
   updatedAt: string;
+  /** A journal entry's day (V3 feature 02); the picker shows a calendar glyph and the date. */
+  journalDate?: string | null;
   /** The query occurs in the body (the database already decided; the title is checked here). */
   bodyMatch?: boolean;
 };

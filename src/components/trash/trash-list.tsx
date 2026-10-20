@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, CircleCheck, Ellipsis, FileText, Folder, Inbox, Shapes } from "lucide-react";
+import {
+  BookOpen,
+  CheckSquare,
+  CircleCheck,
+  Ellipsis,
+  FileText,
+  Folder,
+  Inbox,
+  Shapes,
+} from "lucide-react";
 import { toast } from "sonner";
 import { emptyTrash, permanentlyDeleteTrashItem, restoreTrashItem } from "@/actions/trash";
 import { ConfirmDialog } from "@/components/layout/confirm-dialog";
@@ -44,7 +53,7 @@ function TrashRow({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const Icon = ICONS[item.type];
+  const Icon = item.journalDate ? BookOpen : ICONS[item.type];
 
   async function restore() {
     setBusy(true);
@@ -76,7 +85,9 @@ function TrashRow({
     >
       <span className="flex w-20 shrink-0 items-center gap-2 type-body-md text-muted-foreground max-md:w-6">
         <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-        <span className="max-md:sr-only">{TRASH_LABELS[item.type]}</span>
+        <span className="max-md:sr-only">
+          {item.journalDate ? "Journal" : TRASH_LABELS[item.type]}
+        </span>
       </span>
       <span className="flex min-w-0 flex-1 items-center gap-2 text-[16px] md:text-[14px]">
         {item.emoji ? <span aria-hidden>{item.emoji}</span> : null}

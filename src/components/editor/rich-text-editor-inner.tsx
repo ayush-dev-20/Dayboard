@@ -58,6 +58,8 @@ export type RichTextEditorProps = {
   ownerId?: string | null;
   /** Creates a note that does not exist yet and returns its id (a sub-note needs a parent). */
   ensureOwner?: () => Promise<string | null>;
+  /** Offer sub-notes (the slash item and the link picker's "as a sub-note"). Default true; off in the journal. */
+  subNotes?: boolean;
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -89,6 +91,7 @@ export default function RichTextEditor({
   surface,
   ownerId = null,
   ensureOwner,
+  subNotes = true,
 }: RichTextEditorProps) {
   const offline = !useSyncExternalStore(
     subscribeOnline,
@@ -104,8 +107,9 @@ export default function RichTextEditor({
       offline,
       filesEnabled,
       ensureOwner,
+      subNotes,
     }),
-    [surface, variant, ownerId, offline, filesEnabled, ensureOwner],
+    [surface, variant, ownerId, offline, filesEnabled, ensureOwner, subNotes],
   );
   // The editor is created once; its extensions read the latest context through a holder.
   const [holder] = useState(() => createContextHolder(context));

@@ -22,6 +22,8 @@ const GAPS = new Set([
   "canvases.ts:permanentlyDeleteCanvas",
   "canvases.ts:linkTaskCanvas",
   "canvases.ts:unlinkTaskCanvas",
+  // The journal (V3 feature 02) creates notes that carry a date; notes are not in the sync protocol.
+  "journal.ts:createJournalEntry",
   "attachments.ts:createIntent",
   "attachments.ts:finalizeAttachment",
   "attachments.ts:deleteAttachment",

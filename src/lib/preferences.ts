@@ -2,6 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { userPreferences, type UserPreferences } from "@/db/schema";
+import type { DayPrefs } from "@/lib/dates/today";
 
 /** Creates the row every user has. Idempotent, so it is safe to call from a hook and from reads. */
 export async function createDefaultPreferences(userId: string): Promise<void> {
@@ -20,4 +21,10 @@ export async function getPreferences(userId: string): Promise<UserPreferences> {
     .where(eq(userPreferences.userId, userId));
   if (!created) throw new Error("Could not create default preferences");
   return created;
+}
+
+/** The person's own day: their time zone and the hour their day starts (V3 feature 02 reads it on the server). */
+export async function getDayPrefs(userId: string): Promise<DayPrefs> {
+  const prefs = await getPreferences(userId);
+  return { timezone: prefs.timezone, startOfDay: prefs.startOfDay.slice(0, 5) };
 }

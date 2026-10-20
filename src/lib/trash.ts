@@ -20,6 +20,8 @@ export type TrashItemDTO = {
   subNotes: number;
   /** Notes only: everything below it in any state, which permanent deletion also removes. */
   descendants: number;
+  /** A journal entry's day (V3 feature 02): the item is a note labelled Journal. Null for everything else. */
+  journalDate: string | null;
 };
 
 export type TrashCounts = Record<TrashType, number> & { total: number };

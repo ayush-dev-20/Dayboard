@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { busyWindows } from "@/lib/calendar/planning";
 import { getStatus } from "@/lib/calendar/store";
+import { plainNotes } from "@/db/queries/note-filters";
 import { addDays } from "@/lib/dates/calendar";
 import { getUserToday, type DayPrefs } from "@/lib/dates/today";
 import { env } from "@/lib/env";
@@ -69,6 +70,8 @@ async function activityBetween(userId: string, from: Date, to: Date): Promise<Ac
       .where(
         and(
           eq(notes.userId, userId),
+          // A daily journal entry is not a note the person made in a project.
+          plainNotes,
           isNull(notes.deletedAt),
           gte(notes.createdAt, from),
           lt(notes.createdAt, to),
@@ -217,6 +220,7 @@ export async function loadFactsInput(
       .where(
         and(
           eq(notes.userId, userId),
+          plainNotes,
           isNull(notes.deletedAt),
           gte(notes.createdAt, from),
           lt(notes.createdAt, to),
@@ -228,6 +232,7 @@ export async function loadFactsInput(
       .where(
         and(
           eq(notes.userId, userId),
+          plainNotes,
           isNull(notes.deletedAt),
           gte(notes.createdAt, from),
           lt(notes.createdAt, to),
@@ -241,6 +246,7 @@ export async function loadFactsInput(
       .where(
         and(
           eq(notes.userId, userId),
+          plainNotes,
           isNull(notes.deletedAt),
           gte(notes.updatedAt, from),
           lt(notes.updatedAt, to),

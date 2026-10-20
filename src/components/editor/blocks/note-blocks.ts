@@ -16,6 +16,8 @@ export function registerNoteBlocks(): void {
       group: "Links",
       icon: FilePlus2,
       surfaces: ["note"],
+      // Not inside a journal entry: it stays in the Journal and holds no sub-notes (V3 feature 02 §3).
+      available: (ctx) => ctx.subNotes !== false,
       async insert(editor, ctx) {
         const made = await makeSubNote(ctx);
         if (made && !insertSubNoteBlock(editor, made.id)) {

@@ -69,6 +69,8 @@ export type NoteDTO = {
   children: NoteChildDTO[];
   /** 1 for a top-level note. */
   depth: number;
+  /** "YYYY-MM-DD" when this note is a journal entry (V3 feature 02), otherwise null. */
+  journalDate: string | null;
 };
 
 export const SNIPPET_LENGTH = 160;

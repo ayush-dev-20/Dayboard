@@ -45,6 +45,8 @@ export type SearchHit = {
   snippet: Snippet | null;
   /** Notes: the titles of the notes it sits under, top-level first (V2 feature 07). */
   path: string[];
+  /** A journal entry's day, "YYYY-MM-DD" (V3 feature 02). The hit is a note labelled Journal that opens in the Journal. */
+  journalDate: string | null;
   status: TaskStatus | null;
   /** Tasks and todos. */
   dueDate: string | null;

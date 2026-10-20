@@ -3,6 +3,7 @@ import { and, asc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { notes } from "@/db/schema";
+import { isUniqueViolation } from "@/db/mutations/reused-id";
 import { AppError } from "@/lib/errors";
 import { uuidv7 } from "@/lib/ids";
 import {
@@ -79,6 +80,10 @@ export async function loadSubtree(
   }));
 }
 
+export const JOURNAL_DAY_TAKEN =
+  "There is already an entry for that day. Open it, or delete it first.";
+const JOURNAL_STRUCTURE_MESSAGE = "A journal entry stays in the Journal. It can't hold sub-notes or be moved.";
+
 async function loadNoteRow(executor: Executor, userId: string, id: string) {
   const [row] = await executor
     .select({
@@ -88,6 +93,7 @@ async function loadNoteRow(executor: Executor, userId: string, id: string) {
       projectId: notes.projectId,
       deletedAt: notes.deletedAt,
       archivedAt: notes.archivedAt,
+      journalDate: notes.journalDate,
     })
     .from(notes)
     .where(and(eq(notes.id, id), eq(notes.userId, userId)))
@@ -149,6 +155,7 @@ export async function createSubNote(
     await lockTree(tx, userId);
     const parent = await loadNoteRow(tx, userId, input.parentId);
     if (!parent || parent.deletedAt) throw new AppError("NOT_FOUND");
+    if (parent.journalDate) throw new AppError("VALIDATION_ERROR", JOURNAL_STRUCTURE_MESSAGE);
     if (parent.archivedAt) {
       throw new AppError("VALIDATION_ERROR", "Unarchive this note to add a sub-note to it.");
     }
@@ -207,6 +214,10 @@ export async function moveNote(
     const subtree = await loadSubtree(tx, userId, input.id);
     const root = subtree.find((r) => r.id === input.id);
     if (!root || root.deletedAt) throw new AppError("NOT_FOUND");
+    // A journal entry belongs to its day: it is never placed in the tree.
+    if ((await loadNoteRow(tx, userId, input.id))?.journalDate) {
+      throw new AppError("VALIDATION_ERROR", JOURNAL_STRUCTURE_MESSAGE);
+    }
 
     let parentDepth = 0;
     if (input.parentId !== null) {
@@ -215,6 +226,7 @@ export async function moveNote(
       }
       const parent = await loadNoteRow(tx, userId, input.parentId);
       if (!parent || parent.deletedAt) throw new AppError("NOT_FOUND");
+      if (parent.journalDate) throw new AppError("VALIDATION_ERROR", JOURNAL_STRUCTURE_MESSAGE);
       if (parent.archivedAt) {
         throw new AppError("VALIDATION_ERROR", "Unarchive that note before moving notes into it.");
       }
@@ -344,10 +356,17 @@ export async function restoreNote(
       }
     }
     const set = restoreSet(rows, id, "deleted");
-    await tx
-      .update(notes)
-      .set({ deletedAt: null, deletedCascadeId: null })
-      .where(and(eq(notes.userId, userId), inArray(notes.id, set)));
+    // A journal entry gives its day back only while no other live entry holds it.
+    const day = (await loadNoteRow(tx, userId, id))?.journalDate;
+    try {
+      await tx
+        .update(notes)
+        .set({ deletedAt: null, deletedCascadeId: null })
+        .where(and(eq(notes.userId, userId), inArray(notes.id, set)));
+    } catch (error) {
+      if (day && isUniqueViolation(error)) throw new AppError("CONFLICT", JOURNAL_DAY_TAKEN);
+      throw error;
+    }
     return { restored: set.length, subNotes: subNoteCount(set) };
   });
 }

@@ -83,6 +83,10 @@ export const tasks = pgTable(
     index("tasks_user_deleted_at_idx").on(t.userId, t.deletedAt),
     index("tasks_user_project_idx").on(t.userId, t.projectId),
     index("tasks_parent_idx").on(t.parentTaskId),
+    // "Done on this day" (V3 feature 02) filters by person and completion time.
+    index("tasks_user_completed_at_idx")
+      .on(t.userId, t.completedAt)
+      .where(sql`${t.completedAt} is not null`),
   ],
 );
 

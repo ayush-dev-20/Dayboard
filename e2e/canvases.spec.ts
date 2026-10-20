@@ -47,7 +47,7 @@ async function newCanvas(page: Page) {
 }
 
 test.describe("the Canvases tab and list", () => {
-  test("is in the sidebar between Notes and Projects, lists the latest five, and folds", async ({
+  test("is in the sidebar after Journal and before Projects, lists the latest five, and folds", async ({
     page,
   }) => {
     const user = await newUser(page);
@@ -60,11 +60,12 @@ test.describe("the Canvases tab and list", () => {
     const order = await nav
       .getByRole("link")
       .evaluateAll((links) => links.map((l) => (l as HTMLAnchorElement).textContent?.trim()));
-    expect(order.indexOf("Canvases")).toBe(
-      order.indexOf("Notes") + order.filter((t) => t === "Notes").length > 0
-        ? order.indexOf("Notes") + 1
-        : -1,
-    );
+    // The Library group reads Notes, Journal, Canvases, Projects (V3 features 01 and 02).
+    const at = (name: string) => order.indexOf(name);
+    expect(at("Notes")).toBeGreaterThanOrEqual(0);
+    expect(at("Notes")).toBeLessThan(at("Journal"));
+    expect(at("Journal")).toBeLessThan(at("Canvases"));
+    expect(at("Canvases")).toBeLessThan(at("Projects"));
     const latest = page.getByRole("list", { name: "Latest canvases" });
     await expect(latest.getByRole("link")).toHaveCount(6); // five canvases and "Show all"
     await page.getByRole("button", { name: "Hide canvases" }).click();

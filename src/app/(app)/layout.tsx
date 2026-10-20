@@ -7,6 +7,7 @@ import { PushHeartbeat } from "@/components/notifications/push-heartbeat";
 import { WorkspaceProvider } from "@/components/workspace/workspace-context";
 import { listProjectRefs } from "@/db/queries/projects";
 import { latestCanvases } from "@/db/queries/canvases";
+import { listSidebarEntries } from "@/db/queries/journal";
 import { getNavCounts } from "@/db/queries/nav-counts";
 import { getNoteTree } from "@/db/queries/note-tree";
 import { listTags } from "@/db/queries/tags";
@@ -27,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
-  const [projects, tags, counts, noteTree, canvases] = await Promise.all([
+  const [projects, tags, counts, noteTree, canvases, journalEntries] = await Promise.all([
     listProjectRefs(user.id),
     listTags(user.id),
     getNavCounts(user.id, {
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }),
     getNoteTree(user.id),
     latestCanvases(user.id, 5),
+    listSidebarEntries(user.id),
   ]);
 
   return (
@@ -51,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         voiceEnabled: voiceEnabledFor(preferences),
         noteTree,
         canvases,
+        journalEntries,
       }}
     >
       <PushHeartbeat />

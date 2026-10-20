@@ -48,6 +48,9 @@ export const todos = pgTable(
     index("todos_user_deleted_at_idx").on(t.userId, t.deletedAt),
     // The search index scan (V2 feature 10) looks for what changed since it last ran.
     index("todos_user_updated_at_idx").on(t.userId, t.updatedAt),
+    index("todos_user_completed_at_idx")
+      .on(t.userId, t.completedAt)
+      .where(sql`${t.completedAt} is not null`),
   ],
 );
 

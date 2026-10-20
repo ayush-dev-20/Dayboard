@@ -8,6 +8,7 @@ import { Counter } from "@/components/motion/counter";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip } from "@/components/ui/tooltip";
 import { NotesTreeToggle, SidebarNotesTree } from "@/components/notes/tree/sidebar-notes-tree";
+import { JournalAddAction, SidebarJournal } from "@/components/journal/sidebar-journal";
 import { SidebarSectionToggle, useSidebarSection } from "./sidebar-section";
 import { ColorDot } from "@/components/workspace/tokens";
 import { useWorkspace } from "@/components/workspace/workspace-context";
@@ -157,7 +158,7 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                   const count = countFor[href];
                   return (
                     <li key={href} className={cn(collapsed && "w-full")}>
-                      <div className="relative">
+                      <div className="group/row relative">
                         <Tooltip
                           label={count ? `${label} · ${count}` : label}
                           disabled={!collapsed}
@@ -177,6 +178,7 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                                 (href === "/projects" && shown.length > 0)) &&
                                 !collapsed &&
                                 "pr-9",
+                              href === "/journal" && !collapsed && "pr-20 lg:pr-14",
                               collapsed && "mx-auto w-10 justify-center px-0",
                               here
                                 ? "bg-sidebar-primary type-label-md text-sidebar-primary-foreground"
@@ -223,6 +225,19 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                         {href === "/notes" && !collapsed ? (
                           <NotesTreeToggle className="absolute top-1/2 right-1 -translate-y-1/2" />
                         ) : null}
+                        {href === "/journal" && !collapsed ? (
+                          <>
+                            <JournalAddAction
+                              onNavigate={onNavigate}
+                              className="absolute top-1/2 right-9 -translate-y-1/2 lg:right-7"
+                            />
+                            <SidebarSectionToggle
+                              name="journal"
+                              label="journal"
+                              className="absolute top-1/2 right-1 -translate-y-1/2"
+                            />
+                          </>
+                        ) : null}
                         {href === "/canvases" && !collapsed ? (
                           <SidebarSectionToggle
                             name="canvases"
@@ -240,6 +255,9 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                       </div>
                       {href === "/notes" && !collapsed ? (
                         <SidebarNotesTree onNavigate={onNavigate} />
+                      ) : null}
+                      {href === "/journal" && !collapsed ? (
+                        <SidebarJournal onNavigate={onNavigate} />
                       ) : null}
                       {href === "/canvases" &&
                       !collapsed &&
