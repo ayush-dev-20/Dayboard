@@ -47,6 +47,8 @@ type CommonArgs = {
   fixture?: unknown;
   /** How long one structured call may take. Only a feature that needs more than the default asks for it (a diagram). */
   timeoutMs?: number;
+  /** How long each model gets before the fallback is tried; `timeoutMs` still caps the whole call. */
+  attemptTimeoutMs?: number;
 };
 
 const sum = (a: TokenUsage, b: TokenUsage): TokenUsage => ({
@@ -85,6 +87,7 @@ export async function generateStructured<S extends z.ZodType>(
           maxOutputTokens: args.maxOutputTokens,
           fixture: args.fixture,
           signal: AbortSignal.timeout(args.timeoutMs ?? STRUCTURED_TIMEOUT_MS),
+          attemptTimeoutMs: args.attemptTimeoutMs,
         },
         args.schema,
       );

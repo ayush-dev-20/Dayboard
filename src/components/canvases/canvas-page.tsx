@@ -12,7 +12,9 @@ import {
   FileImage,
   FileJson,
   Folder,
+  LayoutGrid,
   ListTree,
+  Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -40,6 +42,7 @@ import { ProjectPicker } from "@/components/workspace/project-picker";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import type { CanvasDTO, CanvasTaskDTO } from "@/lib/canvas/dto";
 import { buildSceneToSave, describeRemoved } from "@/lib/canvas/client-scene";
+import { readDiagram, type ReadBack } from "@/lib/canvas/read-back";
 import type { Scene, SceneElement } from "@/lib/canvas/types";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type { SaveStatus } from "@/hooks/use-autosave";
@@ -47,10 +50,16 @@ import { cn } from "@/lib/utils";
 import { CanvasTasksButton } from "./canvas-tasks-button";
 import { CardPicker, type CardChoice } from "./card-picker";
 import { DrawWithAiDialog } from "./draw-with-ai-dialog";
+import { applyRefineToCanvas, arrangeAgain } from "./refine-scene";
+import { RefineWithAiDialog } from "./refine-with-ai-dialog";
 import { exportCanvas, type ExportKind } from "./canvas-export";
 import { ExcalidrawCanvas } from "./excalidraw-canvas";
 import { OutlinePanel } from "./outline-panel";
-import { useCanvasSave, type SaveState as CanvasSaveState } from "./use-canvas-save";
+import {
+  useCanvasSave,
+  type RefineCounts,
+  type SaveState as CanvasSaveState,
+} from "./use-canvas-save";
 
 const STATUS_FOR: Record<CanvasSaveState, SaveStatus> = {
   saved: "saved",
@@ -110,6 +119,12 @@ export function CanvasPage({
   const [archived, setArchived] = useState(canvas.archived);
   const [cardOpen, setCardOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  // Refine with AI and Arrange again work on what the AI drew: read off the canvas when the menu or dialog opens.
+  const [hasDiagram, setHasDiagram] = useState(false);
+  const [refine, setRefine] = useState<{ open: boolean; read: ReadBack | null }>({
+    open: false,
+    read: null,
+  });
   const [projectOpen, setProjectOpen] = useState(false);
   const [outline, setOutline] = useState<{ open: boolean; scene: Scene | null }>({
     open: false,
@@ -278,6 +293,70 @@ export function CanvasPage({
     save.addDiagram(built.scene, counts);
   }
 
+  /** Whether the canvas has a diagram the AI drew, looked at when the menu opens. */
+  function checkDiagram() {
+    const api = apiRef.current;
+    setHasDiagram(api ? readDiagram(api.getSceneElements() as never) !== null : false);
+  }
+
+  function openRefine() {
+    const api = apiRef.current;
+    if (!api) return;
+    setRefine({ open: true, read: readDiagram(api.getSceneElements() as never) });
+  }
+
+  /** Applies a refine the person confirmed, as one undo step, and saves it with its audit counts. */
+  async function applyRefine(proposal: {
+    proposalId: string;
+    ops: Parameters<typeof applyRefineToCanvas>[2];
+    spec: Parameters<typeof applyRefineToCanvas>[3];
+    counts: Omit<RefineCounts, "id">;
+  }) {
+    const api = apiRef.current;
+    if (!api) return;
+    // Read again: the person may have changed the canvas while the AI was working.
+    const read = readDiagram(api.getSceneElements() as never);
+    if (!read) return void toast.error("The diagram is no longer on this canvas.");
+    const applied = await applyRefineToCanvas(
+      api.getSceneElementsIncludingDeleted() as never,
+      read,
+      proposal.ops,
+      proposal.spec,
+      freeOrigin(),
+    );
+    api.updateScene({
+      elements: applied.elements as never[],
+      appState: {
+        selectedElementIds: Object.fromEntries(
+          applied.added.filter((e) => e.type !== "text").map((e) => [e.id, true]),
+        ),
+      } as never,
+      captureUpdate: "IMMEDIATELY" as never,
+    });
+    if (applied.added.length > 0) {
+      const lib = await import("./canvas-lib");
+      lib.fitToView(api, applied.added);
+    }
+    const built = buildSceneToSave(api.getSceneElements(), api.getAppState());
+    if (!built.ok) return void toast.error(built.message);
+    save.refine(built.scene, { id: proposal.proposalId, ...proposal.counts });
+    toast.success("Applied. Undo takes it back.");
+  }
+
+  /** Lays the AI-drawn parts out again (hand-drawn items stay where they are), as one undo step. */
+  async function arrange() {
+    const api = apiRef.current;
+    if (!api) return;
+    const read = readDiagram(api.getSceneElements() as never);
+    if (!read) return void toast.error("There is no AI-drawn diagram on this canvas.");
+    api.updateScene({
+      elements: arrangeAgain(api.getSceneElementsIncludingDeleted() as never, read) as never[],
+      captureUpdate: "IMMEDIATELY" as never,
+    });
+    const lib = await import("./canvas-lib");
+    lib.fitToView(api);
+  }
+
   async function doExport(kind: ExportKind) {
     const api = apiRef.current;
     if (!api) return;
@@ -395,7 +474,7 @@ export function CanvasPage({
         <CanvasTasksButton canvasId={canvas.id} tasks={tasks} onChange={setTasks} />
 
         <div className="relative">
-          <DropdownMenu>
+          <DropdownMenu onOpenChange={(open) => open && checkDiagram()}>
             <DropdownMenuTrigger aria-label="More actions" className={iconButton}>
               <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
             </DropdownMenuTrigger>
@@ -415,6 +494,16 @@ export function CanvasPage({
               {aiEnabled ? (
                 <DropdownMenuItem className="md:hidden" onSelect={() => setAiOpen(true)}>
                   Draw with AI
+                </DropdownMenuItem>
+              ) : null}
+              {aiEnabled && hasDiagram ? (
+                <DropdownMenuItem onSelect={() => setTimeout(openRefine, 0)}>
+                  <Pencil strokeWidth={1.5} aria-hidden /> Refine with AI
+                </DropdownMenuItem>
+              ) : null}
+              {hasDiagram ? (
+                <DropdownMenuItem onSelect={() => void arrange()}>
+                  <LayoutGrid strokeWidth={1.5} aria-hidden /> Arrange again
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem onSelect={openOutline}>
@@ -527,6 +616,14 @@ export function CanvasPage({
           open={aiOpen}
           onOpenChange={setAiOpen}
           onAdd={{ origin: freeOrigin, add: addDiagram }}
+        />
+      ) : null}
+      {aiEnabled ? (
+        <RefineWithAiDialog
+          open={refine.open}
+          onOpenChange={(open) => setRefine((r) => ({ ...r, open }))}
+          read={refine.read}
+          onApply={applyRefine}
         />
       ) : null}
       <OutlinePanel

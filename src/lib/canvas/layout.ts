@@ -131,7 +131,11 @@ export function rankByLongestPath(
   return rank;
 }
 
-function arrowBetween(a: LayoutBox, b: LayoutBox) {
+/** Where an arrow between two boxes starts and ends: on the sides that face each other. */
+export function arrowBetween(
+  a: Pick<LayoutBox, "x" | "y" | "w" | "h">,
+  b: Pick<LayoutBox, "x" | "y" | "w" | "h">,
+) {
   const ax = a.x + a.w / 2;
   const ay = a.y + a.h / 2;
   const bx = b.x + b.w / 2;

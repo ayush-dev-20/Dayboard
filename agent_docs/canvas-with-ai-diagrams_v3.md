@@ -1,7 +1,7 @@
 # Feature: Canvas with AI diagrams and sticky boards
 
 **Phase:** V3 (feature 01)
-**Status:** In progress. **Slice A** (the canvas: drawing, list, sidebar tab, task links, cards, Outline, export, Trash, search) and **slice B** (Draw with AI) are built and tested. Slices C (Refine) and D (sticky boards) are not built yet.
+**Status:** In progress. **Slice A** (the canvas: drawing, list, sidebar tab, task links, cards, Outline, export, Trash, search), **slice B** (Draw with AI) and **slice C** (Refine with AI, Additions frame, Arrange again) are built and tested. Slice D (sticky boards) is not built: it waits for the journal feature (V3 02), which is changing the same `tasks` schema, Today queries and migration numbers.
 **Date:** 2026-10-20
 
 ## What was built (slice A)
@@ -25,6 +25,19 @@
 - **Facade:** `generateStructured` gained `timeoutMs` (default 30 s, the diagram route uses 60 s) and forwards `maxOutputTokens` (6,000 here) to the provider. The prompt, the note text and the diagram are never logged.
 - **Mock provider** (`mock-diagram.ts`): the food-delivery prompt gives 6 sections, 24 boxes and 31 connections (overview 10 boxes, detailed 36); a flow prompt gives a checkout flow; anything else a small web app. Markers `[mock:dangling]`, `[mock:dupid]` exercise the repair paths.
 
+## What was built (slice C: Refine with AI)
+
+- **The model returns changes, not a new diagram.** `POST /api/ai/refine-diagram` takes `{ instruction, spec }` (the diagram read back off the canvas) and gets a short list of ops (`addNode`, `addEdge`, `updateNode` for label and technology, `removeNode`, `removeEdge`). `applyRefine` (`src/lib/canvas/refine.ts`, pure) checks each op against the diagram that was sent, leaves out what does not fit (missing box, taken id, repeated connection, no-op, unknown op, more than 40 ops) and says so in `warnings`. The **summary** ("Adds 1 box and 1 connection; changes 1 label") is written by the app from the checked counts. Prompt `REFINE_DIAGRAM_V1`; the mock (`mockRefine`) answers from the instruction, with markers `[mock:remove:<id>]`, `[mock:rename:<id>:<label>]`, `[mock:none]`, `[mock:bad]`.
+- **Reading the canvas back** (`src/lib/canvas/read-back.ts`, pure): `readDiagram(elements)` rebuilds a `DiagramSpec` from the elements marked `customData.dayboard.ai` (frames are sections, shapes with a label are boxes, bound arrows are connections), and returns which element draws each id. It uses the frame a box sits in now, ignores deleted elements, cards and hand-drawn shapes, and gives a repeated id a `-2` suffix.
+- **Applying** (`src/components/canvases/refine-scene.ts`, browser only): new boxes and the connections among them are drawn in a new **Additions** frame beside everything (`freeOrigin`); a connection between a new box and an old one is attached by hand (binding plus `boundElements`); a rename is measured by Excalidraw and copied onto the existing label; a removal deletes the box, its label and every arrow touching it. Everything is one `updateScene`, so one undo takes it back. Nothing is moved.
+- **Arrange again** (`arrangeAgain`): lays the AI-drawn parts out the way a fresh diagram would be, from the top-left of where they are, in one undo step; hand-drawn items are not touched. In the `…` menu, with **Refine with AI** (which also needs AI on); both show only when `readDiagram` finds a diagram.
+- **Audit:** `saveCanvas({ refine: { id, addedBoxes, addedConnections, changedBoxes, removedBoxes, removedConnections } })` writes one `canvas.refine` row (numbers only, unique per proposal, so it applies once). `use-canvas-save.ts` carries it like `addDiagram`.
+- **Facade:** `generateStructured` and the provider call options gained `attemptTimeoutMs` (each model in the fallback list gets its own time).
+
+## Draw with AI accuracy (after the first real-model run, 2026-10-20)
+
+A real Gemini run showed: a consumer arrow drawn the wrong way round (service to queue labelled "consume"), `tech` sometimes a protocol and sometimes a product, core links missing (an order was not connected to payment, restaurant or delivery), and a whole call failing because the first model was overloaded and the fallback had no time left inside the one 60 s limit. Fixed by: **prompt `GENERATE_DIAGRAM_V2`** (arrow direction rule, `tech` is a product name, connect the main journeys, no more than about five connections per box), **`normalizeDiagram`** (turns a "consumes/subscribes/reads/polls" connection into a queue around and says so; warns about a box with no connection) and a **per-model timeout** (route: 90 s overall, 40 s per model). Re-run: 16 boxes, 16 connections, all connected, correct directions.
+
 ### Things that look odd but are on purpose (slice B)
 
 - AI labels use Excalidraw's **Helvetica** (`DIAGRAM_FONT = 2`), not the hand-drawn font: Excalidraw measures text before the hand-drawn font has loaded, so labels came out too narrow and clipped.
@@ -40,8 +53,11 @@ A person designing something has nowhere to draw it. The canvas is a normal item
 
 ## What was deferred
 
-- **Slice C** (Refine, Additions frame, Arrange again) waits until the owner has tried B. `REFINE_DIAGRAM` is already in the enum. **Slice D** (sticky boards) is its own change (migration on `tasks`, board page, Today section).
-- **Owner review of slice B** is still needed: the food-delivery diagram is readable, but long arrows between sections still cross boxes (see above).
+- **Slice D** (sticky boards) is its own change (migration on `tasks`, board page, Today section) and waits for the journal feature (V3 02) to land: both change the `tasks` schema, `views.ts`, `onboarding.ts`, `review/load.ts` and the migration numbers (journal has `0020`).
+- Refine has not been tried against a real model yet (only the mock); its prompt `REFINE_DIAGRAM_V1` is the first draft.
+- `addSection` is not an op (every addition goes in one Additions frame); `updateNode` changes label and technology only. A long arrow's label was left off at draw time, so a refine does not see it.
+- Arrange again resets AI boxes to their laid-out size and does not recompute a hand-drawn arrow attached to an AI box.
+- **Owner review of slice B** is still needed: the food-delivery diagram is readable, but long arrows between sections still cross boxes (see above). Edge routing (dagre) is still the documented next step if it is too tangled.
 - Excalidraw's **shape library** button is still in its toolbar (the spec lists shape libraries as out of scope); hiding it is a CSS change if wanted. The "Browse libraries" link inside it goes to an outside site only when clicked.
 - Excalidraw's own keyboard and screen-reader support is limited: the Outline is the accessible route, and axe runs on everything around the drawing, not inside it.
 - No offline editing (server-backed like notes); the device draft covers a failed save.
@@ -58,6 +74,7 @@ A person designing something has nowhere to draw it. The canvas is a normal item
 
 - `src/db/schema/canvases.ts`, migration `0019_canvases.sql`; `src/lib/canvas/` (`types`, `schema`, `outline`, `dto`, `client-scene`); `src/lib/validations/canvases.ts`.
 - `src/db/mutations/canvases.ts`, `src/db/queries/canvases.ts`, `src/actions/canvases.ts`; shared files touched: `trash` (types, queries, mutations, action, list), `search` (types, query, command menu, results), `ai.ts` (skips canvases), `hybrid.ts`, `tasks` detail (query, DTO, `LinkedCanvases`), `use-open-task.ts`, `nav-items.ts` (explicit groups), `sidebar-nav.tsx`, `workspace-context.tsx`, the app layout, `proxy.ts`, More, the chat button.
+- Slice C: `src/lib/canvas/{refine,read-back}.ts`, `src/app/api/ai/refine-diagram/route.ts`, `src/components/canvases/{refine-scene.ts,refine-with-ai-dialog.tsx}`, the `…` menu in `canvas-page.tsx`, `refine` in `use-canvas-save.ts`, `recordRefine` in `src/db/mutations/canvases.ts`, `refineProposalSchema` in `src/lib/validations/canvases.ts`, `mockRefine` in `mock-diagram.ts`; tests: `tests/unit/canvas-refine.test.ts`, `canvas-read-back.test.ts`, `tests/integration/canvas-refine.test.ts`, 5 "Refine with AI" tests in `e2e/canvases.spec.ts`.
 - Slice B: `src/lib/canvas/{diagram-spec,layout,scene-builder,audit}.ts`, `src/lib/ai/providers/mock-diagram.ts`, `src/app/api/ai/generate-diagram/route.ts`, `src/components/canvases/{draw-with-ai-dialog,draw-with-ai-button,diagram-scene,canvas-lib}.ts(x)`.
 - `src/components/canvases/`: `canvas-page.tsx`, `excalidraw-inner.tsx` (the only file that renders Excalidraw), `excalidraw-canvas.tsx` (the dynamic wrapper), `use-canvas-save.ts`, `canvas-tasks-button.tsx`, `card-picker.tsx`, `outline-panel.tsx`, `canvas-export.ts`, `canvas-row.tsx`, `new-canvas-button.tsx`; `src/app/(app)/canvases/**`.
 - Tests: `tests/unit/canvas-schema.test.ts`, `canvas-client-scene.test.ts`; `canvas-layout`, `canvas-scene-builder`, `canvas-diagram-spec` (unit); `tests/integration/canvases.test.ts` (27), `canvas-ai.test.ts` (15); `e2e/canvases.spec.ts` (slice A plus 9 "Draw with AI" tests).

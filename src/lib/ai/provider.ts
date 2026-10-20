@@ -15,6 +15,8 @@ export type CallOptions = {
   maxOutputTokens?: number;
   /** Stops the call, for timeouts and for a person who closed the panel. */
   signal: AbortSignal;
+  /** How long each model gets before the next one in the fallback list is tried. Absent: only `signal` limits it. */
+  attemptTimeoutMs?: number;
   /**
    * The same request as plain data, for the mock provider's fixtures. Real providers ignore it, so
    * a fixture can be built without parsing the prompt text.

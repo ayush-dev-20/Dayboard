@@ -203,7 +203,7 @@ describe("the request", () => {
     expect(rows[0]).toMatchObject({
       feature: "GENERATE_DIAGRAM",
       status: "SUCCESS",
-      promptVersion: "GENERATE_DIAGRAM_V1",
+      promptVersion: "GENERATE_DIAGRAM_V2",
     });
     // Asking changes nothing: a canvas exists only after the person confirms.
     expect(await canvasesOf(who.id)).toHaveLength(0);
@@ -250,7 +250,7 @@ describe("the request", () => {
 
 describe("the prompt", () => {
   it("has a version, a data block the note cannot close, and the reference-architecture line", () => {
-    expect(PROMPT_VERSIONS.GENERATE_DIAGRAM).toBe("GENERATE_DIAGRAM_V1");
+    expect(PROMPT_VERSIONS.GENERATE_DIAGRAM).toBe("GENERATE_DIAGRAM_V2");
     const system = systemPrompts.GENERATE_DIAGRAM;
     expect(system).toMatch(/reference architecture for the kind of app described/);
     expect(system).toMatch(/do not claim it is the real internal design of any company/);

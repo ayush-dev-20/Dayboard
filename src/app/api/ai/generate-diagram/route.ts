@@ -13,7 +13,9 @@ export const dynamic = "force-dynamic";
 const NOTE_CHARS = 6000;
 /** A detailed diagram is a long answer: more tokens, and a minute, where every other feature has 30 seconds. */
 const MAX_OUTPUT_TOKENS = 6000;
-const TIMEOUT_MS = 60_000;
+const TIMEOUT_MS = 90_000;
+/** Each model gets this long, so when the first is overloaded the fallback still has time to answer. */
+const ATTEMPT_TIMEOUT_MS = 40_000;
 
 // V3 feature 01 §6: "Draw with AI". The model returns a `DiagramSpec` (what the parts are and how they connect), which is
 // checked and repaired here; the app lays it out and draws it in the browser. This route writes nothing: the person's
@@ -48,6 +50,7 @@ export async function POST(request: Request) {
       fixture: { prompt: input.prompt, layout: input.layout, detail: input.detail },
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       timeoutMs: TIMEOUT_MS,
+      attemptTimeoutMs: ATTEMPT_TIMEOUT_MS,
     });
 
     try {

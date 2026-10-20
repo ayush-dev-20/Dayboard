@@ -240,6 +240,52 @@ describe("normalizeDiagram", () => {
   });
 });
 
+describe("normalizeDiagram: arrows that follow the data", () => {
+  const withQueue = (edges: RawDiagram["edges"]) =>
+    base({
+      nodes: [
+        { id: "orders", label: "Order service", kind: "service", section: "services" },
+        { id: "bus", label: "Order events", kind: "queue", tech: "Kafka", section: "services" },
+        { id: "mail", label: "Email service", kind: "service", section: "services" },
+      ],
+      edges,
+    });
+
+  it("turns a consumer that points at its queue around, and says so", () => {
+    const { spec, warnings } = normalizeDiagram(
+      withQueue([
+        { from: "orders", to: "bus", label: "publish order placed" },
+        { from: "mail", to: "bus", label: "consumes order events" },
+      ]),
+    );
+    expect(spec.edges).toEqual([
+      { from: "orders", to: "bus", label: "publish order placed" },
+      { from: "bus", to: "mail", label: "consumes order events" },
+    ]);
+    expect(warnings).toEqual([
+      "1 connection was turned around so the arrow follows the data (a queue delivers to what reads from it).",
+    ]);
+  });
+
+  it("leaves a producer alone, even into a queue", () => {
+    const { spec, warnings } = normalizeDiagram(
+      withQueue([
+        { from: "orders", to: "bus", label: "order placed" },
+        { from: "bus", to: "mail", label: "order placed" },
+      ]),
+    );
+    expect(spec.edges.map((e) => `${e.from}>${e.to}`)).toEqual(["orders>bus", "bus>mail"]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("says when a box has no connection", () => {
+    const { warnings } = normalizeDiagram(
+      withQueue([{ from: "orders", to: "bus", label: "order placed" }]),
+    );
+    expect(warnings).toEqual(["1 box has no connection, so it was drawn on its own."]);
+  });
+});
+
 describe("plain text and counts", () => {
   it("cleans one string at a time", () => {
     expect(plainText("  a   b\t\nc ", 20)).toEqual({ text: "a b c", shortened: false });

@@ -248,3 +248,57 @@ export function mockDiagram(fixture: {
   if (prompt.includes("[mock:dupid]")) out.nodes.push({ ...out.nodes[0]! });
   return out;
 }
+
+// The refine half (slice C): changes built from the instruction, so a test can predict them. "cache" adds a Redis cache
+// connected to the first service; markers make it do something else on purpose: `[mock:remove:<id>]`,
+// `[mock:rename:<id>:<new label>]`, `[mock:none]` (no changes), `[mock:bad]` (a connection to a box that does not exist,
+// and a change to one that is not there, which the checks leave out and say so). Anything else adds a Monitoring box.
+export function mockRefine(fixture: {
+  instruction?: string;
+  spec?: { nodes?: { id: string; kind: string }[] };
+}) {
+  const text = fixture.instruction ?? "";
+  const nodes = fixture.spec?.nodes ?? [];
+  const anchor = (nodes.find((n) => n.kind === "service") ?? nodes[0])?.id ?? "";
+  if (text.includes("[mock:none]")) return { ops: [] };
+  const remove = /\[mock:remove:([a-z0-9-]+)\]/.exec(text);
+  if (remove) return { ops: [{ op: "removeNode", id: remove[1] }] };
+  const rename = /\[mock:rename:([a-z0-9-]+):([^\]]+)\]/.exec(text);
+  if (rename) return { ops: [{ op: "updateNode", id: rename[1], label: rename[2] }] };
+  if (text.includes("[mock:bad]")) {
+    return {
+      ops: [
+        {
+          op: "addNode",
+          id: "audit-log",
+          label: "Audit log",
+          kind: "database",
+          tech: "PostgreSQL",
+        },
+        { op: "addEdge", from: anchor, to: "audit-log", label: "writes" },
+        { op: "addEdge", from: anchor, to: "ghost-box", label: "calls" },
+        { op: "updateNode", id: "ghost-box", label: "Nope" },
+      ],
+    };
+  }
+  if (/cache/i.test(text)) {
+    return {
+      ops: [
+        { op: "addNode", id: "refine-cache", label: "Cache", kind: "cache", tech: "Redis" },
+        { op: "addEdge", from: anchor, to: "refine-cache", label: "reads, writes" },
+      ],
+    };
+  }
+  return {
+    ops: [
+      {
+        op: "addNode",
+        id: "refine-monitor",
+        label: "Monitoring",
+        kind: "service",
+        tech: "Grafana",
+      },
+      { op: "addEdge", from: anchor, to: "refine-monitor", label: "metrics", dashed: true },
+    ],
+  };
+}

@@ -8,8 +8,9 @@ import { auditLog, canvases, taskCanvases } from "@/db/schema";
 import { projectScene, sanitizeScene, SceneError } from "@/lib/canvas/schema";
 import { CANVAS_LIMIT, EMPTY_SCENE, type Scene } from "@/lib/canvas/types";
 import { describeDiagramApplied } from "@/lib/canvas/audit";
+import { describeRefineApplied } from "@/lib/canvas/refine";
 import type { CanvasSaveResult } from "@/lib/canvas/dto";
-import type { ProposalInput } from "@/lib/validations/canvases";
+import type { ProposalInput, RefineProposalInput } from "@/lib/validations/canvases";
 import { AppError } from "@/lib/errors";
 
 // Writes of canvases (V3 feature 01 §6). Every function takes the signed-in person's id first and puts it in every
@@ -117,6 +118,21 @@ async function recordDiagram(
   });
 }
 
+/** The same for a refine: keyed by the proposal, counts only. */
+async function recordRefine(tx: Tx, userId: string, canvasId: string, refine: RefineProposalInput) {
+  const { id, ...counts } = refine;
+  await rejectReusedId(async () => {
+    await tx.insert(auditLog).values({
+      userId,
+      source: "CANVAS",
+      action: "canvas.refine",
+      entityRefs: [{ type: "canvas", id: canvasId }],
+      proposalId: id,
+      summary: describeRefineApplied(counts),
+    });
+  });
+}
+
 async function conflictOrMissing(
   executor: Executor,
   userId: string,
@@ -137,7 +153,14 @@ async function conflictOrMissing(
  */
 export async function saveCanvas(
   userId: string,
-  input: { id: string; version: number; scene?: unknown; title?: string; proposal?: ProposalInput },
+  input: {
+    id: string;
+    version: number;
+    scene?: unknown;
+    title?: string;
+    proposal?: ProposalInput;
+    refine?: RefineProposalInput;
+  },
 ): Promise<CanvasSaveResult> {
   return db.transaction(async (tx) => {
     const [current] = await tx
@@ -168,6 +191,7 @@ export async function saveCanvas(
     if (!row) return conflictOrMissing(tx, userId, input.id);
     // "Add to this canvas" applies an AI diagram once, with the same audit row as drawing a new one.
     if (input.proposal) await recordDiagram(tx, userId, input.id, input.proposal, "add");
+    if (input.refine) await recordRefine(tx, userId, input.id, input.refine);
     return { outcome: "saved", version: row.version, updatedAt: row.updatedAt.toISOString() };
   });
 }

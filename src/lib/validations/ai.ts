@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { diagramSpecSchema } from "@/lib/canvas/diagram-spec";
 import { EDIT_MODES, GENERATE_LENGTHS, TASK_ASSIST_MODES } from "@/lib/ai/types";
 import { idSchema } from "./tasks";
 
@@ -145,4 +146,19 @@ export const generateDiagramRequestSchema = z.strictObject({
   layout: z.enum(["architecture", "flow"]),
   detail: z.enum(["overview", "standard", "detailed"]),
   noteId: idSchema.optional(),
+});
+
+// V3 feature 01 slice C: "Refine with AI". The diagram is read back from the canvas by the browser, so it is checked like
+// anything else the browser sends (the same plain schema the model's answer is read with, then `normalizeDiagram`).
+export const REFINE_INSTRUCTION_MAX = 1000;
+export const refineDiagramRequestSchema = z.strictObject({
+  instruction: z
+    .string()
+    .trim()
+    .min(1, "Say what to change first.")
+    .max(
+      REFINE_INSTRUCTION_MAX,
+      `Use ${REFINE_INSTRUCTION_MAX.toLocaleString("en-US")} characters or fewer.`,
+    ),
+  spec: diagramSpecSchema,
 });

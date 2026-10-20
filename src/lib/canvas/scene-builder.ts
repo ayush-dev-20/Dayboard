@@ -1,6 +1,6 @@
 import type { ColorToken } from "@/lib/colors";
 import type { NodeKind } from "./diagram-spec";
-import type { LaidOut } from "./layout";
+import type { LaidOut, LayoutArrow } from "./layout";
 
 // From a layout to a drawing (V3 feature 01 §5). This builds Excalidraw *element skeletons*: plain objects with the
 // box, frame and arrow a diagram needs, each arrow naming the two boxes it is attached to. It is pure, so the tests
@@ -61,6 +61,49 @@ const LABEL_MAX_LENGTH = 260;
 
 export const boxId = (nodeId: string) => `box-${nodeId}`;
 export const frameId = (sectionId: string) => `frame-${sectionId}`;
+
+/**
+ * One connection as a skeleton. With `attach` it names the two boxes it joins (`box-<id>`), so Excalidraw attaches both
+ * ends; without it the arrow is only a line, for a caller that attaches it to boxes already on the canvas itself.
+ */
+export function arrowSkeleton(
+  arrow: LayoutArrow,
+  dx: number,
+  dy: number,
+  attach: boolean,
+): Skeleton {
+  return {
+    type: "arrow",
+    id: `edge-${arrow.from}-${arrow.to}`.slice(0, 64),
+    x: arrow.x1 + dx,
+    y: arrow.y1 + dy,
+    width: Math.abs(arrow.x2 - arrow.x1),
+    height: Math.abs(arrow.y2 - arrow.y1),
+    points: [
+      [0, 0],
+      [arrow.x2 - arrow.x1, arrow.y2 - arrow.y1],
+    ],
+    // Attached at both ends: moving a box moves its arrows.
+    ...(attach ? { start: { id: boxId(arrow.from) }, end: { id: boxId(arrow.to) } } : {}),
+    startArrowhead: arrow.both ? "arrow" : null,
+    endArrowhead: "arrow",
+    strokeColor: "#868e96",
+    strokeWidth: 1,
+    strokeStyle: arrow.dashed ? "dashed" : "solid",
+    roughness: 0,
+    ...(arrow.label && Math.hypot(arrow.x2 - arrow.x1, arrow.y2 - arrow.y1) <= LABEL_MAX_LENGTH
+      ? {
+          label: {
+            text: arrow.label,
+            fontSize: 14,
+            fontFamily: DIAGRAM_FONT,
+            strokeColor: "#1e1e1e",
+          },
+        }
+      : {}),
+    customData: { dayboard: { ai: true } },
+  };
+}
 
 export type BuiltDiagram = {
   skeletons: Skeleton[];
@@ -135,38 +178,7 @@ export function buildDiagramSkeletons(
     customData: { dayboard: { id: frame.id, section: frame.id, ai: true } },
   }));
 
-  const arrows: Skeleton[] = laid.arrows.map((arrow) => ({
-    type: "arrow",
-    id: `edge-${arrow.from}-${arrow.to}`.slice(0, 64),
-    x: arrow.x1 + dx,
-    y: arrow.y1 + dy,
-    width: Math.abs(arrow.x2 - arrow.x1),
-    height: Math.abs(arrow.y2 - arrow.y1),
-    points: [
-      [0, 0],
-      [arrow.x2 - arrow.x1, arrow.y2 - arrow.y1],
-    ],
-    // Attached at both ends: moving a box moves its arrows.
-    start: { id: boxId(arrow.from) },
-    end: { id: boxId(arrow.to) },
-    startArrowhead: arrow.both ? "arrow" : null,
-    endArrowhead: "arrow",
-    strokeColor: "#868e96",
-    strokeWidth: 1,
-    strokeStyle: arrow.dashed ? "dashed" : "solid",
-    roughness: 0,
-    ...(arrow.label && Math.hypot(arrow.x2 - arrow.x1, arrow.y2 - arrow.y1) <= LABEL_MAX_LENGTH
-      ? {
-          label: {
-            text: arrow.label,
-            fontSize: 14,
-            fontFamily: DIAGRAM_FONT,
-            strokeColor: "#1e1e1e",
-          },
-        }
-      : {}),
-    customData: { dayboard: { ai: true } },
-  }));
+  const arrows: Skeleton[] = laid.arrows.map((arrow) => arrowSkeleton(arrow, dx, dy, true));
 
   return {
     // Frames before the boxes they hold, arrows last (so an arrow's two boxes exist when it names them).

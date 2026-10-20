@@ -24,6 +24,17 @@ export const proposalSchema = z.strictObject({
 });
 export type ProposalInput = z.infer<typeof proposalSchema>;
 
+/** A refine being applied (slice C): the proposal's id and the counts of what changed. Numbers only, like the above. */
+export const refineProposalSchema = z.strictObject({
+  id: z.string().min(8).max(64),
+  addedBoxes: z.number().int().min(0).max(60),
+  addedConnections: z.number().int().min(0).max(120),
+  changedBoxes: z.number().int().min(0).max(60),
+  removedBoxes: z.number().int().min(0).max(60),
+  removedConnections: z.number().int().min(0).max(240),
+});
+export type RefineProposalInput = z.infer<typeof refineProposalSchema>;
+
 /** A scene is any object here; `sanitizeScene` decides what is kept. */
 const sceneInput = z.unknown();
 
@@ -44,6 +55,8 @@ export const saveCanvasSchema = z.strictObject({
   title: canvasTitleSchema.optional(),
   /** "Add to this canvas": the diagram that was put on it. Applies once, with an audit row of counts. */
   proposal: proposalSchema.optional(),
+  /** "Refine with AI": the change that was applied. Applies once, with an audit row of counts. */
+  refine: refineProposalSchema.optional(),
 });
 
 export const updateCanvasMetaSchema = z.strictObject({

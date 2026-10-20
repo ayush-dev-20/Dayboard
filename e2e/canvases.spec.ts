@@ -837,3 +837,236 @@ test.describe("accessibility", () => {
     }
   });
 });
+
+// -- Slice C: Refine with AI and Arrange again ---------------------------------------------------------------------------
+
+type FullEl = {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isDeleted?: boolean;
+  text?: string;
+  name?: string;
+  containerId?: string | null;
+  customData?: { dayboard?: { id?: string; ai?: boolean } };
+  startBinding?: { elementId: string } | null;
+  endBinding?: { elementId: string } | null;
+};
+type FullApi = {
+  getSceneElements(): FullEl[];
+  updateScene(update: { elements: FullEl[]; captureUpdate: string }): void;
+};
+const allOf = (page: Page) =>
+  page.evaluate(() =>
+    (window as unknown as { __canvasApi: FullApi }).__canvasApi.getSceneElements(),
+  );
+const dayboardId = (e: FullEl) => e.customData?.dayboard?.id;
+
+async function menuItem(page: Page, name: string) {
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name }).click();
+}
+
+/** A canvas with the mock's small web app drawn on it by Draw with AI (Add to this canvas). */
+async function canvasWithDiagram(page: Page, options: { rectangleFirst?: boolean } = {}) {
+  const user = await newUser(page);
+  await newCanvas(page);
+  if (options.rectangleFirst) await drawRectangle(page, { x: 300, y: 250 });
+  const already = (await allOf(page)).length;
+  await openDialog(page);
+  await page.getByLabel("Describe what to draw").fill("A small web app");
+  await page.getByRole("button", { name: "Draw", exact: true }).click();
+  await expect(page.getByTestId("diagram-counts")).toHaveText(
+    "3 sections, 5 boxes, 5 connections",
+    { timeout: 30_000 },
+  );
+  await page.getByRole("button", { name: "Add to this canvas" }).click();
+  await expect.poll(async () => (await allOf(page)).length).toBeGreaterThan(already + 10);
+  await expect(page.getByText("Saved")).toBeVisible({ timeout: 15_000 });
+  return user;
+}
+
+async function refine(page: Page, instruction: string) {
+  await menuItem(page, "Refine with AI");
+  const dialog = page.getByRole("dialog", { name: "Refine with AI" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("What to change").fill(instruction);
+  await dialog.getByRole("button", { name: "Refine", exact: true }).click();
+  await expect(page.getByTestId("refine-summary")).toBeVisible({ timeout: 30_000 });
+  return dialog;
+}
+
+test.describe("Refine with AI", () => {
+  test("adds a cache in an Additions frame beside the diagram, attached to the box it serves, moving nothing, with one audit row", async ({
+    page,
+  }) => {
+    test.slow();
+    const user = await canvasWithDiagram(page);
+    const before = await allOf(page);
+
+    const dialog = await refine(page, "Add a cache between the API and the database");
+    await expect(page.getByTestId("refine-summary")).toHaveText("Adds 1 box and 1 connection");
+    // Nothing has changed on the canvas, or been saved, before Apply.
+    expect((await allOf(page)).length).toBe(before.length);
+    expect(
+      (await auditRowsOf(user.id)).filter((a) => a.summary.startsWith("Refined")),
+    ).toHaveLength(0);
+
+    await dialog.getByRole("button", { name: "Apply" }).click();
+    await expect(dialog).toHaveCount(0);
+
+    const after = await allOf(page);
+    const cache = after.find((e) => dayboardId(e) === "refine-cache" && e.type === "rectangle")!;
+    expect(cache).toBeTruthy();
+    const frame = after.find((e) => e.type === "frame" && e.name === "Additions")!;
+    expect(frame).toBeTruthy();
+    // Beside the diagram, not on it.
+    const diagramRight = Math.max(...before.map((e) => e.x + e.width));
+    expect(frame.x).toBeGreaterThan(diagramRight);
+    // The new arrow joins the API box (already there) to the new one, attached at both ends.
+    const api = before.find((e) => dayboardId(e) === "api" && e.type === "rectangle")!;
+    const arrow = after.find(
+      (e) =>
+        e.type === "arrow" &&
+        e.startBinding?.elementId === api.id &&
+        e.endBinding?.elementId === cache.id,
+    );
+    expect(arrow).toBeTruthy();
+    // Everything that was there is exactly where it was.
+    for (const e of before) {
+      expect(
+        after.find((a) => a.id === e.id),
+        e.id,
+      ).toMatchObject({ x: e.x, y: e.y });
+    }
+
+    await expect(page.getByText("Saved")).toBeVisible({ timeout: 15_000 });
+    expect((await auditRowsOf(user.id)).map((a) => a.summary)).toEqual([
+      "Added a diagram to a canvas: 3 sections, 5 boxes, 5 connections",
+      "Refined a diagram: adds 1 box and 1 connection",
+    ]);
+
+    // One undo takes it all back.
+    const box = (await surface(page).boundingBox())!;
+    await page.mouse.click(box.x + 40, box.y + 40);
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect.poll(async () => (await allOf(page)).length).toBe(before.length);
+  });
+
+  test("renames a box and removes another with its connections, and says what it did", async ({
+    page,
+  }) => {
+    test.slow();
+    await canvasWithDiagram(page);
+
+    let dialog = await refine(page, "Rename [mock:rename:api:Gateway API]");
+    await expect(page.getByTestId("refine-summary")).toHaveText("Changes 1 label");
+    await dialog.getByRole("button", { name: "Apply" }).click();
+    await expect(dialog).toHaveCount(0);
+    const renamed = await allOf(page);
+    const api = renamed.find((e) => dayboardId(e) === "api" && e.type === "rectangle")!;
+    expect(renamed.find((e) => e.type === "text" && e.containerId === api.id)?.text).toBe(
+      "Gateway API\nNode.js",
+    );
+
+    const countBefore = (await allOf(page)).length;
+    dialog = await refine(page, "Drop it [mock:remove:worker]");
+    await expect(page.getByTestId("refine-summary")).toHaveText("Removes 1 box and 2 connections");
+    await dialog.getByRole("button", { name: "Apply" }).click();
+    await expect(dialog).toHaveCount(0);
+    const removed = await allOf(page);
+    expect(removed.some((e) => dayboardId(e) === "worker")).toBe(false);
+    // The box, its label and its two arrows (with their labels) are gone; nothing else is.
+    expect(removed.length).toBeLessThan(countBefore);
+    expect(removed.some((e) => dayboardId(e) === "api")).toBe(true);
+  });
+
+  test("says when there is nothing to change, and leaves the canvas alone", async ({ page }) => {
+    test.slow();
+    await canvasWithDiagram(page);
+    const count = (await allOf(page)).length;
+    const dialog = await refine(page, "Do the impossible [mock:none]");
+    await expect(page.getByTestId("refine-summary")).toHaveText("Nothing to change");
+    await expect(dialog.getByRole("button", { name: "Apply" })).toBeDisabled();
+    await dialog.getByRole("button", { name: "Discard" }).click();
+    expect((await allOf(page)).length).toBe(count);
+  });
+
+  test("Refine and Arrange again appear only when the canvas has an AI-drawn diagram", async ({
+    page,
+  }) => {
+    test.slow();
+    await newUser(page);
+    await newCanvas(page);
+    await drawRectangle(page);
+    await page.getByRole("button", { name: "More actions" }).click();
+    await expect(page.getByRole("menuitem", { name: "Outline" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Refine with AI" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: "Arrange again" })).toHaveCount(0);
+  });
+
+  test("Arrange again puts the AI's boxes back in order in one undo step, and leaves hand-drawn items alone", async ({
+    page,
+  }) => {
+    test.slow();
+    await canvasWithDiagram(page, { rectangleFirst: true });
+    const start = await allOf(page);
+    const mine = start.find((e) => !e.customData?.dayboard?.ai && e.type === "rectangle")!;
+
+    // Drag one AI box far away, the way a person might.
+    const api = start.find((e) => dayboardId(e) === "api" && e.type === "rectangle")!;
+    await page.evaluate(
+      ([id]) => {
+        const w = window as unknown as { __canvasApi: FullApi };
+        w.__canvasApi.updateScene({
+          elements: w.__canvasApi.getSceneElements().map((e) =>
+            e.id === id
+              ? {
+                  ...e,
+                  x: e.x + 900,
+                  y: e.y + 500,
+                  // A real drag bumps these; without them Excalidraw's history sees no change.
+                  version: (e as unknown as { version: number }).version + 1,
+                  versionNonce: Math.floor(Math.random() * 2 ** 31),
+                }
+              : e,
+          ),
+          captureUpdate: "IMMEDIATELY",
+        });
+      },
+      [api.id],
+    );
+    expect((await allOf(page)).find((e) => e.id === api.id)!.x).toBe(api.x + 900);
+
+    await menuItem(page, "Arrange again");
+    await expect
+      .poll(async () => (await allOf(page)).find((e) => e.id === api.id)!.x)
+      .not.toBe(api.x + 900);
+    const arranged = await allOf(page);
+    // No two AI boxes overlap, and the hand-drawn rectangle did not move.
+    const boxes = arranged.filter((e) => e.customData?.dayboard?.ai && e.type === "rectangle");
+    for (const a of boxes) {
+      for (const b of boxes) {
+        if (a.id >= b.id) continue;
+        const apart =
+          a.x + a.width <= b.x ||
+          b.x + b.width <= a.x ||
+          a.y + a.height <= b.y ||
+          b.y + b.height <= a.y;
+        expect(apart, `${dayboardId(a)} and ${dayboardId(b)}`).toBe(true);
+      }
+    }
+    expect(arranged.find((e) => e.id === mine.id)).toMatchObject({ x: mine.x, y: mine.y });
+
+    // One undo puts the dragged box back where the person left it.
+    const area = (await surface(page).boundingBox())!;
+    await page.mouse.click(area.x + 40, area.y + 40);
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect
+      .poll(async () => (await allOf(page)).find((e) => e.id === api.id)!.x)
+      .toBe(api.x + 900);
+  });
+});

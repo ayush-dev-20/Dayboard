@@ -10,6 +10,16 @@ import {
 } from "@/lib/canvas/client-scene";
 import type { Scene } from "@/lib/canvas/types";
 
+/** The counts a refine's audit row says (numbers only). */
+export type RefineCounts = {
+  id: string;
+  addedBoxes: number;
+  addedConnections: number;
+  changedBoxes: number;
+  removedBoxes: number;
+  removedConnections: number;
+};
+
 // Autosave of a drawing (V3 feature 01 §7), like a note's: a change schedules a save 1.5 s after the last one, the save
 // carries the version the page started from, a refused save becomes a banner that never blocks drawing, and a failed
 // one keeps a draft on the device and tries again. State text only; no toasts for autosave.
@@ -49,6 +59,8 @@ export function useCanvasSave({
     boxes: number;
     connections: number;
   } | null>(null);
+  // A refine that was just applied: the same, for its own audit row.
+  const refined = useRef<RefineCounts | null>(null);
   // The save schedules itself again (a retry, more edits that arrived while it ran): through a ref, so it can call itself.
   const runRef = useRef<() => Promise<void>>(async () => undefined);
 
@@ -67,15 +79,18 @@ export function useCanvasSave({
     setState("saving");
     try {
       const sendingProposal = proposal.current;
+      const sendingRefine = refined.current;
       const result = await saveCanvas({
         id: canvasId,
         version: versionRef.current,
         scene: sending,
         ...(sendingProposal ? { proposal: sendingProposal } : {}),
+        ...(sendingRefine ? { refine: sendingRefine } : {}),
       });
-      if (!result.ok && sendingProposal && result.error.code === "CONFLICT") {
-        // That diagram was already applied (a second tab, a retry): save the drawing without it.
+      if (!result.ok && (sendingProposal || sendingRefine) && result.error.code === "CONFLICT") {
+        // That change was already applied (a second tab, a retry): save the drawing without it.
         proposal.current = null;
+        refined.current = null;
         timer.current = setTimeout(() => void runRef.current(), 0);
         return;
       }
@@ -102,6 +117,7 @@ export function useCanvasSave({
       }
       versionRef.current = result.data.version;
       if (sendingProposal && proposal.current === sendingProposal) proposal.current = null;
+      if (sendingRefine && refined.current === sendingRefine) refined.current = null;
       failures.current = 0;
       setMessage(null);
       if (dirty.current === sending) {
@@ -152,6 +168,15 @@ export function useCanvasSave({
       counts: { id: string; sections: number; boxes: number; connections: number },
     ) => {
       proposal.current = counts;
+      schedule(scene);
+    },
+    [schedule],
+  );
+
+  /** A refine was applied: schedules a save of the drawing that carries its counts for the audit row. */
+  const refine = useCallback(
+    (scene: Scene, counts: RefineCounts) => {
+      refined.current = counts;
       schedule(scene);
     },
     [schedule],
@@ -232,6 +257,7 @@ export function useCanvasSave({
     draft,
     schedule,
     addDiagram,
+    refine,
     flush,
     keepMine,
     loadLatest,

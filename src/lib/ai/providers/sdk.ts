@@ -286,7 +286,10 @@ export function createSdkProvider(): AIProvider {
               system: options.system,
               prompt: options.prompt,
               output: Output.object({ schema }),
-              abortSignal: options.signal,
+              // Each model gets its own time, so a slow first one leaves room for the fallback.
+              abortSignal: options.attemptTimeoutMs
+                ? AbortSignal.any([options.signal, AbortSignal.timeout(options.attemptTimeoutMs)])
+                : options.signal,
               maxOutputTokens: options.maxOutputTokens,
               maxRetries: 0,
             }),

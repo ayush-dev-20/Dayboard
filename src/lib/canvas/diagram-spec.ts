@@ -141,6 +141,9 @@ export function plainText(value: unknown, max: number): { text: string; shortene
   };
 }
 
+/** What a label says when a box reads from a queue. */
+const CONSUMES = /\b(consum\w*|subscrib\w*|poll\w*|pull\w*|listen\w*|reads?|receiv\w*)\b/i;
+
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export type NormalizedDiagram = { spec: DiagramSpec; warnings: string[] };
@@ -262,6 +265,8 @@ export function normalizeDiagram(raw: RawDiagram): NormalizedDiagram {
   let missing = 0;
   let loops = 0;
   let repeats = 0;
+  let turned = 0;
+  const kindOf = new Map(nodes.map((n) => [n.id, n.kind]));
   const pairs = new Set<string>();
   let edges: DiagramSpec["edges"] = [];
   for (const edge of raw.edges) {
@@ -273,7 +278,17 @@ export function normalizeDiagram(raw: RawDiagram): NormalizedDiagram {
       loops += 1;
       continue;
     }
-    const key = `${edge.from}>${edge.to}`;
+    // A consumer reads from a queue, so the arrow runs queue to consumer even when the model drew it the other way.
+    let { from, to } = edge;
+    if (
+      kindOf.get(to) === "queue" &&
+      kindOf.get(from) !== "queue" &&
+      CONSUMES.test(edge.label ?? "")
+    ) {
+      [from, to] = [to, from];
+      turned += 1;
+    }
+    const key = `${from}>${to}`;
     if (pairs.has(key)) {
       repeats += 1;
       continue;
@@ -281,8 +296,8 @@ export function normalizeDiagram(raw: RawDiagram): NormalizedDiagram {
     pairs.add(key);
     const label = clean(edge.label, DIAGRAM_CAPS.edgeLabel);
     edges.push({
-      from: edge.from,
-      to: edge.to,
+      from,
+      to,
       ...(label ? { label } : {}),
       ...(edge.dashed ? { dashed: true } : {}),
       ...(edge.both ? { both: true } : {}),
@@ -301,11 +316,23 @@ export function normalizeDiagram(raw: RawDiagram): NormalizedDiagram {
     warnings.push(
       `${plural(repeats, "repeated connection was", "repeated connections were")} left out.`,
     );
+  if (turned > 0) {
+    warnings.push(
+      `${plural(turned, "connection was", "connections were")} turned around so the arrow follows the data (a queue delivers to what reads from it).`,
+    );
+  }
   if (edges.length > DIAGRAM_CAPS.edges) {
     warnings.push(
       `${plural(edges.length - DIAGRAM_CAPS.edges, "connection was", "connections were")} left out because a diagram can have at most ${DIAGRAM_CAPS.edges}.`,
     );
     edges = edges.slice(0, DIAGRAM_CAPS.edges);
+  }
+  const connected = new Set(edges.flatMap((e) => [e.from, e.to]));
+  const alone = nodes.filter((n) => !connected.has(n.id)).length;
+  if (alone > 0 && nodes.length > 1) {
+    warnings.push(
+      `${plural(alone, "box has", "boxes have")} no connection, so ${alone === 1 ? "it was" : "they were"} drawn on ${alone === 1 ? "its" : "their"} own.`,
+    );
   }
   if (shortened > 0)
     warnings.push(`${plural(shortened, "label was", "labels were")} shortened to fit.`);
