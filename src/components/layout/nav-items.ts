@@ -7,6 +7,7 @@ import {
   List,
   MessageCircle,
   Search,
+  Shapes,
   SlidersHorizontal,
   Sun,
   Trash2,
@@ -23,6 +24,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // The weekly review (V2 feature 15): facts first, then suggestions. It works without AI.
   { href: "/review", label: "Weekly review", icon: CalendarCheck },
   { href: "/notes", label: "Notes", icon: File },
+  // Canvases (V3 feature 01): drawings and sticky boards. Journal and Templates join this group when they are built.
+  { href: "/canvases", label: "Canvases", icon: Shapes },
   { href: "/projects", label: "Projects", icon: Folder },
   // The workspace assistant (V2 feature 11): shown only while AI is on. Speech bubble, never a sparkle.
   { href: "/assistant", label: "Assistant", icon: MessageCircle },
@@ -32,10 +35,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 /** The desktop sidebar's groups, in product-spec order (§5). Same items as `NAV_ITEMS`. */
+const itemFor = (href: string): NavItem => NAV_ITEMS.find((item) => item.href === href)!;
+const itemsFor = (...hrefs: string[]): readonly NavItem[] => hrefs.map(itemFor);
+
+// Explicit lists, not slices of `NAV_ITEMS`: a new tab can no longer shift an item into another group.
 export const NAV_GROUPS: readonly { label: string | null; items: readonly NavItem[] }[] = [
-  { label: "Plan", items: NAV_ITEMS.slice(0, 4) },
-  { label: "Library", items: NAV_ITEMS.slice(4, 7) },
-  { label: null, items: NAV_ITEMS.slice(7) },
+  { label: "Plan", items: itemsFor("/today", "/inbox", "/tasks", "/review") },
+  {
+    label: "Library",
+    items: itemsFor("/notes", "/canvases", "/projects", "/assistant"),
+  },
+  { label: null, items: itemsFor("/search", "/trash", "/settings") },
 ];
 
 /** How many active projects the sidebar lists under Projects. */
@@ -54,6 +64,7 @@ export const MOBILE_NAV_ITEMS: readonly NavItem[] = [
 const MORE_PREFIXES = [
   "/more",
   "/review",
+  "/canvases",
   "/projects",
   "/assistant",
   "/search",
@@ -65,6 +76,11 @@ const MORE_PREFIXES = [
 // bar can sit right above the keyboard (design: Notes, mobile with keyboard).
 export function isNoteEditorPath(pathname: string): boolean {
   return /^\/notes\/[^/]+$/.test(pathname);
+}
+
+/** A canvas page fills the whole panel, so the floating chat button gets out of the way there. */
+export function isCanvasPagePath(pathname: string): boolean {
+  return /^\/canvases\/[^/]+$/.test(pathname);
 }
 
 export function isActive(pathname: string, href: string): boolean {

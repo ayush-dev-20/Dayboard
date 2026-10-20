@@ -9,7 +9,11 @@ const dist = process.argv[2] ?? process.env.NEXT_DIST_DIR ?? ".next";
 const root = join(dist, "static");
 
 const patterns = [
-  { name: "the AI_API_KEY variable name", test: (text) => text.includes("AI_API_KEY") },
+  // Not a substring: Excalidraw has its own constant named OAI_API_KEY.
+  {
+    name: "the AI_API_KEY variable name",
+    test: (text) => /(?<![A-Za-z0-9_])AI_API_KEY/.test(text),
+  },
   { name: "an sk- style API key", test: (text) => /\bsk-[A-Za-z0-9_-]{20,}/.test(text) },
   { name: "an Anthropic key", test: (text) => /\bsk-ant-[A-Za-z0-9_-]{10,}/.test(text) },
   // Files (feature 09): the bucket credentials never reach the browser, nor does the S3 client.

@@ -24,6 +24,9 @@ export const AI_FEATURES = [
   "VOICE_PARSE",
   // V2 feature 15: the weekly review's suggestions (one AI action).
   "WEEKLY_REVIEW",
+  // V3 feature 01: a diagram drawn from a description (one AI action), and a change to one the AI drew.
+  "GENERATE_DIAGRAM",
+  "REFINE_DIAGRAM",
 ] as const;
 export type AIFeature = (typeof AI_FEATURES)[number];
 

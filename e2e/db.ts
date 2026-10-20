@@ -842,3 +842,81 @@ export async function notificationSettingsOf(userId: string) {
     select category, enabled from notification_preferences where user_id = ${userId} order by category`;
   return { ...row!, categories };
 }
+
+// -- Canvases (V3 feature 01) -------------------------------------------------------------------------------------
+
+export type CanvasRow = {
+  id: string;
+  title: string;
+  kind: string;
+  version: number;
+  element_count: number;
+  scene_text: string;
+  scene: { v: number; elements: Record<string, unknown>[]; appState: Record<string, unknown> };
+  deleted_at: Date | null;
+  archived_at: Date | null;
+  project_id: string | null;
+};
+
+export async function canvasesOf(userId: string) {
+  return sql<CanvasRow[]>`
+    select id, title, kind, version, element_count, scene_text, scene_json as scene, deleted_at, archived_at, project_id
+    from canvases where user_id = ${userId} order by created_at`;
+}
+
+export async function insertCanvas(
+  userId: string,
+  seed: {
+    title?: string;
+    scene?: unknown;
+    archived?: boolean;
+    deleted?: boolean;
+    text?: string;
+    count?: number;
+  },
+) {
+  const scene = seed.scene ?? { v: 1, elements: [], appState: {} };
+  const [row] = await sql<{ id: string }[]>`
+    insert into canvases (id, user_id, title, kind, scene_json, scene_text, element_count, archived_at, deleted_at)
+    values (gen_random_uuid(), ${userId}, ${seed.title ?? ""}, 'DRAWING', ${sql.json(scene as never)},
+            ${seed.text ?? seed.title ?? ""}, ${seed.count ?? 0}, ${seed.archived ? sql`now()` : null},
+            ${seed.deleted ? sql`now()` : null})
+    returning id`;
+  return row!.id;
+}
+
+/** Saves a scene as another window would: the version goes up, so the open page's next save is stale. */
+export async function saveCanvasElsewhere(canvasId: string, text: string) {
+  const scene = {
+    v: 1,
+    elements: [
+      {
+        id: "elsewhere1",
+        type: "text",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 20,
+        text,
+        isDeleted: false,
+      },
+    ],
+    appState: {},
+  };
+  await sql`
+    update canvases set scene_json = ${sql.json(scene as never)}, scene_text = ${text}, element_count = 1,
+                        version = version + 1 where id = ${canvasId}`;
+}
+
+export async function taskCanvasLinks(taskId: string) {
+  return sql<
+    { canvas_id: string }[]
+  >`select canvas_id from task_canvases where task_id = ${taskId}`;
+}
+
+export async function auditRowsOf(userId: string) {
+  return sql<
+    { source: string; action: string; summary: string; proposal_id: string; entity_refs: unknown }[]
+  >`
+    select source, action, summary, proposal_id, entity_refs from audit_log where user_id = ${userId} order by created_at`;
+}

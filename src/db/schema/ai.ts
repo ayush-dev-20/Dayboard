@@ -82,7 +82,7 @@ export const auditLog = pgTable(
     index("audit_log_user_created_idx").on(t.userId, t.createdAt.desc()),
     uniqueIndex("audit_log_user_proposal_idx").on(t.userId, t.proposalId),
     check("audit_log_summary_length", sql`char_length(${t.summary}) between 1 and 200`),
-    check("audit_log_source", sql`${t.source} in ('ASSISTANT', 'WEEKLY_REVIEW', 'VOICE')`),
+    check("audit_log_source", sql`${t.source} in ('ASSISTANT', 'WEEKLY_REVIEW', 'VOICE', 'CANVAS')`),
   ],
 );
 

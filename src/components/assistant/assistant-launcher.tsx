@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useWorkspace } from "@/components/workspace/workspace-context";
-import { isNoteEditorPath } from "@/components/layout/nav-items";
+import { isCanvasPagePath, isNoteEditorPath } from "@/components/layout/nav-items";
 import { useSheetMode, useSheetWidth } from "@/components/tasks/sheet-state";
 import { cn } from "@/lib/utils";
 import { AssistantChat } from "./assistant-chat";
@@ -221,6 +221,8 @@ export function AssistantLauncher() {
           "max-md:bottom-[calc(56px+env(safe-area-inset-bottom)+3rem+var(--al-lift))]",
           // The editor on a phone owns the whole screen (no bottom nav): the menu has Ask about this.
           isNoteEditorPath(pathname) && "max-md:hidden",
+          // A canvas fills the panel and has controls in its corners (V3 feature 01): the button is out of the way.
+          isCanvasPagePath(pathname) && "hidden",
           // An expanded task panel fills the content area: the button waits.
           taskPanelFull && "lg:hidden",
         )}

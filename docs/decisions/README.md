@@ -24,6 +24,7 @@ Filename: `NNNN-short-title.md` (for example `0001-use-better-auth.md`). Numbers
 | [0014](0014-service-worker-built-with-esbuild.md)       | Service worker written by hand and bundled with esbuild                            | Accepted |
 | [0015](0015-assistant-floating-launcher-and-drag.md)    | The assistant's floating chat button, and dragging items onto it                   | Accepted |
 | [0016](0016-assistant-threads-in-browser-storage.md)    | Assistant conversations in the browser's storage, until Dexie exists               | Accepted |
+| [0017](0017-canvas-excalidraw-and-scene-whitelist.md)   | Canvas: Excalidraw, the scene whitelist, layout and self-hosted assets             | Accepted |
 | [0026](0026-weekly-review-facts-and-suggestions.md)     | Weekly review: facts computed in code, suggestions checked against them            | Accepted |
 | [0027](0027-tinted-chips-for-status-project-and-tag.md) | Tinted chips for status, project and tag                                           | Accepted |
 | [0028](0028-expandable-dialog-for-peeking-at-a-note.md) | An expandable dialog for peeking at a note from Today                              | Accepted |

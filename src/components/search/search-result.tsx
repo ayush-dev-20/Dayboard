@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { askAttrs } from "@/lib/ai/ask-attrs";
-import { CheckSquare, CircleCheck, FileText, Folder, Tag } from "lucide-react";
+import { CheckSquare, CircleCheck, FileText, Folder, Shapes, Tag } from "lucide-react";
 import { ProjectToken } from "@/components/workspace/tokens";
 import { formatDay } from "@/lib/dates/calendar";
 import { pathLabel } from "@/lib/notes/tree";
@@ -13,6 +13,7 @@ const ICONS = {
   task: CheckSquare,
   todo: CircleCheck,
   note: FileText,
+  canvas: Shapes,
   project: Folder,
   tag: Tag,
 } as const;

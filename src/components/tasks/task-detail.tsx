@@ -29,6 +29,7 @@ import { RelatedPanel } from "@/components/assistant/related-panel";
 import { AskAboutMenuItem } from "@/components/assistant/ask-about";
 import { AttachmentsSection } from "@/components/files/attachments-section";
 import { RemindMe } from "./remind-me";
+import { LinkedCanvases } from "./linked-canvases";
 import { RelatedNotes } from "./related-notes";
 import { TagsSection } from "./tags-section";
 import { SubtasksSection } from "./subtasks-section";
@@ -67,6 +68,7 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
   const [subtasks, setSubtasks] = useState<TaskDTO[]>(detail.subtasks);
   const [titleDraft, setTitleDraft] = useState(detail.title);
   const [linkedNotes, setLinkedNotes] = useState<NoteRefDTO[]>(detail.notes);
+  const [linkedCanvases, setLinkedCanvases] = useState(detail.canvases);
   const { aiEnabled } = useWorkspace();
   // A rewrite the person accepted replaces the editor's content, so the editor starts over from it.
   const [description, setDescription] = useState<{ doc: TiptapDoc | null; version: number }>({
@@ -258,6 +260,7 @@ export function TaskDetail({ detail, variant, onClose, controls }: Props) {
       <DescriptionEditor key={description.version} taskId={task.id} initial={description.doc} />
 
       <RelatedNotes taskId={task.id} notes={linkedNotes} onChange={setLinkedNotes} />
+      <LinkedCanvases taskId={task.id} canvases={linkedCanvases} onChange={setLinkedCanvases} />
       <AttachmentsSection ownerType="TASK" ownerId={task.id} />
       <RelatedPanel type="task" id={task.id} />
       <TagsSection

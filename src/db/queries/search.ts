@@ -4,7 +4,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { projectRefsFor } from "@/db/queries/meta";
 import { ancestorsFor } from "@/db/queries/note-tree";
-import { notes, projects, tags, tasks, todos } from "@/db/schema";
+import { canvases, notes, projects, tags, tasks, todos } from "@/db/schema";
 import { dueInstant, type DayPrefs } from "@/lib/dates/today";
 import { addDays } from "@/lib/dates/calendar";
 import { containsPattern, prefixPattern } from "@/lib/search/query";
@@ -16,7 +16,15 @@ import type { TaskStatus } from "@/lib/tasks/status";
 // returning anything in Trash. Archived items are included and labelled. See feature doc §5.
 
 const WINDOW = 260;
-const EMPTY: SearchResults = { task: [], todo: [], note: [], project: [], tag: [], total: 0 };
+const EMPTY: SearchResults = {
+  task: [],
+  todo: [],
+  note: [],
+  canvas: [],
+  project: [],
+  tag: [],
+  total: 0,
+};
 
 /** Position-based window of body text around the first match, cut in SQL so a long note isn't shipped. */
 const windowOf = (body: SQL | AnyPgColumn, q: string) =>
@@ -265,6 +273,70 @@ async function searchNotes(
   );
 }
 
+/** Canvases (V3 feature 01): the title and the plain text built from the drawing (its labels, cards and frame names). */
+async function searchCanvases(
+  userId: string,
+  p: SearchParams,
+  prefs: DayPrefs,
+  limit: number,
+): Promise<SearchHit[]> {
+  const q = p.q;
+  const { from, toExclusive } = instants(p, prefs);
+  const projectCond =
+    p.projectId === "none"
+      ? sql`(${canvases.projectId} is null or not exists (select 1 from projects pr where pr.id = ${canvases.projectId} and pr.user_id = ${userId} and pr.deleted_at is null))`
+      : p.projectId
+        ? eq(canvases.projectId, p.projectId)
+        : undefined;
+  const rows = await db
+    .select({
+      id: canvases.id,
+      title: canvases.title,
+      emoji: canvases.emoji,
+      archivedAt: canvases.archivedAt,
+      projectId: canvases.projectId,
+      updatedAt: canvases.updatedAt,
+      rank: rankOf(canvases.title, q),
+      window: windowOf(sql`${canvases.sceneText}`, q),
+    })
+    .from(canvases)
+    .where(
+      and(
+        eq(canvases.userId, userId),
+        isNull(canvases.deletedAt),
+        or(
+          ilike(canvases.title, containsPattern(q)),
+          ilike(canvases.sceneText, containsPattern(q)),
+        ),
+        projectCond,
+        from ? sql`${canvases.updatedAt} >= ${from.toISOString()}::timestamptz` : undefined,
+        toExclusive
+          ? sql`${canvases.updatedAt} < ${toExclusive.toISOString()}::timestamptz`
+          : undefined,
+      ),
+    )
+    .orderBy(rankOf(canvases.title, q), desc(canvases.updatedAt))
+    .limit(limit);
+  const refs = await projectRefsFor(
+    db,
+    userId,
+    rows.map((r) => r.projectId),
+  );
+  return rows.map((r) =>
+    hit({
+      type: "canvas",
+      id: r.id,
+      title: r.title || "Untitled canvas",
+      emoji: r.emoji,
+      href: `/canvases/${r.id}`,
+      archived: r.archivedAt !== null,
+      project: (r.projectId && refs.get(r.projectId)) || null,
+      snippet: r.rank === 3 && r.window ? buildSnippet(r.window, q) : null,
+      updatedAt: r.updatedAt.toISOString(),
+    }),
+  );
+}
+
 async function searchProjects(
   userId: string,
   p: SearchParams,
@@ -363,10 +435,12 @@ export async function searchWorkspace(
   const want = (type: SearchType) => tab === "all" || tab === type;
   const hasDate = Boolean(from || to);
 
-  const [t, d, n, pr, tg] = await Promise.all([
+  const [t, d, n, cv, pr, tg] = await Promise.all([
     want("task") ? searchTasks(userId, params, limitPerType) : [],
     want("todo") && !status && !tagId ? searchTodos(userId, params, limitPerType) : [],
     want("note") && !status ? searchNotes(userId, params, prefs, limitPerType) : [],
+    // A canvas has no status and no tags, so those filters leave canvases out.
+    want("canvas") && !status && !tagId ? searchCanvases(userId, params, prefs, limitPerType) : [],
     want("project") && !status && !tagId ? searchProjects(userId, params, prefs, limitPerType) : [],
     tab === "all" && !status && !tagId && !projectId && !hasDate
       ? searchTags(userId, params, limitPerType)
@@ -376,9 +450,10 @@ export async function searchWorkspace(
     task: t,
     todo: d,
     note: n,
+    canvas: cv,
     project: pr,
     tag: tg,
-    total: t.length + d.length + n.length + pr.length + tg.length,
+    total: t.length + d.length + n.length + cv.length + pr.length + tg.length,
   };
 }
 
@@ -411,6 +486,7 @@ export async function searchByIds(
     task: t,
     todo: d,
     note: n,
+    canvas: [],
     project: pr,
     tag: [],
     total: t.length + d.length + n.length + pr.length,

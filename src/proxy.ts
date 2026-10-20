@@ -6,6 +6,7 @@ const PROTECTED_PREFIXES = [
   "/inbox",
   "/tasks",
   "/notes",
+  "/canvases",
   "/projects",
   "/search",
   "/trash",

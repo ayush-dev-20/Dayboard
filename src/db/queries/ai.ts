@@ -214,6 +214,8 @@ export async function findCandidates(
       ...result.project,
       ...result.tag,
     ]) {
+      // Canvases are never read by the AI (V3 feature 01 §8): they are not part of "Ask my workspace".
+      if (hit.type === "canvas") continue;
       const key = `${hit.type}:${hit.id}`;
       const entry = merged.get(key) ?? {
         type: hit.type,

@@ -1,3 +1,4 @@
+import { listLinkedCanvases } from "@/db/queries/canvases";
 import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -172,7 +173,7 @@ export async function getTaskDetail(userId: string, id: string): Promise<TaskDet
     .limit(1);
   if (!row) return null;
 
-  const [subtasks, meta, linked] = await Promise.all([
+  const [subtasks, meta, linked, canvases] = await Promise.all([
     db
       .select()
       .from(tasks)
@@ -193,6 +194,7 @@ export async function getTaskDetail(userId: string, id: string): Promise<TaskDet
         ),
       )
       .orderBy(asc(taskNotes.createdAt)),
+    listLinkedCanvases(userId, id),
   ]);
 
   const taskMeta = meta.get(row.task.id);
@@ -204,5 +206,6 @@ export async function getTaskDetail(userId: string, id: string): Promise<TaskDet
       toTaskDTO(s, undefined, { project: taskMeta?.project ?? null, tags: [] }),
     ),
     notes: linked,
+    canvases,
   };
 }

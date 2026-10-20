@@ -9,6 +9,7 @@ import type { AIFeature, ModelTier } from "../types";
 import { embeddingLabel } from "../embedding";
 import { mockAssistantTurn } from "./mock-assistant";
 import { mockWeeklyReview } from "./mock-review";
+import { mockDiagram } from "./mock-diagram";
 import { mockTranscript, mockVoiceParse } from "./mock-voice";
 import { mockEmbedStats, mockVector } from "./mock-embed";
 
@@ -437,6 +438,8 @@ function structured(feature: AIFeature, fixture: Obj): unknown {
       return classify(fixture);
     case "WEEKLY_REVIEW":
       return mockWeeklyReview(fixture as never);
+    case "GENERATE_DIAGRAM":
+      return mockDiagram(fixture as never);
     case "VOICE_PARSE": {
       // `[mock:parsefail]` in the speech makes only the parse step fail, so the fallback note can be tested.
       if (str(fixture.transcript).includes("[mock:parsefail]")) {

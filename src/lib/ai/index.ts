@@ -45,6 +45,8 @@ type CommonArgs = {
   maxOutputTokens?: number;
   /** Plain-data copy of the request, for the mock provider only. */
   fixture?: unknown;
+  /** How long one structured call may take. Only a feature that needs more than the default asks for it (a diagram). */
+  timeoutMs?: number;
 };
 
 const sum = (a: TokenUsage, b: TokenUsage): TokenUsage => ({
@@ -80,8 +82,9 @@ export async function generateStructured<S extends z.ZodType>(
           tier,
           system: args.system,
           prompt,
+          maxOutputTokens: args.maxOutputTokens,
           fixture: args.fixture,
-          signal: AbortSignal.timeout(STRUCTURED_TIMEOUT_MS),
+          signal: AbortSignal.timeout(args.timeoutMs ?? STRUCTURED_TIMEOUT_MS),
         },
         args.schema,
       );

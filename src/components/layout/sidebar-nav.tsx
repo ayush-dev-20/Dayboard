@@ -37,11 +37,12 @@ const itemBase =
 export function SidebarNav({ onNavigate, collapsible = false, account }: Props) {
   const pathname = usePathname();
   const command = useCommandMenu();
-  const { counts, projects, aiEnabled } = useWorkspace();
+  const { counts, projects, aiEnabled, canvases } = useWorkspace();
   const { collapsed: collapsedState, toggle, toggled } = useSidebar();
   const collapsed = collapsible && collapsedState;
   const countFor: Record<string, number> = { "/today": counts.today, "/inbox": counts.inbox };
   const projectsSection = useSidebarSection("projects");
+  const canvasesSection = useSidebarSection("canvases");
   const active = projects.filter((p) => p.status === "ACTIVE");
   const shown = active.slice(0, SIDEBAR_PROJECTS);
   // Labels fade in as the sidebar opens (never on first load), while the width eases open.
@@ -171,7 +172,9 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                             className={cn(
                               itemBase,
                               "relative",
-                              (href === "/notes" || (href === "/projects" && shown.length > 0)) &&
+                              (href === "/notes" ||
+                                href === "/canvases" ||
+                                (href === "/projects" && shown.length > 0)) &&
                                 !collapsed &&
                                 "pr-9",
                               collapsed && "mx-auto w-10 justify-center px-0",
@@ -220,6 +223,13 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                         {href === "/notes" && !collapsed ? (
                           <NotesTreeToggle className="absolute top-1/2 right-1 -translate-y-1/2" />
                         ) : null}
+                        {href === "/canvases" && !collapsed ? (
+                          <SidebarSectionToggle
+                            name="canvases"
+                            label="canvases"
+                            className="absolute top-1/2 right-1 -translate-y-1/2"
+                          />
+                        ) : null}
                         {href === "/projects" && !collapsed && shown.length > 0 ? (
                           <SidebarSectionToggle
                             name="projects"
@@ -230,6 +240,55 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
                       </div>
                       {href === "/notes" && !collapsed ? (
                         <SidebarNotesTree onNavigate={onNavigate} />
+                      ) : null}
+                      {href === "/canvases" &&
+                      !collapsed &&
+                      canvasesSection.shown &&
+                      canvases.length > 0 ? (
+                        <ul className="mt-0.5 flex flex-col gap-0.5" aria-label="Latest canvases">
+                          {canvases.map((canvas) => {
+                            const canvasHref = `/canvases/${canvas.id}`;
+                            const onCanvas = isActive(pathname, canvasHref);
+                            return (
+                              <li key={canvas.id}>
+                                <Link
+                                  href={canvasHref}
+                                  onClick={onNavigate}
+                                  aria-current={onCanvas ? "page" : undefined}
+                                  className={cn(
+                                    itemBase,
+                                    "pl-8 type-body-sm",
+                                    onCanvas
+                                      ? "bg-sidebar-accent text-foreground"
+                                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                                  )}
+                                >
+                                  <span
+                                    aria-hidden
+                                    className="inline-flex w-4 shrink-0 justify-center"
+                                  >
+                                    {canvas.emoji ?? ""}
+                                  </span>
+                                  <span className="truncate">
+                                    {canvas.title || "Untitled canvas"}
+                                  </span>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                          <li>
+                            <Link
+                              href="/canvases"
+                              onClick={onNavigate}
+                              className={cn(
+                                itemBase,
+                                "pl-8 type-body-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                              )}
+                            >
+                              Show all
+                            </Link>
+                          </li>
+                        </ul>
                       ) : null}
                       {href === "/projects" &&
                       !collapsed &&

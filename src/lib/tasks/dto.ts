@@ -1,3 +1,4 @@
+import type { LinkedCanvasDTO } from "@/lib/canvas/dto";
 import type { TiptapDoc } from "../editor/types";
 import { trimTime } from "../dates/calendar";
 import type { ProjectRef } from "../projects/dto";
@@ -38,6 +39,8 @@ export type TaskDetailDTO = TaskDTO & {
   subtasks: TaskDTO[];
   /** Notes linked to this task (those in Trash are left out). */
   notes: NoteRefDTO[];
+  /** Canvases linked to this task (V3 feature 01): those in Trash are left out, an archived one is marked. */
+  canvases: LinkedCanvasDTO[];
 };
 
 export type TodoDTO = {

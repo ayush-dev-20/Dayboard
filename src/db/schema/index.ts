@@ -2,6 +2,7 @@ export * from "./ai";
 export * from "./attachments";
 export * from "./auth";
 export * from "./calendar";
+export * from "./canvases";
 export * from "./enums";
 export * from "./inbox";
 export * from "./jobs";

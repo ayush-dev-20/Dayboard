@@ -22,6 +22,7 @@ const PLURAL: Record<TrashType, string> = {
   note: "Notes",
   project: "Projects",
   inbox: "Inbox",
+  canvas: "Canvases",
 };
 
 export default async function TrashPage({ searchParams }: { searchParams: SearchParams }) {

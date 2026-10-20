@@ -17,7 +17,7 @@ export type Route =
   /** Everything else (data, server actions, sign-in): network only, never stored. */
   | { kind: "network" };
 
-const STATIC_PREFIXES = ["/_next/static/", "/brand/", "/emojibase/", "/icons/"];
+const STATIC_PREFIXES = ["/_next/static/", "/brand/", "/emojibase/", "/excalidraw/", "/icons/"];
 const STATIC_EXACT = ["/icon.svg", "/apple-icon", "/manifest.webmanifest"];
 
 export function classify(input: {

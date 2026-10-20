@@ -332,17 +332,25 @@ describe("Today bucketing", () => {
 
 describe("Trash helpers and times", () => {
   it("describes counts in words", () => {
-    expect(describeCounts({ task: 2, todo: 1, note: 1, project: 1, inbox: 1 })).toBe(
+    expect(describeCounts({ task: 2, todo: 1, note: 1, project: 1, inbox: 1, canvas: 0 })).toBe(
       "2 tasks, 1 todo, 1 note, 1 project and 1 inbox item",
     );
-    expect(describeCounts({ task: 0, todo: 0, note: 3, project: 0, inbox: 0 })).toBe("3 notes");
-    expect(describeCounts({ task: 0, todo: 0, note: 0, project: 0, inbox: 0 })).toBe("nothing");
+    expect(describeCounts({ task: 0, todo: 0, note: 3, project: 0, inbox: 0, canvas: 0 })).toBe(
+      "3 notes",
+    );
+    expect(describeCounts({ task: 0, todo: 0, note: 0, project: 0, inbox: 0, canvas: 0 })).toBe(
+      "nothing",
+    );
+    expect(describeCounts({ task: 0, todo: 0, note: 0, project: 0, inbox: 0, canvas: 2 })).toBe(
+      "2 canvases",
+    );
   });
 
   it("says where Open leads", () => {
     expect(trashHref("note", "abc")).toBe("/notes/abc");
     expect(trashHref("task", "abc")).toBe("/tasks?task=abc");
     expect(trashHref("inbox", "abc")).toBe("/inbox");
+    expect(trashHref("canvas", "abc")).toBe("/canvases/abc");
   });
 
   const tz = "Asia/Kolkata";

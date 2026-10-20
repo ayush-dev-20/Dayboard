@@ -26,6 +26,7 @@ backups
 .vercel
 dist
 public/emojibase
+public/excalidraw
 # Claude Code local settings and skills
 .claude/
 .next-*

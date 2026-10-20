@@ -4,6 +4,35 @@
 >
 > **Sticky boards** (§13, slice D) were added on 2026-10-15 (owner): a second kind of canvas, a status board of sticky notes, where **each sticky note is a task of its own kind** that also shows in Today. It reuses slice A and needs neither Excalidraw nor ADR 0017, but it adds columns to the tasks table (§13.2).
 
+## 0. Reality check and progress (2026-10-20)
+
+Checked against the code and `agent_docs/` before building. Every "Action" is the builder's proposal and can be vetoed.
+
+| Spec says | What the project has | Action |
+|---|---|---|
+| ADR 0017 before adding Excalidraw | No ADR 0017 (0017 to 0025 are reserved for V3 and unwritten). `@excalidraw/excalidraw` 0.18.1 is MIT and its peers accept React 19 (checked with `npm view`); it is 46 MB unpacked, so it must stay out of the main bundle | ADR 0017 first, then the package. Loaded with `next/dynamic` (`ssr: false`) on canvas pages and in the preview only |
+| V3 code "under `src/modules/<name>/`" (`features/README.md` and `Agent.md` §3) versus this doc's own paths (`src/lib/canvas/*`, `src/actions/canvases.ts`) | No `src/modules/` exists; V1 and V2 live in `src/lib`, `src/db`, `src/actions`, `src/components` | Follow this feature doc's paths (they match every earlier hand-off, and the feature doc wins for its feature). Pure code stays free of the framework so it can move to `modules/canvases/` later |
+| "Needs only V1 … does not wait for V2 03 to 05, 08, 10" and the README's table of V2 features "not built" | Stale: V2 08 (worker), 10, 12, 13, 14, 15 are built; 03 is partly built; 04 and 05 exist as libraries but **nothing in the app runs the local engine** | Nothing needed from them. A canvas stays server-backed like notes; the sync columns (`version`, `last_modified_by_device_id`) are added as specified |
+| Migration "0011 when written, use the next free number" | Next free is `0019`. `ai_feature` is a Postgres enum (`ALTER TYPE … ADD VALUE`, as `0017` did). `audit_log_source` is a check on `('ASSISTANT','WEEKLY_REVIEW','VOICE')` | One migration `0019`: new enum values, drop and re-add the check with `'CANVAS'`, `canvases`, `task_canvases`. Slice D adds its own later migration on `tasks` |
+| Per-call timeout (60 s) "through a per-call option on the facade" | `generateStructured` uses one constant `STRUCTURED_TIMEOUT_MS` | Add an optional `timeoutMs` to the facade's common args; the default stays for every other feature |
+| Library group "Notes, Journal, Canvases, Projects, Templates, Assistant"; `NAV_GROUPS` built with fixed `slice` indexes | Journal and Templates (V3 02, 03) are not built; Library today is Notes, Projects, Assistant, built by `NAV_ITEMS.slice(4, 7)` | Replace the slices with explicit lists and put Canvases between Notes and Projects; Journal and Templates join when built. `MORE_PREFIXES`, the More page's links and the proxy's `PROTECTED_PREFIXES` gain `/canvases` |
+| Sidebar section that folds like Projects, with the latest five canvases | `useSidebarSection("projects")` and `SidebarSectionToggle` exist; the layout loads `projects` for the workspace context and revalidates the layout on change | Reuse both: the app layout loads the latest five canvases into the workspace context |
+| `canvas` in Trash and in search (`TRASH_TYPES`, `SEARCH_TYPES`) | Search is `ILIKE` on bounded fields (`src/db/queries/search.ts`); `TRASH_TYPES` has five members and `TrashCounts` is a `Record` over them (7 consumers) | Add `canvas` to both; keyword search only (`ILIKE` on title and `scene_text`). Canvases are not in the semantic index (feature 10) |
+| Task-to-canvas link "like `task_notes`" | `task_notes`, `linkTaskNote`, `findTasksToLink` and `LinkedTasks` exist | Mirror them as `task_canvases` and a `LinkedCanvases` section on the task |
+| Note picker for cards and "base it on a note" (`src/lib/notes/picker.ts`, `note-link-picker.tsx`) | Both exist (`src/components/editor/blocks/note-link-picker.tsx`) | Reuse |
+| `audit_log` unique `(user_id, proposal_id)` so a proposal applies once | Exists (`audit_log_user_proposal_idx`) | Reuse as is |
+| Sync coverage: every write function logs a change or is listed in `GAPS` | `tests/unit/sync-change-log-coverage.test.ts` enumerates every function in `src/db/mutations` | The new `canvases.ts` writers are listed in `GAPS` (canvases are not synced); slice D's sticky writes go through the task mutations and so are covered |
+| Slice D: `plainTasks` on "every task query", "AI features skip stickies" | **23 files** read the tasks table (`src/db/queries/*`, `src/db/mutations/*`, plus code that shipped after this spec: feature 14 reminders and overdue counts, feature 15 weekly review, feature 10's index, voice, calendar) | One exported `plainTasks` condition and a classification test over every exported task query. Stickies are left out of counts, Today's task lists, the overdue summary, the weekly review, planning and the assistant. A sticky with a due time still gets a reminder (it is a task; the spec is silent): **vetoable** |
+| `scene-builder` unit tests "every arrow has start and end bindings" using Excalidraw's `convertToExcalidrawElements` | That helper measures text, so it needs a browser | The builder produces **element skeletons** (pure, tested in Vitest); a thin client step calls `convertToExcalidrawElements` |
+| Excalidraw assets from our own origin, `public/excalidraw/` git-ignored | The emoji data is copied by `prebuild` (`scripts/copy-emoji-data.mjs`); the service worker caches `/emojibase/` under `STATIC_PREFIXES`; no CSP is set in `next.config.ts` | Same: a copy script in `prebuild` and `dev`; add `/excalidraw/` to `STATIC_PREFIXES` |
+| Drag for stickies "with the library of ADR 0008" | `@dnd-kit/core` and `sortable` are installed and used by the Board view | Reuse; no new dependency for slice D |
+
+**Order of work (proposed):** A, then B, then D. **C waits** until the owner has tried B (the spec says so). Slice D is large because of the `tasks` blast radius, so it ships as its own change.
+
+**Progress (2026-10-20):** slices A (canvas) and B (Draw with AI) are built and tested with the mock provider; see `agent_docs/canvas-with-ai-diagrams_v3.md`. **Waiting on the owner:** the food-delivery preview review, and a try with a real model. Slices C and D are not started.
+
+---
+
 ## 1. Scope
 
 - A new item type, the **Canvas**, in two kinds. A **drawing** is an infinite whiteboard (Excalidraw, embedded) for boxes, arrows, text and frames; a **sticky board** (§13) is columns of sticky notes. Both are saved per person in PostgreSQL, with an own list page `/canvases`, an own page `/canvases/[id]`, an optional project, archive, Trash and search.
@@ -304,22 +333,33 @@ No visual baselines: Excalidraw's rendering depends on fonts and platform.
 
 ## 11. Definition of done
 
-- [ ] **ADR 0017** written before building: Excalidraw (MIT) as the drawing surface and why not tldraw (production licence key), Eraser or Miro (not embeddable), or building one; the layout approach and when to adopt dagre; client-side scene building; the scene whitelist; self-hosted assets; the exception to the component and icon rules
-- [ ] The migration is expand-only (new table, enum values, widened check)
-- [ ] A person can create, draw in, rename, move to a project, archive, trash, restore and permanently delete a canvas; unauthorized access is impossible by any route
-- [ ] Saving is safe: version check, draft on the device, conflict banner; the server rebuilds the text copy and rejects forbidden or oversized scenes
-- [ ] Cards open the note, task or project in the app
-- [ ] The Canvases tab is in the sidebar and under More, folds like Projects, and a task and a canvas can be linked from either side, with the links shown on both
+- [x] **ADR 0017** written before building: Excalidraw (MIT) as the drawing surface and why not tldraw (production licence key), Eraser or Miro (not embeddable), or building one; the layout approach and when to adopt dagre; client-side scene building; the scene whitelist; self-hosted assets; the exception to the component and icon rules
+- [x] The migration is expand-only (new table, enum values, widened check)
+- [x] A person can create, draw in, rename, move to a project, archive, trash, restore and permanently delete a canvas; unauthorized access is impossible by any route
+- [x] Saving is safe: version check, draft on the device, conflict banner; the server rebuilds the text copy and rejects forbidden or oversized scenes
+- [x] Cards open the note, task or project in the app
+- [x] The Canvases tab is in the sidebar and under More, folds like Projects, and a task and a canvas can be linked from either side, with the links shown on both
 
-- [ ] **Draw with AI** works with the mock provider and with a real model: structured answer checked, warnings shown, layout without overlaps, arrows attached to boxes, preview, nothing saved before Create, one apply per proposal, audit row with counts only
+- [ ] **Draw with AI** works with the mock provider (done) and with a real model (not yet tried): structured answer checked, warnings shown, layout without overlaps, arrows attached to boxes, preview, nothing saved before Create, one apply per proposal, audit row with counts only
 - [ ] The food-delivery example from V3 product §4.3 is a test fixture and its preview is reviewed by the owner
-- [ ] The Outline shows the same content as the drawing
+- [x] The Outline shows the same content as the drawing
 - [ ] **Sticky boards** meet the definition of done in §13.8 (they are tasks of kind `STICKY` and need the `plainTasks` filter in every task query)
-- [ ] Without AI the canvas still works
-- [ ] Excalidraw loads on demand only, with its fonts and assets from our own origin; the canvas route's JavaScript size is recorded
+- [x] Without AI the canvas still works
+- [x] Excalidraw loads on demand only, with its fonts and assets from our own origin; the canvas route's JavaScript size is recorded (three chunks, about 2.9 MB raw / 1.08 MB gzipped, in no other page's manifest)
 - [ ] Axe passes, 360 px works for the list and the dialog, reduced motion respected
 - [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass; `pnpm check:bundle` still finds no secrets
-- [ ] `agent_docs/canvas-with-ai-diagrams_v3.md` written and indexed; an "As built" section here lists every deviation
+- [ ] `agent_docs/canvas-with-ai-diagrams_v3.md` written and indexed (done for slices A and B); an "As built" section here lists every deviation (open until slice D)
+
+### As built (slices A and B, 2026-10-20)
+
+Deviations from this document, in one place (details in `agent_docs/canvas-with-ai-diagrams_v3.md`):
+
+- Code is under `src/lib/canvas`, `src/db/*/canvases.ts` and `src/actions/canvases.ts`, not `src/modules/`.
+- The audit `proposal` is a counts object carried by the save; the server writes the summary text.
+- AI labels use Excalidraw's Helvetica, not the hand-drawn font (text is measured before that font loads); AI arrows have no frame; arrows are thin and only arrows up to 260 px carry their label, because long cross-section labels pile up. Arrows are still not routed around boxes.
+- The diagram is fitted to the view after it is added; `NEXT_PUBLIC_E2E=1` exposes `window.__canvasApi` to the tests.
+- The floating chat button is hidden on canvas pages; Excalidraw's shape-library button is still visible.
+- `scripts/check-client-bundle.mjs` matches `AI_API_KEY` as a whole word (Excalidraw has a constant `OAI_API_KEY`).
 
 ---
 

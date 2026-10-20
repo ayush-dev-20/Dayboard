@@ -191,7 +191,8 @@ export async function searchHybrid(
   if (!meaning) return { results: plain, semantic: "unavailable" };
 
   const results: SearchResults = { ...plain };
-  let total = plain.tag.length;
+  // Tags and canvases are found by words only: they have no meaning index (canvases are not in feature 10).
+  let total = plain.tag.length + plain.canvas.length;
   for (const type of MEANING_TYPES) {
     const kw = new Map(plain[type].map((h) => [h.id, h]));
     // Items found by meaning that are archived are left out: the index holds live items only.

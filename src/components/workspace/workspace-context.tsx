@@ -22,6 +22,8 @@ export type WorkspaceValue = {
   filesEnabled: boolean;
   /** Voice capture is on: storage, a provider that takes audio, AI and the person's switch (feature 13). */
   voiceEnabled: boolean;
+  /** The latest canvases under Canvases in the sidebar (V3 feature 01): five at most, newest first. */
+  canvases: { id: string; title: string; emoji: string | null; kind: "DRAWING" | "BOARD" }[];
   /** The notes under Notes in the sidebar: the first 50 top-level notes and what is under them. */
   noteTree: { rows: NoteTreeRow[]; rootTotal: number };
 };
@@ -35,6 +37,7 @@ const WorkspaceContext = createContext<WorkspaceValue>({
   assistantLauncher: true,
   filesEnabled: false,
   voiceEnabled: false,
+  canvases: [],
   noteTree: { rows: [], rootTotal: 0 },
 });
 

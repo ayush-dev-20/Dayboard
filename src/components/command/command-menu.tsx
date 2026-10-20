@@ -17,6 +17,7 @@ import {
   Mic,
   Plus,
   Search,
+  Shapes,
   Tag as TagIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -47,6 +48,7 @@ const GROUP_LABELS: Record<SearchType, string> = {
   task: "Tasks",
   todo: "Todos",
   note: "Notes",
+  canvas: "Canvases",
   project: "Projects",
   tag: "Tags",
 };
@@ -55,6 +57,7 @@ const ICONS = {
   task: CheckSquare,
   todo: CircleCheck,
   note: FileText,
+  canvas: Shapes,
   project: Folder,
   tag: TagIcon,
 } as const;

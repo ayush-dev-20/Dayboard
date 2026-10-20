@@ -10,6 +10,7 @@ import {
   unarchiveInboxItem,
   updateInboxItem,
 } from "@/actions/inbox";
+import { createCanvas, deleteCanvas } from "@/actions/canvases";
 import { createNote, deleteNote } from "@/actions/notes";
 import { createProject, deleteProject } from "@/actions/projects";
 import { createTag, setNoteTags, setTaskTags } from "@/actions/tags";
@@ -539,19 +540,29 @@ describe("trash", () => {
     const p = ok(await createProject({ name: "Trashed project" }));
     const i = await capture(person, "Trashed inbox\nsecond line");
     actAs(person);
+    const c = ok(await createCanvas({ title: "Trashed canvas" }));
     for (const call of [
       () => deleteTask({ id: t.id }),
       () => deleteTodo({ id: todo.id }),
       () => deleteNote({ id: n.id }),
       () => deleteProject({ id: p.id }),
       () => deleteInboxItem({ id: i }),
+      () => deleteCanvas({ id: c.id }),
     ]) {
-      ok(await call());
+      ok((await call()) as never);
       await new Promise((r) => setTimeout(r, 10));
     }
     const { items, next } = await listTrash(person.id);
-    expect(items.map((x) => x.type)).toEqual(["inbox", "project", "note", "todo", "task"]);
-    expect(items[0]?.title).toBe("Trashed inbox");
+    expect(items.map((x) => x.type)).toEqual([
+      "canvas",
+      "inbox",
+      "project",
+      "note",
+      "todo",
+      "task",
+    ]);
+    expect(items[0]?.title).toBe("Trashed canvas");
+    expect(items[1]?.title).toBe("Trashed inbox");
     expect(next).toBeNull();
     expect(await trashCounts(person.id)).toEqual({
       task: 1,
@@ -559,7 +570,8 @@ describe("trash", () => {
       note: 1,
       project: 1,
       inbox: 1,
-      total: 5,
+      canvas: 1,
+      total: 6,
     });
     expect((await listTrash(person.id, { type: "note" })).items.map((x) => x.title)).toEqual([
       "Trashed note",

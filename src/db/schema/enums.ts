@@ -60,6 +60,9 @@ export const aiFeatureEnum = pgEnum("ai_feature", [
   "VOICE_PARSE",
   // V2 feature 15: the weekly review's suggestions.
   "WEEKLY_REVIEW",
+  // V3 feature 01: a diagram drawn from a description, and a change to one the AI drew.
+  "GENERATE_DIAGRAM",
+  "REFINE_DIAGRAM",
 ]);
 
 export const aiUsageStatusEnum = pgEnum("ai_usage_status", [

@@ -2,17 +2,18 @@ import type { ProjectRef } from "../projects/dto";
 import type { TaskStatus } from "../tasks/status";
 import type { Snippet } from "./snippet";
 
-export const SEARCH_TYPES = ["task", "todo", "note", "project", "tag"] as const;
+export const SEARCH_TYPES = ["task", "todo", "note", "canvas", "project", "tag"] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
 
 /** The tabs on the Search page. Tags only appear under All. */
-export const SEARCH_TABS = ["all", "task", "todo", "note", "project"] as const;
+export const SEARCH_TABS = ["all", "task", "todo", "note", "canvas", "project"] as const;
 export type SearchTab = (typeof SEARCH_TABS)[number];
 
 export const TYPE_LABELS: Record<SearchType, string> = {
   task: "Task",
   todo: "Todo",
   note: "Note",
+  canvas: "Canvas",
   project: "Project",
   tag: "Tag",
 };

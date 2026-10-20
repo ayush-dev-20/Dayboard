@@ -25,6 +25,7 @@ const TAB_LABELS: Record<SearchTab, string> = {
   task: "Tasks",
   todo: "Todos",
   note: "Notes",
+  canvas: "Canvases",
   project: "Projects",
 };
 

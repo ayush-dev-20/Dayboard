@@ -130,3 +130,19 @@ export const editSelectionRequestSchema = z
       }
     }
   });
+
+// V3 feature 01: "Draw with AI". The note, when there is one, is named by id and read by the server.
+export const DIAGRAM_PROMPT_MAX = 2000;
+export const generateDiagramRequestSchema = z.strictObject({
+  prompt: z
+    .string()
+    .trim()
+    .min(1, "Describe what to draw first.")
+    .max(
+      DIAGRAM_PROMPT_MAX,
+      `Use ${DIAGRAM_PROMPT_MAX.toLocaleString("en-US")} characters or fewer.`,
+    ),
+  layout: z.enum(["architecture", "flow"]),
+  detail: z.enum(["overview", "standard", "detailed"]),
+  noteId: idSchema.optional(),
+});

@@ -1,0 +1,539 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import {
+  Archive,
+  ArrowLeft,
+  Download,
+  Ellipsis,
+  FileImage,
+  FileJson,
+  Folder,
+  ListTree,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  addCardTarget,
+  archiveCanvas,
+  deleteCanvas,
+  getLinkedTasks,
+  restoreCanvas,
+  updateCanvasMeta,
+} from "@/actions/canvases";
+import { EmojiButton } from "@/components/emoji/emoji-picker";
+import { SaveState } from "@/components/tasks/description-editor";
+import { ProjectPickerControl } from "@/components/tasks/task-properties";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ProjectPicker } from "@/components/workspace/project-picker";
+import { useWorkspace } from "@/components/workspace/workspace-context";
+import type { CanvasDTO, CanvasTaskDTO } from "@/lib/canvas/dto";
+import { buildSceneToSave, describeRemoved } from "@/lib/canvas/client-scene";
+import type { Scene, SceneElement } from "@/lib/canvas/types";
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type { SaveStatus } from "@/hooks/use-autosave";
+import { cn } from "@/lib/utils";
+import { CanvasTasksButton } from "./canvas-tasks-button";
+import { CardPicker, type CardChoice } from "./card-picker";
+import { DrawWithAiDialog } from "./draw-with-ai-dialog";
+import { exportCanvas, type ExportKind } from "./canvas-export";
+import { ExcalidrawCanvas } from "./excalidraw-canvas";
+import { OutlinePanel } from "./outline-panel";
+import { useCanvasSave, type SaveState as CanvasSaveState } from "./use-canvas-save";
+
+const STATUS_FOR: Record<CanvasSaveState, SaveStatus> = {
+  saved: "saved",
+  pending: "saving",
+  saving: "saving",
+  failed: "failed",
+  conflict: "idle",
+};
+
+function Banner({
+  children,
+  actions,
+  tone = "info",
+}: {
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+  tone?: "info" | "warning";
+}) {
+  return (
+    <div
+      role="status"
+      className={cn(
+        "flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-4 py-2 type-body-md md:px-6",
+        tone === "warning" ? "bg-warning-subtle text-foreground" : "bg-primary-subtle text-primary",
+      )}
+    >
+      <p className="min-w-0 flex-1">{children}</p>
+      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * The canvas page (V3 feature 01 §7): a slim header, banners that never block drawing, and the drawing filling the
+ * rest of the panel. Autosave, linked tasks, cards, export and the Outline live here; the drawing itself is
+ * Excalidraw, loaded on demand.
+ */
+export function CanvasPage({
+  canvas,
+  linkedTasks,
+}: {
+  canvas: CanvasDTO;
+  linkedTasks: CanvasTaskDTO[];
+}) {
+  const router = useRouter();
+  const { resolvedTheme } = useTheme();
+  const { projects, aiEnabled } = useWorkspace();
+  const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
+  const lastHash = useRef<number | null>(null);
+  const ignoreNext = useRef(false);
+  const warnedRemoved = useRef(false);
+
+  const [title, setTitle] = useState(canvas.title);
+  const [emoji, setEmoji] = useState(canvas.emoji);
+  const [project, setProject] = useState(canvas.project);
+  const [tasks, setTasks] = useState(linkedTasks);
+  const [archived, setArchived] = useState(canvas.archived);
+  const [cardOpen, setCardOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [projectOpen, setProjectOpen] = useState(false);
+  const [outline, setOutline] = useState<{ open: boolean; scene: Scene | null }>({
+    open: false,
+    scene: null,
+  });
+
+  const replaceScene = useCallback((scene: Scene) => {
+    const api = apiRef.current;
+    if (!api) return;
+    // The change this causes is not an edit by the person: it must not schedule a save of its own.
+    ignoreNext.current = true;
+    api.updateScene({
+      elements: scene.elements as never,
+      appState: {
+        viewBackgroundColor: scene.appState.viewBackgroundColor ?? "#ffffff",
+        gridModeEnabled: scene.appState.gridModeEnabled ?? false,
+      } as never,
+      captureUpdate: "NEVER" as never,
+    });
+    api.scrollToContent(undefined, { fitToContent: true });
+  }, []);
+
+  const save = useCanvasSave({
+    canvasId: canvas.id,
+    version: canvas.version,
+    updatedAt: canvas.updatedAt,
+    onReplaceScene: replaceScene,
+  });
+
+  // Keep the tab title in step with the canvas name.
+  useEffect(() => {
+    document.title = `${title.trim() || "Untitled canvas"} · Dayboard`;
+  }, [title]);
+
+  function onSceneChange(
+    elements: readonly { type?: unknown; isDeleted?: unknown }[],
+    appState: { viewBackgroundColor?: unknown; gridModeEnabled?: unknown },
+    hash: number,
+  ) {
+    // The first call is the drawing loading, and a replaced scene is ours: neither is an edit.
+    if (lastHash.current === null || ignoreNext.current) {
+      lastHash.current = hash;
+      ignoreNext.current = false;
+      return;
+    }
+    if (hash === lastHash.current) return;
+    lastHash.current = hash;
+    const built = buildSceneToSave(elements, appState);
+    if (built.removed.length > 0 && !warnedRemoved.current) {
+      warnedRemoved.current = true;
+      toast(describeRemoved(built.removed));
+    }
+    if (!built.ok) {
+      toast.error(built.message);
+      return;
+    }
+    save.schedule(built.scene);
+  }
+
+  async function commitTitle() {
+    const next = title.replace(/\s+/g, " ").trim();
+    setTitle(next);
+    if (next === canvas.title.trim() && next === title) return;
+    const result = await updateCanvasMeta({ id: canvas.id, title: next });
+    if (!result.ok) toast.error(result.error.message);
+  }
+
+  async function changeEmoji(next: string | null) {
+    const previous = emoji;
+    setEmoji(next);
+    const result = await updateCanvasMeta({ id: canvas.id, emoji: next });
+    if (!result.ok) {
+      setEmoji(previous);
+      toast.error(result.error.message);
+    }
+  }
+
+  async function changeProject(projectId: string | null) {
+    const result = await updateCanvasMeta({ id: canvas.id, projectId });
+    if (!result.ok) return void toast.error(result.error.message);
+    setProject(projectId ? (projects.find((p) => p.id === projectId) ?? null) : null);
+  }
+
+  async function addCard(choice: CardChoice) {
+    const api = apiRef.current;
+    if (!api) return;
+    const result = await addCardTarget({ ...choice, canvasId: canvas.id });
+    if (!result.ok) return void toast.error(result.error.message);
+    const target = result.data;
+    const lib = await import("@excalidraw/excalidraw");
+    const state = api.getAppState();
+    const width = 240;
+    const height = 64;
+    // The middle of what the person is looking at.
+    const x = -state.scrollX + state.width / 2 / state.zoom.value - width / 2;
+    const y = -state.scrollY + state.height / 2 / state.zoom.value - height / 2;
+    const created = lib.convertToExcalidrawElements([
+      {
+        type: "rectangle",
+        x,
+        y,
+        width,
+        height,
+        strokeColor: "#1971c2",
+        backgroundColor: "#e7f5ff",
+        fillStyle: "solid",
+        roundness: { type: 3 },
+        link: target.href,
+        customData: { dayboard: { ref: { type: target.type, id: target.id } } },
+        label: {
+          text: `${target.emoji ? `${target.emoji} ` : ""}${target.title}`.slice(0, 120),
+          fontSize: 16,
+          textAlign: "center",
+          verticalAlign: "middle",
+          strokeColor: "#1e1e1e",
+        },
+      },
+    ] as never);
+    api.updateScene({
+      elements: [...api.getSceneElementsIncludingDeleted(), ...created],
+      appState: {
+        // Only the card itself: with its label selected too, Excalidraw shows no link to open.
+        selectedElementIds: Object.fromEntries(
+          created.filter((e) => e.type !== "text").map((e) => [e.id, true]),
+        ),
+      } as never,
+      captureUpdate: "IMMEDIATELY" as never,
+    });
+    if (target.type === "task") {
+      const linked = await getLinkedTasks({ id: canvas.id });
+      if (linked.ok) setTasks(linked.data);
+    }
+  }
+
+  /** A free area beside what is on the canvas: to the right of everything, at the top. */
+  function freeOrigin() {
+    const api = apiRef.current;
+    const live = api ? api.getSceneElements() : [];
+    if (live.length === 0) return { x: 0, y: 0 };
+    const right = Math.max(...live.map((e) => e.x + (e.width ?? 0)));
+    const top = Math.min(...live.map((e) => e.y));
+    return { x: Math.round(right + 120), y: Math.round(top) };
+  }
+
+  /** Puts an AI diagram on the canvas as one undo step, selected, and saves it with its audit counts. */
+  async function addDiagram(
+    elements: SceneElement[],
+    counts: { id: string; sections: number; boxes: number; connections: number },
+  ) {
+    const api = apiRef.current;
+    if (!api) return;
+    api.updateScene({
+      elements: [...api.getSceneElementsIncludingDeleted(), ...(elements as never[])],
+      appState: {
+        selectedElementIds: Object.fromEntries(
+          elements.filter((e) => e.type !== "text").map((e) => [e.id, true]),
+        ),
+      } as never,
+      captureUpdate: "IMMEDIATELY" as never,
+    });
+    // Show what was added.
+    const lib = await import("./canvas-lib");
+    lib.fitToView(api, elements);
+    const built = buildSceneToSave(api.getSceneElements(), api.getAppState());
+    if (!built.ok) return void toast.error(built.message);
+    save.addDiagram(built.scene, counts);
+  }
+
+  async function doExport(kind: ExportKind) {
+    const api = apiRef.current;
+    if (!api) return;
+    try {
+      await exportCanvas(api, kind, title);
+    } catch {
+      toast.error("Couldn't export that. Try again.");
+    }
+  }
+
+  function openOutline() {
+    const api = apiRef.current;
+    const built = api ? buildSceneToSave(api.getSceneElements(), api.getAppState()) : null;
+    setOutline({ open: true, scene: built && built.ok ? built.scene : null });
+  }
+
+  async function trash() {
+    await save.flush();
+    const result = await deleteCanvas({ id: canvas.id });
+    if (!result.ok) return void toast.error(result.error.message);
+    router.push("/canvases");
+    toast("Moved to Trash.", {
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          const undo = await restoreCanvas({ id: canvas.id });
+          if (!undo.ok) toast.error("Couldn't restore that. Try Trash.");
+          else router.push(`/canvases/${canvas.id}`);
+        },
+      },
+    });
+  }
+
+  async function setArchive(next: boolean) {
+    await save.flush();
+    const result = await archiveCanvas({ id: canvas.id, archived: next });
+    if (!result.ok) return void toast.error(result.error.message);
+    setArchived(next);
+    if (next) {
+      router.push("/canvases");
+      toast("Archived.", {
+        duration: 5000,
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const undo = await archiveCanvas({ id: canvas.id, archived: false });
+            if (undo.ok) router.push(`/canvases/${canvas.id}`);
+          },
+        },
+      });
+    } else {
+      router.refresh();
+    }
+  }
+
+  const openLink = useCallback(
+    (link: string) => {
+      // An address inside the app opens in the same tab, with the router.
+      if (link.startsWith("/") && !link.startsWith("//")) {
+        router.push(link);
+        return true;
+      }
+      return false;
+    },
+    [router],
+  );
+
+  const iconButton =
+    "inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-[120ms] hover:bg-accent hover:text-foreground md:size-8";
+
+  return (
+    <div
+      className={cn(
+        "fixed z-10 flex flex-col bg-background",
+        // Below the top bar and, on a phone, above the bottom navigation; beside the sidebar on a wide screen.
+        "inset-x-0 top-12 bottom-[calc(56px+env(safe-area-inset-bottom))] md:bottom-0",
+        "lg:top-14 lg:right-2 lg:left-[calc(var(--sidebar-width,240px)+1px)]",
+      )}
+    >
+      <header className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2 md:gap-2 md:px-4">
+        <Link href="/canvases" aria-label="Back to canvases" className={iconButton}>
+          <ArrowLeft className="size-4" strokeWidth={1.5} aria-hidden />
+        </Link>
+        <EmojiButton
+          value={emoji}
+          onChange={(e) => void changeEmoji(e)}
+          label="Canvas emoji"
+          className="max-md:hidden"
+        />
+        <input
+          aria-label="Canvas title"
+          value={title}
+          maxLength={300}
+          placeholder="Untitled canvas"
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={() => void commitTitle()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          className="min-w-0 flex-1 bg-transparent type-headline-sm text-foreground outline-none placeholder:text-muted-foreground"
+        />
+        <SaveState status={STATUS_FOR[save.state]} />
+        <span className="max-md:hidden">
+          <ProjectPickerControl value={project} onChange={changeProject} />
+        </span>
+        <Button variant="secondary" onClick={() => setCardOpen(true)} className="max-md:hidden">
+          <Plus strokeWidth={1.5} aria-hidden /> Add note or task
+        </Button>
+        {aiEnabled ? (
+          <Button variant="secondary" onClick={() => setAiOpen(true)} className="max-md:hidden">
+            Draw with AI
+          </Button>
+        ) : null}
+        <CanvasTasksButton canvasId={canvas.id} tasks={tasks} onChange={setTasks} />
+
+        <div className="relative">
+          <DropdownMenu>
+            <DropdownMenuTrigger aria-label="More actions" className={iconButton}>
+              <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-56">
+              <DropdownMenuItem className="md:hidden" onSelect={() => setCardOpen(true)}>
+                <Plus strokeWidth={1.5} aria-hidden /> Add note or task
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="md:hidden"
+                onSelect={() => setTimeout(() => setProjectOpen(true), 0)}
+              >
+                <Folder strokeWidth={1.5} aria-hidden /> Project
+                <span className="ml-auto max-w-28 truncate type-body-sm text-muted-foreground">
+                  {project?.name ?? "None"}
+                </span>
+              </DropdownMenuItem>
+              {aiEnabled ? (
+                <DropdownMenuItem className="md:hidden" onSelect={() => setAiOpen(true)}>
+                  Draw with AI
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem onSelect={openOutline}>
+                <ListTree strokeWidth={1.5} aria-hidden /> Outline
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => void doExport("png")}>
+                <FileImage strokeWidth={1.5} aria-hidden /> Export PNG
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void doExport("svg")}>
+                <Download strokeWidth={1.5} aria-hidden /> Export SVG
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void doExport("excalidraw")}>
+                <FileJson strokeWidth={1.5} aria-hidden /> Export Excalidraw file
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => void setArchive(!archived)}>
+                <Archive strokeWidth={1.5} aria-hidden /> {archived ? "Unarchive" : "Archive"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive data-[highlighted]:text-destructive"
+                onSelect={() => void trash()}
+              >
+                <Trash2 strokeWidth={1.5} aria-hidden /> Move to Trash
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ProjectPicker
+            value={project}
+            onChange={changeProject}
+            open={projectOpen}
+            onOpenChange={setProjectOpen}
+            align="end"
+          >
+            <span aria-hidden className="absolute right-0 bottom-0 size-0" />
+          </ProjectPicker>
+        </div>
+      </header>
+
+      {save.state === "conflict" ? (
+        <Banner
+          tone="warning"
+          actions={
+            <>
+              <Button variant="secondary" onClick={() => void save.loadLatest()}>
+                Load latest
+              </Button>
+              <Button variant="secondary" onClick={save.keepMine}>
+                Keep mine
+              </Button>
+            </>
+          }
+        >
+          This canvas changed in another window.
+        </Banner>
+      ) : null}
+      {save.draft ? (
+        <Banner
+          actions={
+            <>
+              <Button variant="secondary" onClick={save.recoverDraft}>
+                Recover
+              </Button>
+              <Button variant="secondary" onClick={save.discardDraft}>
+                Discard
+              </Button>
+            </>
+          }
+        >
+          Recover unsaved changes? We found edits on this device that are newer than the saved
+          canvas.
+        </Banner>
+      ) : null}
+      {save.state === "failed" && save.message ? (
+        <Banner tone="warning">{save.message}</Banner>
+      ) : null}
+      {archived ? (
+        <Banner
+          actions={
+            <Button variant="secondary" onClick={() => void setArchive(false)}>
+              Unarchive
+            </Button>
+          }
+        >
+          This canvas is archived.
+        </Banner>
+      ) : null}
+
+      <div className="relative min-h-0 flex-1">
+        <ExcalidrawCanvas
+          initialScene={canvas.scene}
+          theme={resolvedTheme === "dark" ? "dark" : "light"}
+          label="Canvas drawing area"
+          fit
+          onApi={(api) => {
+            apiRef.current = api;
+            // A test seam: set only in the E2E build (playwright.config.ts), never in a real one.
+            if (process.env.NEXT_PUBLIC_E2E === "1") {
+              (window as unknown as { __canvasApi?: unknown }).__canvasApi = api;
+            }
+          }}
+          onSceneChange={onSceneChange}
+          onOpenLink={openLink}
+        />
+      </div>
+
+      <CardPicker open={cardOpen} onOpenChange={setCardOpen} onPick={(c) => void addCard(c)} />
+      {aiEnabled ? (
+        <DrawWithAiDialog
+          open={aiOpen}
+          onOpenChange={setAiOpen}
+          onAdd={{ origin: freeOrigin, add: addDiagram }}
+        />
+      ) : null}
+      <OutlinePanel
+        open={outline.open}
+        onOpenChange={(open) => setOutline((o) => ({ ...o, open }))}
+        scene={outline.scene}
+      />
+    </div>
+  );
+}

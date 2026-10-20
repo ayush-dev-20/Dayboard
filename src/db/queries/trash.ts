@@ -43,7 +43,10 @@ function union(userId: string) {
       where p.user_id = ${userId} and p.deleted_at is not null
     union all
     select 'inbox', i.id, left(split_part(i.text, E'\\n', 1), 200), null, i.deleted_at, 0, 0 from inbox_items i
-      where i.user_id = ${userId} and i.deleted_at is not null`;
+      where i.user_id = ${userId} and i.deleted_at is not null
+    union all
+    select 'canvas', c.id, case when c.title = '' then 'Untitled canvas' else c.title end, c.emoji, c.deleted_at, 0, 0 from canvases c
+      where c.user_id = ${userId} and c.deleted_at is not null`;
 }
 
 type Row = {
@@ -103,7 +106,15 @@ export async function trashCounts(userId: string): Promise<TrashCounts> {
   const rows = (await db.execute(
     sql`select u.type, count(*)::int as n from (${union(userId)}) u group by u.type`,
   )) as unknown as { type: TrashType; n: number }[];
-  const counts = { task: 0, todo: 0, note: 0, project: 0, inbox: 0, total: 0 } as TrashCounts;
+  const counts = {
+    task: 0,
+    todo: 0,
+    note: 0,
+    project: 0,
+    inbox: 0,
+    canvas: 0,
+    total: 0,
+  } as TrashCounts;
   for (const type of TRASH_TYPES) counts[type] = rows.find((r) => r.type === type)?.n ?? 0;
   counts.total = TRASH_TYPES.reduce((sum, t) => sum + counts[t], 0);
   return counts;

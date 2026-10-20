@@ -93,6 +93,8 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "e2e-only-secret-not-used-anywhere-else-0123456789",
       BETTER_AUTH_URL: baseURL,
       NEXT_PUBLIC_APP_URL: baseURL,
+      // A test seam (V3 feature 01): a canvas page exposes its drawing as `window.__canvasApi`, so a test can find a box.
+      NEXT_PUBLIC_E2E: "1",
     },
   },
 });

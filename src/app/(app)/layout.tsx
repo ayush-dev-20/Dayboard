@@ -6,6 +6,7 @@ import { SessionHint } from "@/components/layout/session-hint";
 import { PushHeartbeat } from "@/components/notifications/push-heartbeat";
 import { WorkspaceProvider } from "@/components/workspace/workspace-context";
 import { listProjectRefs } from "@/db/queries/projects";
+import { latestCanvases } from "@/db/queries/canvases";
 import { getNavCounts } from "@/db/queries/nav-counts";
 import { getNoteTree } from "@/db/queries/note-tree";
 import { listTags } from "@/db/queries/tags";
@@ -26,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
-  const [projects, tags, counts, noteTree] = await Promise.all([
+  const [projects, tags, counts, noteTree, canvases] = await Promise.all([
     listProjectRefs(user.id),
     listTags(user.id),
     getNavCounts(user.id, {
@@ -34,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       startOfDay: preferences.startOfDay.slice(0, 5),
     }),
     getNoteTree(user.id),
+    latestCanvases(user.id, 5),
   ]);
 
   return (
@@ -48,6 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         filesEnabled: env.storageAvailable,
         voiceEnabled: voiceEnabledFor(preferences),
         noteTree,
+        canvases,
       }}
     >
       <PushHeartbeat />
