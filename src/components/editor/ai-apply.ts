@@ -240,6 +240,23 @@ export function replaceSelection(
   });
 }
 
+/**
+ * Ask AI: the answer's Markdown as real blocks (headings, lists, bold) after the block that holds the selection,
+ * in one undo step. `doc` comes from `markdownToDoc`, so it holds only what the editor can. Nothing in the note
+ * changes before this is called.
+ */
+export function insertDocBelow(editor: Editor, range: SelectionRange, doc: TiptapDoc): ApplyResult {
+  const content = nodes(doc);
+  if (content.length === 0) return fail("There is nothing to insert.");
+  return attempt(editor, () => {
+    const { doc: current } = editor.state;
+    if (range.to > current.content.size) return false;
+    const $to = current.resolve(range.to);
+    const pos = $to.depth >= 1 ? $to.after(1) : range.to;
+    return editor.chain().insertContentAt(pos, content).run();
+  });
+}
+
 /** Continue: new paragraphs after the block that holds the selection or cursor, with no marks. */
 export function insertBelow(editor: Editor, range: SelectionRange, answer: string): ApplyResult {
   const paragraphs = splitParagraphs(answer);

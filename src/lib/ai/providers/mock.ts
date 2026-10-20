@@ -377,7 +377,7 @@ function askSelection(fixture: Obj): string {
     const topic = (question.length >= selection.length ? question : selection)
       .replace(/[?？\s]+$/u, "")
       .slice(0, 80);
-    return `Some ideas on “${topic}”: 1. Start with the smallest version. 2. Add one piece at a time. 3. Test each step before the next.`;
+    return `### Some ideas on “${topic}”\n\nHere are **three** steps:\n\n1. Start with the smallest version.\n2. Add one piece at a time.\n3. Test each step before the next.`;
   }
   if (/summar/i.test(question)) return `In short: ${first}`;
   if (/explain/i.test(question)) return `The passage says: ${first}`;

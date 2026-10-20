@@ -103,3 +103,40 @@ describe("AnswerBody", () => {
     expect(out).toContain("&lt;script&gt;");
   });
 });
+
+describe("an Ask AI answer on selected text", () => {
+  // What a model sent for "look at the OpenTable API": headings and a numbered list in light Markdown.
+  const answer = [
+    "Here is an overview of what is required to integrate the OpenTable API.",
+    "",
+    "### How OpenTable API Works",
+    "",
+    "OpenTable is a **closed ecosystem** for enterprise partners.",
+    "",
+    "1. Apply for partner access.",
+    "2. Get credentials.",
+  ].join("\n");
+
+  it("is shown as a heading, paragraphs, bold and a list, with no Markdown symbols", () => {
+    const html = renderToStaticMarkup(
+      createElement(AnswerBody, { parts: splitAnswer(answer, [], [], true), streaming: false }),
+    );
+    expect(html).not.toContain("###");
+    expect(html).not.toContain("**");
+    expect(html).toContain("How OpenTable API Works");
+    expect(html).toContain("<strong");
+    expect(html).toContain("<ol");
+    expect(html.match(/<li/g)).toHaveLength(2);
+  });
+
+  it("does not flash symbols while the answer is still arriving", () => {
+    const partial = "### How it wor";
+    const html = renderToStaticMarkup(
+      createElement(AnswerBody, {
+        parts: splitAnswer(partial, [], [], false),
+        streaming: true,
+      }),
+    );
+    expect(html).not.toContain("###");
+  });
+});

@@ -6,9 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 import type { Editor } from "@tiptap/react";
 import { toast } from "sonner";
 import { AiFailureNotice, AiLabel, StreamCaret } from "@/components/ai/ai-ui";
+import { AnswerBody } from "@/components/ai/answer-body";
 import { useAIEvents } from "@/components/ai/use-ai";
 import { continueInAssistant } from "@/components/assistant/continue-in-assistant";
-import { insertBelow, trackRange, type SelectionInfo } from "@/components/editor/ai-apply";
+import {
+  insertBelow,
+  insertDocBelow,
+  trackRange,
+  type SelectionInfo,
+} from "@/components/editor/ai-apply";
 import { useEditorSurface } from "@/components/editor/blocks/context";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/components/workspace/workspace-context";
@@ -19,7 +25,9 @@ import {
   suggestAskMode,
   type AskMode,
 } from "@/lib/ai/ask-mode";
+import { splitAnswer } from "@/lib/ai/answer";
 import type { StreamEvent } from "@/lib/ai/types";
+import { markdownToDoc } from "@/lib/editor/markdown";
 import { ASK_QUESTION_MAX, ASK_SELECTION_MAX } from "@/lib/validations/assistant";
 import { InstructionForm } from "./instruction-form";
 
@@ -82,6 +90,8 @@ export function AskSelectionBody({
   const streaming = state.status === "generating";
   const text = state.status === "idle" ? "" : state.data.text;
   const done = state.status === "complete" || state.status === "stopped";
+  // No sources or quotes here: the answer is the model's own text, split into lines for the formatter.
+  const parts = splitAnswer(text, [], [], !streaming);
 
   async function submit(value: string) {
     if (tooLong) return;
@@ -115,7 +125,13 @@ export function AskSelectionBody({
   function insert() {
     const range = tracker.current?.current();
     if (!range) return;
-    const result = insertBelow(editor, range, text);
+    // The answer is light Markdown: put it in the note as real headings, lists and bold, not as symbols. If it
+    // gives nothing the editor can hold, fall back to plain paragraphs.
+    const doc = markdownToDoc(text, { final: true });
+    const result =
+      (doc.content?.length ?? 0) > 0
+        ? insertDocBelow(editor, range, doc)
+        : insertBelow(editor, range, text);
     if (result.ok) {
       onClose();
       editor.commands.focus();
@@ -171,13 +187,14 @@ export function AskSelectionBody({
         <h3 className="type-label-caps text-muted-foreground" data-testid="ask-answer-source">
           {ASK_ANSWER_LABELS[askedMode]}
         </h3>
-        <p
+        <div
           aria-busy={streaming}
-          className="mt-1 max-h-56 min-h-12 overflow-y-auto rounded-md bg-background p-3 type-body-md whitespace-pre-wrap"
+          className="mt-1 flex max-h-56 min-h-12 flex-col gap-2 overflow-y-auto rounded-md bg-background p-3"
         >
-          {text}
-          {streaming ? <StreamCaret /> : null}
-        </p>
+          {/* Shown as formatting (paragraphs, headings, lists, bold), never as Markdown symbols. */}
+          <AnswerBody parts={parts} streaming={streaming} />
+          {streaming && parts.length === 0 ? <StreamCaret /> : null}
+        </div>
       </div>
       <p role="status" className="sr-only">
         {streaming ? "Answering" : done ? "Answer ready" : ""}

@@ -125,7 +125,23 @@ test.describe("Ask AI on selected text", () => {
     await expect(answer.getByTestId("ask-answer-source")).toHaveText(
       "AI suggestion, not from your notes",
     );
+    // The answer is shown as formatting: a heading, a numbered list and bold, never Markdown symbols.
+    await expect(answer).not.toContainText("###");
+    await expect(answer).not.toContainText("**");
+    await expect(answer.getByRole("listitem")).toHaveCount(3);
+    await expect(answer.locator("strong")).toHaveText("three");
     // Reading the answer changed nothing in the note.
+    await expect(editor(page).locator("p")).toHaveCount(1);
+
+    // Insert below puts it in the note as real blocks, in one undo step.
+    await answer.getByRole("button", { name: "Insert below" }).click();
+    await expect(panel).toHaveCount(0);
+    await expect(editor(page).getByRole("heading", { name: /Some ideas on/ })).toBeVisible();
+    await expect(editor(page).locator("ol > li")).toHaveCount(3);
+    await expect(editor(page).locator("strong")).toHaveText("three");
+    await expect(editor(page)).not.toContainText("###");
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(editor(page).locator("ol")).toHaveCount(0);
     await expect(editor(page).locator("p")).toHaveCount(1);
   });
 
