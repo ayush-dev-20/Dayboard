@@ -58,7 +58,7 @@ function hit(
     snippet: null,
     path: [],
     journalDate: null,
-    stickyBoardId: null,
+    stickyCanvasId: null,
     status: null,
     dueDate: null,
     done: false,
@@ -91,7 +91,7 @@ async function searchTasks(
       archivedAt: tasks.archivedAt,
       dueDate: tasks.dueDate,
       projectId: tasks.projectId,
-      boardCanvasId: tasks.boardCanvasId,
+      stickyCanvasId: tasks.stickyCanvasId,
       updatedAt: tasks.updatedAt,
       rank: rankOf(tasks.title, q),
       window: windowOf(sql`coalesce(${tasks.descriptionText}, '')`, q),
@@ -104,7 +104,7 @@ async function searchTasks(
         // A sticky note is found too, unless its board is in Trash or archived.
         or(
           eq(tasks.kind, "TASK"),
-          sql`exists (select 1 from canvases c where c.id = ${tasks.boardCanvasId} and c.user_id = ${userId} and c.deleted_at is null and c.archived_at is null)`,
+          sql`exists (select 1 from canvases c where c.id = ${tasks.stickyCanvasId} and c.user_id = ${userId} and c.deleted_at is null and c.archived_at is null)`,
         ),
         only
           ? inArray(tasks.id, only)
@@ -135,8 +135,10 @@ async function searchTasks(
       id: r.id,
       title: r.title,
       emoji: r.emoji,
-      href: r.boardCanvasId ? `/canvases/${r.boardCanvasId}` : `/tasks?task=${r.id}`,
-      stickyBoardId: r.boardCanvasId,
+      href: r.stickyCanvasId
+        ? `/canvases/${r.stickyCanvasId}?sticky=${r.id}`
+        : `/tasks?task=${r.id}`,
+      stickyCanvasId: r.stickyCanvasId,
       archived: r.archivedAt !== null,
       project: (r.projectId && refs.get(r.projectId)) || null,
       snippet: r.rank === 3 && r.window ? buildSnippet(r.window, q) : null,

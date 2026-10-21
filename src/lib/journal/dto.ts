@@ -40,8 +40,8 @@ export type DoneItem = {
   parentTitle: string | null;
   /** A todo's due date, so editing it from the list keeps it. */
   dueDate: string | null;
-  /** A sticky note's board (V3 feature 01 §13): the item is a task labelled Sticky note. Null for everything else. */
-  board: { id: string; title: string } | null;
+  /** A sticky note's canvas (V3 feature 01 §13): the item is a task labelled Sticky note. Null for everything else. */
+  canvas: { id: string; title: string } | null;
 };
 
 export type DoneOnDay = {

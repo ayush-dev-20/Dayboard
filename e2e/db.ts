@@ -982,7 +982,7 @@ export async function reopenTaskElsewhere(userId: string, title: string) {
   await sql`update tasks set status = 'PLANNED', completed_at = null where user_id = ${userId} and title = ${title}`;
 }
 
-// ---- Sticky boards (V3 feature 01 §13) -------------------------------------------------------------------------------
+// ---- Sticky notes (V3 feature 01 §13) --------------------------------------------------------------------------------
 
 export type StickyRow = {
   id: string;
@@ -990,51 +990,26 @@ export type StickyRow = {
   description_text: string | null;
   status: string;
   kind: string;
-  board_canvas_id: string | null;
-  board_column_id: string | null;
+  sticky_canvas_id: string | null;
   sticky_tone: string | null;
   due_date: string | null;
   completed_at: Date | null;
   deleted_at: Date | null;
-  sort_order: number;
 };
 
-/** The sticky notes of a board in the order the board shows them (deleted ones included, with `deleted_at`). */
-export async function stickiesOf(boardId: string) {
-  return sql<StickyRow[]>`
-    select id, title, description_text, status, kind, board_canvas_id, board_column_id, sticky_tone,
-           to_char(due_date, 'YYYY-MM-DD') as due_date, completed_at, deleted_at, sort_order
-    from tasks where board_canvas_id = ${boardId} order by sort_order, created_at`;
+const STICKY_COLUMNS = sql`id, title, description_text, status, kind, sticky_canvas_id, sticky_tone,
+  to_char(due_date, 'YYYY-MM-DD') as due_date, completed_at, deleted_at`;
+
+/** The sticky notes of a canvas as tasks (deleted ones included, with `deleted_at`). */
+export async function stickiesOf(canvasId: string) {
+  return sql<StickyRow[]>`select ${STICKY_COLUMNS} from tasks
+    where sticky_canvas_id = ${canvasId} order by sort_order, created_at`;
 }
 
 export async function stickyByTitle(userId: string, title: string) {
-  const [row] = await sql<StickyRow[]>`
-    select id, title, description_text, status, kind, board_canvas_id, board_column_id, sticky_tone,
-           to_char(due_date, 'YYYY-MM-DD') as due_date, completed_at, deleted_at, sort_order
-    from tasks where user_id = ${userId} and title = ${title}`;
+  const [row] = await sql<StickyRow[]>`select ${STICKY_COLUMNS} from tasks
+    where user_id = ${userId} and title = ${title}`;
   return row ?? null;
-}
-
-/** A board's columns and version as saved. */
-export async function boardOf(boardId: string) {
-  const [row] = await sql<
-    {
-      board_json: { columns: { id: string; name: string; status: string; tone: string | null }[] };
-      version: number;
-      kind: string;
-      deleted_at: Date | null;
-    }[]
-  >`select board_json, version, kind, deleted_at from canvases where id = ${boardId}`;
-  return row ?? null;
-}
-
-/** Saves the board as another window would: the version goes up, so the open page's next save is stale. */
-export async function saveBoardElsewhere(boardId: string, renameFirstTo: string) {
-  await sql`
-    update canvases set
-      board_json = jsonb_set(board_json, '{columns,0,name}', to_jsonb(${renameFirstTo}::text)),
-      version = version + 1
-    where id = ${boardId}`;
 }
 
 export async function setStickyDue(taskId: string, date: string | null) {

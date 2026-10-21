@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 // Today's "Sticky notes" section (V3 feature 01 §13.4): open sticky notes that are In progress, or due today or overdue.
 // A sticky is a task of its own kind, so it has the task's square checkbox (checking it completes it, and it moves to its
-// board's Completed column), its colour dot, the due date, the board it is on, and the status in text when it is not In
+// drawing), its colour dot, the due date, the canvas it is on, and the status in text when it is not In
 // progress. The title opens the task panel. The section is not part of the day's progress or the focus picker.
 
 function StickyRow({ row, today }: { row: TodayStickyDTO; today: string }) {
@@ -68,12 +68,12 @@ function StickyRow({ row, today }: { row: TodayStickyDTO; today: string }) {
         </span>
       ) : null}
       <Link
-        href={`/canvases/${row.boardId}`}
+        href={`/canvases/${row.canvasId}?sticky=${row.id}`}
         className="max-w-36 shrink-0 truncate pl-2 type-body-sm text-muted-foreground hover:text-foreground hover:underline max-sm:hidden"
       >
-        <span className="sr-only">Board: </span>
-        {row.boardEmoji ? <span aria-hidden>{row.boardEmoji} </span> : null}
-        {row.boardTitle || "Untitled board"}
+        <span className="sr-only">Canvas: </span>
+        {row.canvasEmoji ? <span aria-hidden>{row.canvasEmoji} </span> : null}
+        {row.canvasTitle || "Untitled canvas"}
       </Link>
     </li>
   );
@@ -97,7 +97,7 @@ export function TodayStickies({
       </ul>
       {total > rows.length && rows[0] ? (
         <Link
-          href={`/canvases/${rows[0].boardId}`}
+          href={`/canvases/${rows[0].canvasId}`}
           className={`${buttonVariants({ variant: "secondary" })} mt-2`}
         >
           Show all {total}

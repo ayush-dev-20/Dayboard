@@ -26,6 +26,8 @@ export type DayboardData = {
   section?: string;
   ref?: { type: "note" | "task" | "project"; id: string };
   ai?: true;
+  /** A sticky note (V3 feature 01 §13): the id of the task it carries and its colour. */
+  sticky?: { id: string; tone?: string };
 };
 
 /** A person may keep this many canvases (both kinds), so one account cannot fill the free database. */

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   Archive,
@@ -16,6 +16,7 @@ import {
   ListTree,
   Pencil,
   Plus,
+  StickyNote,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,10 +25,14 @@ import {
   archiveCanvas,
   deleteCanvas,
   getLinkedTasks,
+  loadCanvasStickies,
   restoreCanvas,
   updateCanvasMeta,
 } from "@/actions/canvases";
 import { EmojiButton } from "@/components/emoji/emoji-picker";
+import { updateTask } from "@/actions/tasks";
+import { completeWithUndo, reopenTask } from "@/components/tasks/task-actions";
+import { useOpenTask } from "@/components/tasks/use-open-task";
 import { SaveState } from "@/components/tasks/description-editor";
 import { ProjectPickerControl } from "@/components/tasks/task-properties";
 import { Button } from "@/components/ui/button";
@@ -40,7 +45,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ProjectPicker } from "@/components/workspace/project-picker";
 import { useWorkspace } from "@/components/workspace/workspace-context";
-import type { CanvasDTO, CanvasTaskDTO } from "@/lib/canvas/dto";
+import type { CanvasDTO, CanvasTaskDTO, StickyInfoDTO } from "@/lib/canvas/dto";
+import { readStickies } from "@/lib/canvas/sticky";
+import type { ColorToken } from "@/lib/colors";
 import { buildSceneToSave, describeRemoved } from "@/lib/canvas/client-scene";
 import { readDiagram, type ReadBack } from "@/lib/canvas/read-back";
 import type { Scene, SceneElement } from "@/lib/canvas/types";
@@ -55,6 +62,21 @@ import { applyRefineToCanvas, arrangeAgain } from "./refine-scene";
 import { RefineWithAiDialog } from "./refine-with-ai-dialog";
 import { exportCanvas, type ExportKind } from "./canvas-export";
 import { ExcalidrawCanvas } from "./excalidraw-canvas";
+import type { CanvasFrame } from "./excalidraw-inner";
+import { StickyLayer, type StickyActions } from "./sticky-layer";
+import {
+  applyRemap,
+  createSticky,
+  duplicateNotes,
+  focusSticky,
+  maintain,
+  recolour,
+  reconcile,
+  removeNotes,
+  reshape,
+  shapeOf,
+  startTyping,
+} from "./sticky-tools";
 import { OutlinePanel } from "./outline-panel";
 import {
   useCanvasSave,
@@ -78,11 +100,22 @@ const STATUS_FOR: Record<CanvasSaveState, SaveStatus> = {
 export function CanvasPage({
   canvas,
   linkedTasks,
+  stickies,
+  today,
+  focusSticky: focusTaskId = null,
 }: {
   canvas: CanvasDTO;
   linkedTasks: CanvasTaskDTO[];
+  /** The tasks of the sticky notes on this drawing. */
+  stickies: StickyInfoDTO[];
+  /** The person's current day, "YYYY-MM-DD". */
+  today: string;
+  /** A note to select and bring into view when the page opens (Today's "Show on canvas"). */
+  focusSticky?: string | null;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const openTask = useOpenTask();
   const { resolvedTheme } = useTheme();
   const { projects, aiEnabled } = useWorkspace();
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
@@ -125,11 +158,51 @@ export function CanvasPage({
     api.scrollToContent(undefined, { fitToContent: true });
   }, []);
 
+  // ---- Sticky notes (V3 feature 01 §13) -----------------------------------------------------------------------------
+  const [infos, setInfos] = useState<Map<string, StickyInfoDTO>>(
+    () => new Map(stickies.map((s) => [s.id, s])),
+  );
+  const infosRef = useRef(infos);
+  useEffect(() => {
+    infosRef.current = infos;
+  }, [infos]);
+  const [frame, setFrame] = useState<CanvasFrame | null>(null);
+  const frameRef = useRef<CanvasFrame | null>(null);
+  const frameTimer = useRef<number | null>(null);
+  const maintainTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const lastTone = useRef<ColorToken | undefined>(undefined);
+  const [placing, setPlacing] = useState(false);
+
+  /** Reads the notes' tasks again; with `prune`, a note whose task is gone is taken off the drawing. */
+  const reloadInfos = useCallback(
+    async (prune = false) => {
+      const result = await loadCanvasStickies({ id: canvas.id });
+      if (!result.ok) return;
+      const next = new Map(result.data.map((s) => [s.id, s]));
+      setInfos(next);
+      const api = apiRef.current;
+      if (api) await reconcile(api, next, { removeMissing: prune });
+    },
+    [canvas.id],
+  );
+
   const save = useCanvasSave({
     canvasId: canvas.id,
     version: canvas.version,
     updatedAt: canvas.updatedAt,
     onReplaceScene: replaceScene,
+    // A note pasted from another canvas got a task of its own on the server: put the new id on it here too.
+    onRemap: (remap) => {
+      const api = apiRef.current;
+      if (!api) return;
+      ignoreNext.current = true;
+      applyRemap(api, remap);
+    },
+    // A save went through, so every note has its task: read them (this is also how a new note gets its checkbox).
+    onSaved: () => {
+      const api = apiRef.current;
+      if (api && readStickies(api.getSceneElements() as never).length > 0) void reloadInfos(true);
+    },
   });
 
   // Keep the tab title in step with the canvas name.
@@ -335,6 +408,213 @@ export function CanvasPage({
     lib.fitToView(api);
   }
 
+  // ---- Making and changing sticky notes ---------------------------------------------------------------------------------
+
+  /** The notes that are selected, from the last frame. */
+  const selectedNotes = () => {
+    const f = frameRef.current;
+    return f
+      ? readStickies(f.elements as never).filter((n) => f.selectedElementIds[n.elementId])
+      : [];
+  };
+
+  /** Puts a note at a point of the page (client pixels), selects it and opens it for typing. */
+  async function placeStickyAt(clientX: number, clientY: number) {
+    const api = apiRef.current;
+    const surface = document.querySelector<HTMLCanvasElement>(".excalidraw canvas.interactive");
+    setPlacing(false);
+    if (!api || !surface) return;
+    const rect = surface.getBoundingClientRect();
+    const state = api.getAppState();
+    const note = await createSticky(api, {
+      x: (clientX - rect.left) / state.zoom.value - state.scrollX,
+      y: (clientY - rect.top) / state.zoom.value - state.scrollY,
+      tone: lastTone.current,
+    });
+    startTyping(api, note.elementId);
+  }
+
+  /** The middle of what is on screen: where Enter, or a phone's tap on the button twice, puts a note. */
+  function placeStickyInMiddle() {
+    const surface = document.querySelector<HTMLCanvasElement>(".excalidraw canvas.interactive");
+    if (!surface) return;
+    const rect = surface.getBoundingClientRect();
+    void placeStickyAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }
+
+  // The key N starts placing a note (as in Miro); Esc stops. Not while typing anywhere.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.closest("input, textarea, select, [contenteditable='true']") !== null &&
+        target !== null;
+      if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (document.querySelector("[role='dialog']")) return;
+      if (event.key === "n" || event.key === "N") {
+        event.preventDefault();
+        setPlacing(true);
+      } else if (event.key === "Escape") {
+        setPlacing(false);
+      } else if (event.key === "Enter") {
+        setPlacing((now) => {
+          if (now) placeStickyInMiddle();
+          return now;
+        });
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // `placeStickyInMiddle` only reads refs and the DOM.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Tab while typing on a note makes the next one beside it, already open for typing (as in Miro).
+  useEffect(() => {
+    function onTab(event: KeyboardEvent) {
+      if (event.key !== "Tab" || event.shiftKey) return;
+      const f = frameRef.current;
+      const api = apiRef.current;
+      if (!f || !api || f.editingTextId === null) return;
+      const text = f.elements.find((e) => e.id === f.editingTextId);
+      const container = typeof text?.containerId === "string" ? text.containerId : null;
+      const note = readStickies(f.elements as never).find((n) => n.elementId === container);
+      if (!note) return;
+      event.preventDefault();
+      event.stopPropagation();
+      // Ending the typing saves the words on this note; the next note comes once that has settled.
+      (document.activeElement as HTMLElement | null)?.blur();
+      const shape = shapeOf(note);
+      requestAnimationFrame(async () => {
+        const next = await createSticky(api, {
+          x: note.x + note.width + 24 + (shape === "wide" ? 150 : 100),
+          y: note.y + note.height / 2,
+          tone: note.tone,
+          shape,
+        });
+        startTyping(api, next.elementId);
+      });
+    }
+    document.addEventListener("keydown", onTab, true);
+    return () => document.removeEventListener("keydown", onTab, true);
+  }, []);
+
+  /** Called on every change of the drawing or the view: feeds the layer over the drawing, and tidies new notes. */
+  const onFrame = useCallback((next: CanvasFrame) => {
+    const prev = frameRef.current;
+    const sameSelection =
+      prev !== null &&
+      Object.keys(prev.selectedElementIds).length === Object.keys(next.selectedElementIds).length &&
+      Object.keys(next.selectedElementIds).every((id) => prev.selectedElementIds[id]);
+    // Excalidraw reports a change on every render, and our own layer re-renders it: only a real change goes on, or this
+    // would loop.
+    if (
+      prev !== null &&
+      prev.elements === next.elements &&
+      prev.scrollX === next.scrollX &&
+      prev.scrollY === next.scrollY &&
+      prev.zoom === next.zoom &&
+      prev.width === next.width &&
+      prev.height === next.height &&
+      prev.editingTextId === next.editingTextId &&
+      prev.moving === next.moving &&
+      sameSelection
+    ) {
+      return;
+    }
+    frameRef.current = next;
+    if (frameTimer.current === null) {
+      frameTimer.current = requestAnimationFrame(() => {
+        frameTimer.current = null;
+        setFrame(frameRef.current);
+      });
+    }
+    if (prev === null || prev.elements !== next.elements) {
+      clearTimeout(maintainTimer.current);
+      maintainTimer.current = setTimeout(() => {
+        const api = apiRef.current;
+        if (api) void maintain(api);
+      }, 150);
+    }
+  }, []);
+
+  /** Changing a note's task: shown at once on the note, then saved, then read back. */
+  function showInfo(id: string, patch: Partial<StickyInfoDTO>) {
+    setInfos((m) => {
+      const info = m.get(id);
+      return info ? new Map(m).set(id, { ...info, ...patch }) : m;
+    });
+  }
+
+  const stickyActions: StickyActions = {
+    complete: (id, done) => {
+      const setDone = (value: boolean | null) =>
+        showInfo(id, { status: value === null ? "PLANNED" : value ? "DONE" : "PLANNED" });
+      const refresh = () => void reloadInfos();
+      if (done) void completeWithUndo({ id, setDone, refresh });
+      else void reopenTask({ id, setDone, refresh });
+    },
+    setDue: async (id, due) => {
+      showInfo(id, { dueDate: due.date, dueTime: due.time });
+      const result = await updateTask({ id, dueDate: due.date, dueTime: due.time });
+      if (!result.ok) toast.error(result.error.message);
+      void reloadInfos();
+    },
+    details: (id) => openTask(id),
+    recolour: (elementIds, tone) => {
+      const api = apiRef.current;
+      if (!api) return;
+      lastTone.current = tone;
+      recolour(api, elementIds, tone);
+    },
+    reshape: (elementIds, shape) => {
+      const api = apiRef.current;
+      if (api) void reshape(api, elementIds, shape);
+    },
+    duplicate: () => {
+      const api = apiRef.current;
+      if (api) void duplicateNotes(api, selectedNotes());
+    },
+    remove: () => {
+      const api = apiRef.current;
+      if (api)
+        removeNotes(
+          api,
+          selectedNotes().map((n) => n.elementId),
+        );
+    },
+  };
+
+  // The task panel can change a note's title, description and status: when it closes, the drawing takes them.
+  const panelOpen = searchParams.get("task") !== null;
+  const panelWas = useRef(false);
+  useEffect(() => {
+    if (panelWas.current && !panelOpen) {
+      void save.flush().then(() => reloadInfos(true));
+    }
+    panelWas.current = panelOpen;
+    // `save.flush` and `reloadInfos` are stable for the life of the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelOpen]);
+
+  // Once the drawing is in place: bring it in line with the tasks, and go to a note Today asked for.
+  const readyDone = useRef(false);
+  async function onDrawingReady(api: ExcalidrawImperativeAPI) {
+    // Excalidraw hands the API over again on re-renders: this is for the page opening only, because it takes off notes
+    // whose tasks are gone, and a note made a moment ago has no task yet.
+    if (readyDone.current) return;
+    readyDone.current = true;
+    // A drawing that opened with no notes has nothing to reconcile, and must not take off a note made in the meantime.
+    if (infosRef.current.size === 0) return;
+    for (let waited = 0; waited < 3000 && api.getSceneElements().length === 0; waited += 50) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    if (readStickies(api.getSceneElements() as never).length === 0) return;
+    ignoreNext.current = true;
+    await reconcile(api, infosRef.current, { removeMissing: true });
+    if (focusTaskId) focusSticky(api, focusTaskId);
+  }
+
   async function doExport(kind: ExportKind) {
     const api = apiRef.current;
     if (!api) return;
@@ -444,6 +724,14 @@ export function CanvasPage({
         <Button variant="secondary" onClick={() => setCardOpen(true)} className="max-md:hidden">
           <Plus strokeWidth={1.5} aria-hidden /> Add note or task
         </Button>
+        <Button
+          variant="secondary"
+          onClick={() => setPlacing((now) => !now)}
+          aria-pressed={placing}
+          className="max-md:hidden"
+        >
+          <StickyNote strokeWidth={1.5} aria-hidden /> Sticky note
+        </Button>
         {aiEnabled ? (
           <Button variant="secondary" onClick={() => setAiOpen(true)} className="max-md:hidden">
             Draw with AI
@@ -468,6 +756,12 @@ export function CanvasPage({
                 <span className="ml-auto max-w-28 truncate type-body-sm text-muted-foreground">
                   {project?.name ?? "None"}
                 </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="md:hidden"
+                onSelect={() => setTimeout(placeStickyInMiddle, 0)}
+              >
+                <StickyNote strokeWidth={1.5} aria-hidden /> Sticky note
               </DropdownMenuItem>
               {aiEnabled ? (
                 <DropdownMenuItem className="md:hidden" onSelect={() => setAiOpen(true)}>
@@ -576,8 +870,10 @@ export function CanvasPage({
           theme={resolvedTheme === "dark" ? "dark" : "light"}
           label="Canvas drawing area"
           fit
+          onFrame={onFrame}
           onApi={(api) => {
             apiRef.current = api;
+            void onDrawingReady(api);
             // A test seam: set only in the E2E build (playwright.config.ts), never in a real one.
             if (process.env.NEXT_PUBLIC_E2E === "1") {
               (window as unknown as { __canvasApi?: unknown }).__canvasApi = api;
@@ -586,6 +882,24 @@ export function CanvasPage({
           onSceneChange={onSceneChange}
           onOpenLink={openLink}
         />
+        <StickyLayer frame={frame} infos={infos} today={today} actions={stickyActions} />
+        {placing ? (
+          <div
+            data-testid="sticky-placing"
+            className="absolute inset-0 z-20 cursor-crosshair"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              void placeStickyAt(event.clientX, event.clientY);
+            }}
+          >
+            <p
+              role="status"
+              className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-1.5 type-body-md shadow-sm"
+            >
+              Click where the sticky note should go. Enter puts it in the middle. Esc cancels.
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <CardPicker open={cardOpen} onOpenChange={setCardOpen} onPick={(c) => void addCard(c)} />
@@ -608,6 +922,9 @@ export function CanvasPage({
         open={outline.open}
         onOpenChange={(open) => setOutline((o) => ({ ...o, open }))}
         scene={outline.scene}
+        infos={infos}
+        today={today}
+        onComplete={stickyActions.complete}
       />
     </div>
   );

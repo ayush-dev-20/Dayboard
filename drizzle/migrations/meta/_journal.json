@@ -155,6 +155,13 @@
       "when": 1792512698741,
       "tag": "0021_sticky_boards",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792563120435,
+      "tag": "0022_sticky_notes",
+      "breakpoints": true
     }
   ]
 }

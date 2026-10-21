@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BoardPage } from "@/components/boards/board-page";
 import { CanvasPage } from "@/components/canvases/canvas-page";
 import { TaskContextProvider } from "@/components/tasks/task-context";
 import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
 import { getCanvas, listLinkedTasks } from "@/db/queries/canvases";
-import { getBoard } from "@/db/queries/stickies";
+import { listCanvasStickies } from "@/db/queries/stickies";
 import { getTaskDetail } from "@/db/queries/tasks";
 import { getUserToday } from "@/lib/dates/today";
 import type { SearchParams } from "@/lib/oauth-providers";
-import { getDayPrefs } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
 import { loadTaskContext } from "@/lib/tasks/context";
 import { idSchema } from "@/lib/validations/tasks";
@@ -28,40 +26,34 @@ export default async function CanvasRoute({
   // A malformed id and someone else's id both look like any other missing page.
   if (!idSchema.safeParse(id).success) notFound();
 
-  // `?task=id` opens a linked task in the side panel without leaving the canvas.
+  // `?task=id` opens a task in the side panel without leaving the canvas; `?sticky=id` selects that sticky note.
   const raw = await searchParams;
   const taskParam = Array.isArray(raw.task) ? raw.task[0] : raw.task;
   const taskId = taskParam && idSchema.safeParse(taskParam).success ? taskParam : null;
+  const stickyParam = Array.isArray(raw.sticky) ? raw.sticky[0] : raw.sticky;
+  const stickyId = stickyParam && idSchema.safeParse(stickyParam).success ? stickyParam : null;
 
-  const [canvas, linkedTasks, detail, taskContext, dayPrefs] = await Promise.all([
+  const [canvas, linkedTasks, stickies, detail, taskContext] = await Promise.all([
     getCanvas(user.id, id),
     listLinkedTasks(user.id, id),
+    listCanvasStickies(user.id, id),
     taskId ? getTaskDetail(user.id, taskId) : Promise.resolve(null),
-    taskId ? loadTaskContext(user.id) : Promise.resolve(null),
-    getDayPrefs(user.id),
+    // The sticky notes' due-date picker needs the person's day, so it is always loaded.
+    loadTaskContext(user.id),
   ]);
   if (!canvas) notFound();
-  // A sticky board is the same address with its own page: columns of sticky notes, and no drawing library.
-  const board = canvas.kind === "BOARD" ? await getBoard(user.id, id) : null;
-  if (canvas.kind === "BOARD" && !board) notFound();
 
   return (
-    <>
-      {board ? (
-        <BoardPage
-          key={board.id}
-          board={board}
-          linkedTasks={linkedTasks}
-          today={getUserToday(dayPrefs)}
-        />
-      ) : (
-        <CanvasPage key={canvas.id} canvas={canvas} linkedTasks={linkedTasks} />
-      )}
-      {detail && taskContext ? (
-        <TaskContextProvider value={taskContext.context}>
-          <TaskDetailSheet detail={detail} />
-        </TaskContextProvider>
-      ) : null}
-    </>
+    <TaskContextProvider value={taskContext.context}>
+      <CanvasPage
+        key={canvas.id}
+        canvas={canvas}
+        linkedTasks={linkedTasks}
+        stickies={stickies}
+        today={getUserToday(taskContext.dayPrefs, taskContext.now)}
+        focusSticky={stickyId}
+      />
+      {detail ? <TaskDetailSheet detail={detail} /> : null}
+    </TaskContextProvider>
   );
 }

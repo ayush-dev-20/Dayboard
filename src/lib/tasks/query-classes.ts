@@ -65,8 +65,7 @@ export const TASK_QUERY_CLASSES: Record<string, TaskQueryClass> = {
   "src/lib/notifications/reminders.ts:dueInApp": "includes",
   "src/lib/notifications/reminders.ts:upcomingInApp": "includes",
   "src/lib/calendar/create-event.ts:createEventFromTask": "includes",
-  // The board and Today's sticky section read stickies on purpose.
-  "src/db/queries/stickies.ts:getBoard": "includes",
+  // The drawing's badges and Today's sticky section read stickies on purpose.
+  "src/db/queries/stickies.ts:listCanvasStickies": "includes",
   "src/db/queries/stickies.ts:listStickiesForToday": "includes",
-  "src/db/queries/stickies.ts:countStickies": "includes",
 };

@@ -4,15 +4,8 @@ import { db } from "@/db/client";
 import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject, assertOwnedTask } from "@/db/mutations/guards";
 import { rejectReusedId } from "@/db/mutations/reused-id";
+import { syncStickies } from "@/db/mutations/stickies";
 import { auditLog, canvases, taskCanvases, tasks } from "@/db/schema";
-import {
-  BoardError,
-  boardSearchText,
-  buildPreset,
-  sanitizeBoard,
-  type Board,
-  type BoardPreset,
-} from "@/lib/canvas/board";
 import { projectScene, sanitizeScene, SceneError } from "@/lib/canvas/schema";
 import { CANVAS_LIMIT, EMPTY_SCENE, type Scene } from "@/lib/canvas/types";
 import { describeDiagramApplied } from "@/lib/canvas/audit";
@@ -48,62 +41,6 @@ function checkedScene(input: unknown): Scene {
   }
 }
 
-/** A columns problem becomes a plain validation error, not a server error. */
-function checkedBoard(input: unknown): Board {
-  try {
-    return sanitizeBoard(input);
-  } catch (error) {
-    if (error instanceof BoardError) {
-      throw new AppError("VALIDATION_ERROR", error.message, {
-        fieldErrors: { board: error.message },
-      });
-    }
-    throw error;
-  }
-}
-
-/**
- * Saving columns must not strand sticky notes: a column that still holds stickies cannot be dropped, and its status cannot
- * be changed, here. Those two go through `deleteBoardColumn` and `changeColumnStatus`, which move the stickies with it.
- */
-async function assertColumnsSafe(
-  executor: Executor,
-  userId: string,
-  canvasId: string,
-  before: Board,
-  after: Board,
-) {
-  const rows = await executor
-    .select({ columnId: tasks.boardColumnId, n: sql<number>`count(*)::int` })
-    .from(tasks)
-    .where(
-      and(
-        eq(tasks.userId, userId),
-        eq(tasks.boardCanvasId, canvasId),
-        eq(tasks.kind, "STICKY"),
-        isNull(tasks.deletedAt),
-      ),
-    )
-    .groupBy(tasks.boardColumnId);
-  const held = new Set(rows.filter((r) => r.n > 0).map((r) => r.columnId));
-  for (const column of before.columns) {
-    if (!held.has(column.id)) continue;
-    const next = after.columns.find((c) => c.id === column.id);
-    if (!next) {
-      throw new AppError(
-        "VALIDATION_ERROR",
-        "Use Delete column to choose where its sticky notes go.",
-      );
-    }
-    if (next.status !== column.status) {
-      throw new AppError(
-        "VALIDATION_ERROR",
-        "Use Status in the column menu to change what it stands for.",
-      );
-    }
-  }
-}
-
 async function assertUnderLimit(executor: Executor, userId: string) {
   const [row] = await executor
     .select({ n: sql<number>`count(*)::int` })
@@ -122,9 +59,6 @@ export type CreateCanvasInput = {
   emoji?: string | null;
   projectId?: string | null;
   scene?: unknown;
-  /** A sticky board (slice D): its columns come from a preset built here, never from the client. */
-  kind?: "DRAWING" | "BOARD";
-  preset?: BoardPreset;
   /** An AI diagram: applies once, with an audit row of counts (never a label). */
   proposal?: ProposalInput;
 };
@@ -138,13 +72,9 @@ export async function createCanvas(
     if (input.projectId) await assertOwnedProject(tx, userId, input.projectId);
     await assertUnderLimit(tx, userId);
 
-    const isBoard = input.kind === "BOARD";
-    const board = isBoard ? buildPreset(input.preset ?? "status") : null;
-    const scene = input.scene === undefined || isBoard ? EMPTY_SCENE : checkedScene(input.scene);
-    const title = input.title ?? (isBoard ? "Untitled board" : "");
-    const { text, elementCount } = board
-      ? { text: boardSearchText(title, board), elementCount: 0 }
-      : projectScene(title, scene);
+    const scene = input.scene === undefined ? EMPTY_SCENE : checkedScene(input.scene);
+    const title = input.title ?? "";
+    const { text, elementCount } = projectScene(title, scene);
     const [created] = await tx
       .insert(canvases)
       .values({
@@ -152,14 +82,25 @@ export async function createCanvas(
         projectId: input.projectId ?? null,
         title,
         emoji: input.emoji ?? null,
-        kind: isBoard ? "BOARD" : "DRAWING",
+        kind: "DRAWING",
         sceneJson: scene,
-        boardJson: board,
         sceneText: text,
         elementCount,
       })
       .returning({ id: canvases.id, version: canvases.version });
     if (!created) throw new AppError("INTERNAL_ERROR");
+
+    // Sticky notes on the scene carry tasks (V3 feature 01 §13): they are made here, in the same transaction.
+    const synced = await syncStickies(
+      tx,
+      userId,
+      { id: created.id, projectId: input.projectId ?? null },
+      scene,
+      null,
+    );
+    if (synced.remap.length > 0) {
+      await tx.update(canvases).set({ sceneJson: synced.scene }).where(eq(canvases.id, created.id));
+    }
 
     // An AI diagram applies once: the audit row's (user, proposal) key is unique, so a second apply is a CONFLICT and
     // the canvas above rolls back with it. The row holds counts only, never a label or the prompt.
@@ -230,8 +171,6 @@ export async function saveCanvas(
     id: string;
     version: number;
     scene?: unknown;
-    /** A sticky board's columns. */
-    board?: unknown;
     title?: string;
     proposal?: ProposalInput;
     refine?: RefineProposalInput;
@@ -242,8 +181,8 @@ export async function saveCanvas(
       .select({
         title: canvases.title,
         sceneJson: canvases.sceneJson,
-        boardJson: canvases.boardJson,
         kind: canvases.kind,
+        projectId: canvases.projectId,
       })
       .from(canvases)
       .where(owned(userId, input.id))
@@ -252,44 +191,46 @@ export async function saveCanvas(
     if (current.kind !== "DRAWING" && input.scene !== undefined) {
       throw new AppError("VALIDATION_ERROR", "That canvas has no drawing to save.");
     }
-    if (current.kind === "BOARD" && (input.proposal || input.refine)) {
-      throw new AppError("VALIDATION_ERROR", "A sticky board has no diagram.");
-    }
-    if (current.kind !== "BOARD" && input.board !== undefined) {
-      throw new AppError("VALIDATION_ERROR", "That canvas has no columns to save.");
-    }
 
+    const sent =
+      input.scene === undefined ? (current.sceneJson as Scene) : checkedScene(input.scene);
+    // Keep the sticky notes' tasks equal to the scene; a note whose task id belongs to something else is given a new one.
+    const { scene, remap } = await syncStickies(
+      tx,
+      userId,
+      { id: input.id, projectId: current.projectId },
+      sent,
+      current.sceneJson as Scene,
+    );
     const title = input.title ?? current.title;
-    let patch: Partial<typeof canvases.$inferInsert>;
-    if (current.kind === "BOARD") {
-      const before = sanitizeBoard(current.boardJson);
-      const board = input.board === undefined ? before : checkedBoard(input.board);
-      if (input.board !== undefined) {
-        await assertColumnsSafe(tx, userId, input.id, before, board);
-      }
-      patch = { boardJson: board, title, sceneText: boardSearchText(title, board) };
-    } else {
-      const scene =
-        input.scene === undefined ? (current.sceneJson as Scene) : checkedScene(input.scene);
-      const { text, elementCount } = projectScene(title, scene);
-      patch = { sceneJson: scene, title, sceneText: text, elementCount };
-    }
+    const { text, elementCount } = projectScene(title, scene);
     const [row] = await tx
       .update(canvases)
-      .set({ ...patch, version: sql`${canvases.version} + 1` })
+      .set({
+        sceneJson: scene,
+        title,
+        sceneText: text,
+        elementCount,
+        version: sql`${canvases.version} + 1`,
+      })
       .where(and(owned(userId, input.id), eq(canvases.version, input.version)))
       .returning({ version: canvases.version, updatedAt: canvases.updatedAt });
     if (!row) return conflictOrMissing(tx, userId, input.id);
     // "Add to this canvas" applies an AI diagram once, with the same audit row as drawing a new one.
     if (input.proposal) await recordDiagram(tx, userId, input.id, input.proposal, "add");
     if (input.refine) await recordRefine(tx, userId, input.id, input.refine);
-    return { outcome: "saved", version: row.version, updatedAt: row.updatedAt.toISOString() };
+    return {
+      outcome: "saved",
+      version: row.version,
+      updatedAt: row.updatedAt.toISOString(),
+      ...(remap.length > 0 ? { remap } : {}),
+    };
   });
 }
 
 /**
  * Title, emoji and project. A rename does not bump `version`, so it never makes an open drawing conflict with
- * itself; the search text is rebuilt from the stored scene (or, for a board, its columns).
+ * itself; the search text is rebuilt from the stored scene.
  */
 export async function updateCanvasMeta(
   userId: string,
@@ -297,11 +238,7 @@ export async function updateCanvasMeta(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const [current] = await tx
-      .select({
-        title: canvases.title,
-        sceneJson: canvases.sceneJson,
-        boardJson: canvases.boardJson,
-      })
+      .select({ title: canvases.title, sceneJson: canvases.sceneJson })
       .from(canvases)
       .where(owned(userId, input.id))
       .limit(1);
@@ -311,9 +248,7 @@ export async function updateCanvasMeta(
     const patch: Partial<typeof canvases.$inferInsert> = {};
     if (input.title !== undefined && input.title !== current.title) {
       patch.title = input.title;
-      patch.sceneText = current.boardJson
-        ? boardSearchText(input.title, sanitizeBoard(current.boardJson))
-        : projectScene(input.title, current.sceneJson as Scene).text;
+      patch.sceneText = projectScene(input.title, current.sceneJson as Scene).text;
     }
     if (input.emoji !== undefined) patch.emoji = input.emoji;
     if (input.projectId !== undefined) patch.projectId = input.projectId;
@@ -361,11 +296,11 @@ export async function restoreCanvas(userId: string, id: string): Promise<void> {
 /** Deletes for good. The links go with it (cascade); cards on other drawings keep their snapshot title. */
 export async function permanentlyDeleteCanvas(userId: string, id: string): Promise<void> {
   await db.transaction(async (tx) => {
-    // A board's sticky notes go with it (cascade), and each one is a task, so each is logged as deleted.
+    // The sticky notes' tasks go with it (cascade), so each one is logged as deleted for sync.
     const stickies = await tx
       .select({ id: tasks.id, version: tasks.version })
       .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.boardCanvasId, id), eq(tasks.kind, "STICKY")));
+      .where(and(eq(tasks.userId, userId), eq(tasks.stickyCanvasId, id), eq(tasks.kind, "STICKY")));
     const rows = await tx
       .delete(canvases)
       .where(owned(userId, id, true))

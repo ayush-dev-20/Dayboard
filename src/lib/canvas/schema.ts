@@ -1,4 +1,5 @@
 import { isAllowedLink } from "@/lib/editor/schema";
+import { isStickyTone } from "./sticky";
 import {
   MAX_ELEMENTS,
   MAX_SCENE_BYTES,
@@ -77,7 +78,7 @@ export function isAllowedSceneLink(value: unknown): value is string {
   return isAllowedLink(value);
 }
 
-function sanitizeDayboard(raw: unknown): DayboardData | undefined {
+function sanitizeDayboard(raw: unknown, type: string): DayboardData | undefined {
   if (!isRecord(raw)) return undefined;
   const out: DayboardData = {};
   const id = text(raw.id, 64);
@@ -95,6 +96,18 @@ function sanitizeDayboard(raw: unknown): DayboardData | undefined {
     out.ref = { type: raw.ref.type, id: raw.ref.id };
   }
   if (raw.ai === true) out.ai = true;
+  // A sticky note is a rectangle that carries a task: the id must be a UUID and the colour one of the eight.
+  if (
+    type === "rectangle" &&
+    isRecord(raw.sticky) &&
+    typeof raw.sticky.id === "string" &&
+    UUID.test(raw.sticky.id)
+  ) {
+    out.sticky = {
+      id: raw.sticky.id.toLowerCase(),
+      ...(isStickyTone(raw.sticky.tone) ? { tone: raw.sticky.tone } : {}),
+    };
+  }
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -212,7 +225,7 @@ function sanitizeElement(raw: unknown): SceneElement | null {
 
   // A link is kept only when it is safe; otherwise it is removed.
   out.link = isAllowedSceneLink(raw.link) ? raw.link : null;
-  const dayboard = isRecord(raw.customData) ? sanitizeDayboard(raw.customData.dayboard) : undefined;
+  const dayboard = isRecord(raw.customData) ? sanitizeDayboard(raw.customData.dayboard, known) : undefined;
   if (dayboard) out.customData = { dayboard };
 
   switch (known) {

@@ -17,6 +17,21 @@ export type SceneChangeHandler = (
   hash: number,
 ) => void;
 
+/** What the layers over the drawing (sticky badges, the note toolbar) need to follow it: the view and the selection. */
+export type CanvasFrame = {
+  elements: readonly Record<string, unknown>[];
+  scrollX: number;
+  scrollY: number;
+  zoom: number;
+  width: number;
+  height: number;
+  selectedElementIds: Record<string, boolean>;
+  /** Set while the words of a shape are being typed. */
+  editingTextId: string | null;
+  /** True while a shape is being dragged or resized. */
+  moving: boolean;
+};
+
 export type ExcalidrawInnerProps = {
   initialScene: Scene;
   theme: "light" | "dark";
@@ -24,6 +39,8 @@ export type ExcalidrawInnerProps = {
   viewMode?: boolean;
   onApi?: (api: ExcalidrawImperativeAPI) => void;
   onSceneChange?: SceneChangeHandler;
+  /** Called on every change of the drawing or the view, for layers drawn over it. */
+  onFrame?: (frame: CanvasFrame) => void;
   /** An address a card or link points at. Return true when handled in the app, so the browser does not follow it. */
   onOpenLink?: (link: string) => boolean;
   label: string;
@@ -49,6 +66,7 @@ export function ExcalidrawInner({
   viewMode = false,
   onApi,
   onSceneChange,
+  onFrame,
   onOpenLink,
   label,
   fit = false,
@@ -72,9 +90,36 @@ export function ExcalidrawInner({
           onApi?.(api);
           void settle(api, fit, initialScene.elements.length > 0);
         }}
-        onChange={(elements, appState) =>
-          onSceneChange?.(elements, appState, hashElementsVersion(elements as never))
-        }
+        onChange={(elements, appState) => {
+          onSceneChange?.(elements, appState, hashElementsVersion(elements as never));
+          if (onFrame) {
+            const state = appState as unknown as {
+              scrollX: number;
+              scrollY: number;
+              zoom: { value: number };
+              width: number;
+              height: number;
+              selectedElementIds: Record<string, boolean>;
+              editingTextElement?: { id: string } | null;
+              selectedElementsAreBeingDragged?: boolean;
+              resizingElement?: unknown;
+              newElement?: unknown;
+            };
+            onFrame({
+              elements: elements as unknown as readonly Record<string, unknown>[],
+              scrollX: state.scrollX,
+              scrollY: state.scrollY,
+              zoom: state.zoom.value,
+              width: state.width,
+              height: state.height,
+              selectedElementIds: state.selectedElementIds,
+              editingTextId: state.editingTextElement?.id ?? null,
+              moving: Boolean(
+                state.selectedElementsAreBeingDragged || state.resizingElement || state.newElement,
+              ),
+            });
+          }
+        }}
         onLinkOpen={(element, event) => {
           const link = (element as { link?: string | null }).link;
           if (link && onOpenLink?.(link)) event.preventDefault();

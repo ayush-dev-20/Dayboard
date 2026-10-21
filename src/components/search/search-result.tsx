@@ -63,7 +63,7 @@ export function SearchResult({
   /** Meaning-based search is on: show how each result matched, and why (feature 10 §7). */
   showWhy?: boolean;
 }) {
-  const Icon = hit.journalDate ? BookOpen : hit.stickyBoardId ? StickyNote : ICONS[hit.type];
+  const Icon = hit.journalDate ? BookOpen : hit.stickyCanvasId ? StickyNote : ICONS[hit.type];
   const context: string[] = [];
   if (hit.type === "task" && hit.status && hit.status !== "PLANNED" && hit.status !== "INBOX") {
     context.push(STATUS_LABELS[hit.status]);
@@ -127,7 +127,7 @@ export function SearchResult({
           <span className="type-label-caps">
             {hit.journalDate
               ? "Journal"
-              : hit.stickyBoardId
+              : hit.stickyCanvasId
                 ? "Sticky note"
                 : TYPE_LABELS[hit.type]}
           </span>

@@ -1,6 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { CheckButton } from "@/components/ui/check-button";
+import type { StickyInfoDTO } from "@/lib/canvas/dto";
+import { STICKY_COLOR_NAMES, readStickies } from "@/lib/canvas/sticky";
+import { formatDay } from "@/lib/dates/calendar";
+import { STATUS_LABELS } from "@/lib/tasks/status";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import {
   buildOutline,
@@ -39,12 +44,20 @@ export function OutlinePanel({
   open,
   onOpenChange,
   scene,
+  infos,
+  today,
+  onComplete,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   scene: Scene | null;
+  /** The tasks of the sticky notes, for their status and due date. */
+  infos?: ReadonlyMap<string, StickyInfoDTO>;
+  today?: string;
+  onComplete?: (id: string, done: boolean) => void;
 }) {
   const outline = scene ? buildOutline(scene) : null;
+  const notes = scene ? readStickies(scene.elements) : [];
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -60,12 +73,47 @@ export function OutlinePanel({
           The same boxes and connections as the drawing, as a list.
         </SheetDescription>
 
-        {!outline || isEmptyOutline(outline) ? (
+        {!outline || (isEmptyOutline(outline) && notes.length === 0) ? (
           <p className="mt-6 type-body-md text-muted-foreground">
             Nothing to list yet. Boxes with text, cards and arrows between them show up here.
           </p>
         ) : (
           <div className="mt-6 flex flex-col gap-6">
+            {notes.length > 0 ? (
+              <section aria-label="Sticky notes">
+                <h3 className="type-label-caps text-muted-foreground">Sticky notes</h3>
+                <ul className="mt-2 space-y-1 type-body-md text-foreground">
+                  {notes.map((note) => {
+                    const info = infos?.get(note.id);
+                    const words = note.text.split("\n")[0] || "Empty sticky note";
+                    const closed = info?.status === "DONE" || info?.status === "CANCELLED";
+                    return (
+                      <li key={note.elementId} className="flex items-center gap-1">
+                        {info && onComplete ? (
+                          <CheckButton
+                            checked={info.status === "DONE"}
+                            label={`Complete ${words}`}
+                            onCheckedChange={(next) => onComplete(note.id, next)}
+                          />
+                        ) : null}
+                        <span className={closed ? "text-muted-foreground line-through" : undefined}>
+                          {words}
+                        </span>
+                        <span className="type-body-sm text-muted-foreground">
+                          {[
+                            STICKY_COLOR_NAMES[note.tone],
+                            info ? STATUS_LABELS[info.status] : null,
+                            info?.dueDate && today ? `due ${formatDay(info.dueDate, today)}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
             {outline.sections.map((section) => (
               <section key={section.id} aria-label={section.name}>
                 <h3 className="type-label-caps text-muted-foreground">{section.name}</h3>

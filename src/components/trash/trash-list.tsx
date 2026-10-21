@@ -54,7 +54,7 @@ function TrashRow({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const Icon = item.journalDate ? BookOpen : item.stickyBoardId ? StickyNote : ICONS[item.type];
+  const Icon = item.journalDate ? BookOpen : item.stickyCanvasId ? StickyNote : ICONS[item.type];
 
   async function restore() {
     setBusy(true);
@@ -89,7 +89,7 @@ function TrashRow({
         <span className="max-md:sr-only">
           {item.journalDate
             ? "Journal"
-            : item.stickyBoardId
+            : item.stickyCanvasId
               ? "Sticky note"
               : TRASH_LABELS[item.type]}
         </span>

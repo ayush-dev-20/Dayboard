@@ -50,13 +50,12 @@ export const tasks = pgTable(
     recurrenceRule: text("recurrence_rule"),
     recurrenceParentId: uuid("recurrence_parent_id"),
     sortOrder: doublePrecision("sort_order").notNull(),
-    // Sticky boards (V3 feature 01 §13): a sticky note is a task of its own kind. `board_canvas_id` and `board_column_id`
-    // say where it sits (the column decides its status), `sticky_tone` is its colour. All null for an ordinary task.
+    // Sticky notes (V3 feature 01 §13): a sticky note is a task of its own kind that is also an element of a drawing.
+    // `sticky_canvas_id` says which drawing it is on, `sticky_tone` mirrors its colour. All null for an ordinary task.
     kind: text("kind").notNull().default("TASK"),
-    boardCanvasId: uuid("board_canvas_id").references((): AnyPgColumn => canvases.id, {
+    stickyCanvasId: uuid("sticky_canvas_id").references((): AnyPgColumn => canvases.id, {
       onDelete: "cascade",
     }),
-    boardColumnId: text("board_column_id"),
     stickyTone: text("sticky_tone"),
     // Sync (V2 feature 05): bumped by the server on every write; the device that made the last change.
     version: integer("version").notNull().default(1),
@@ -88,8 +87,8 @@ export const tasks = pgTable(
     ),
     check("tasks_kind", sql`${t.kind} in ('TASK', 'STICKY')`),
     check(
-      "tasks_sticky_has_place",
-      sql`(${t.kind} = 'STICKY') = (${t.boardCanvasId} is not null and ${t.boardColumnId} is not null)`,
+      "tasks_sticky_has_canvas",
+      sql`(${t.kind} = 'STICKY') = (${t.stickyCanvasId} is not null)`,
     ),
     check(
       "tasks_sticky_is_plain",
@@ -101,8 +100,8 @@ export const tasks = pgTable(
     index("tasks_user_deleted_at_idx").on(t.userId, t.deletedAt),
     index("tasks_user_project_idx").on(t.userId, t.projectId),
     index("tasks_parent_idx").on(t.parentTaskId),
-    index("tasks_board_order_idx")
-      .on(t.boardCanvasId, t.sortOrder)
+    index("tasks_sticky_order_idx")
+      .on(t.stickyCanvasId, t.sortOrder)
       .where(sql`${t.kind} = 'STICKY'`),
     // "Done on this day" (V3 feature 02) filters by person and completion time.
     index("tasks_user_completed_at_idx")

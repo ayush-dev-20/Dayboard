@@ -1,18 +1,12 @@
 import Link from "next/link";
-import { Kanban, Shapes } from "lucide-react";
+import { Shapes } from "lucide-react";
 import { ProjectToken } from "@/components/workspace/tokens";
 import type { CanvasListItemDTO } from "@/lib/canvas/dto";
 import { formatCompact } from "@/lib/dates/relative";
 import { cn } from "@/lib/utils";
 
-/** "24 elements", "Empty", "18 sticky notes": what is on it, in words. */
-export function describeContents(
-  canvas: Pick<CanvasListItemDTO, "kind" | "elementCount" | "stickyCount">,
-): string {
-  if (canvas.kind === "BOARD") {
-    const n = canvas.stickyCount ?? 0;
-    return n === 0 ? "No sticky notes" : `${n} sticky ${n === 1 ? "note" : "notes"}`;
-  }
+/** "24 elements" or "Empty": what is on it, in words. */
+export function describeContents(canvas: Pick<CanvasListItemDTO, "elementCount">): string {
   const n = canvas.elementCount;
   return n === 0 ? "Empty" : `${n} ${n === 1 ? "element" : "elements"}`;
 }
@@ -35,7 +29,7 @@ export function CanvasRow({
   /** Off on a project's own page, where every row is in that project. */
   showProject?: boolean;
 }) {
-  const Icon = canvas.kind === "BOARD" ? Kanban : Shapes;
+  const Icon = Shapes;
   return (
     <li className={cn("border-b border-border", className)}>
       <Link
@@ -49,9 +43,6 @@ export function CanvasRow({
           <span className="min-w-0 truncate text-[16px] max-md:shrink md:shrink-0 md:text-[14px]">
             {canvas.title || "Untitled canvas"}
           </span>
-          {canvas.kind === "BOARD" ? (
-            <span className="shrink-0 type-body-sm text-muted-foreground">Board</span>
-          ) : null}
           <span className="hidden min-w-0 truncate type-body-sm text-muted-foreground md:inline">
             {describeContents(canvas)}
           </span>

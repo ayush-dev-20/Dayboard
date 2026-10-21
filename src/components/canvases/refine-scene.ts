@@ -11,7 +11,7 @@ import { diagramToScene } from "./diagram-scene";
 // Nothing here moves or removes anything the change does not name: new parts go into an Additions frame beside the
 // diagram, a removed box takes only its own label and connections with it, and Arrange again moves only what the AI drew.
 
-type El = SceneElement & Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+export type El = SceneElement & Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const ADDITIONS = "additions";
 const bump = <T extends El>(e: T, over: Partial<El> = {}): T => ({
@@ -34,7 +34,7 @@ export type RefineApplied = {
 };
 
 /** The label of a box as Excalidraw measures it: asks it to make one and keeps the text it measured. */
-async function measuredLabel(box: El, text: string): Promise<El | null> {
+export async function measuredLabel(box: El, text: string, fontSize = 16): Promise<El | null> {
   const lib = await import("@excalidraw/excalidraw");
   const made = lib.convertToExcalidrawElements([
     {
@@ -46,7 +46,7 @@ async function measuredLabel(box: El, text: string): Promise<El | null> {
       height: box.height,
       label: {
         text,
-        fontSize: 16,
+        fontSize,
         fontFamily: DIAGRAM_FONT,
         textAlign: "center",
         verticalAlign: "middle",

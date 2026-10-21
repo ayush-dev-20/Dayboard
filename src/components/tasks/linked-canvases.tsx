@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Kanban, Search, Shapes, X } from "lucide-react";
+import { Search, Shapes, X } from "lucide-react";
 import { toast } from "sonner";
 import { findCanvasesToLink, linkTaskCanvas, unlinkTaskCanvas } from "@/actions/canvases";
 import { buttonVariants } from "@/components/ui/button";
@@ -70,7 +70,7 @@ export function LinkedCanvases({ taskId, canvases, onChange }: Props) {
       </h3>
       <div className="flex flex-wrap items-center gap-2">
         {canvases.map((canvas) => {
-          const Icon = canvas.kind === "BOARD" ? Kanban : Shapes;
+          const Icon = Shapes;
           const name = canvas.title || "Untitled canvas";
           return (
             <span

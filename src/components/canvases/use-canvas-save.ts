@@ -34,12 +34,18 @@ export function useCanvasSave({
   version,
   updatedAt,
   onReplaceScene,
+  onRemap,
+  onSaved,
 }: {
   canvasId: string;
   version: number;
   updatedAt: string;
   /** Puts a scene on the drawing (Load latest, Recover). The page ignores the change that follows. */
   onReplaceScene: (scene: Scene) => void;
+  /** Sticky notes the server gave a task of their own (a paste from another canvas): by element id. */
+  onRemap?: (remap: { element: string; id: string }[]) => void;
+  /** A save went through: the sticky notes' tasks are now as the drawing says. */
+  onSaved?: () => void;
 }) {
   const [state, setState] = useState<SaveState>("saved");
   const [message, setMessage] = useState<string | null>(null);
@@ -47,6 +53,13 @@ export function useCanvasSave({
   const versionRef = useRef(version);
   const dirty = useRef<Scene | null>(null);
   const latest = useRef<Scene | null>(null);
+  // The callbacks are read through refs, so a new function each render does not remake `run`.
+  const remapRef = useRef(onRemap);
+  const savedRef = useRef(onSaved);
+  useEffect(() => {
+    remapRef.current = onRemap;
+    savedRef.current = onSaved;
+  });
   const running = useRef(false);
   const conflict = useRef(false);
   const failures = useRef(0);
@@ -116,6 +129,8 @@ export function useCanvasSave({
         return;
       }
       versionRef.current = result.data.version;
+      if (result.data.remap) remapRef.current?.(result.data.remap);
+      savedRef.current?.();
       if (sendingProposal && proposal.current === sendingProposal) proposal.current = null;
       if (sendingRefine && refined.current === sendingRefine) refined.current = null;
       failures.current = 0;

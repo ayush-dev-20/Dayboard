@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { BOARD_PRESETS } from "@/lib/canvas/board";
 import { MAX_TITLE } from "@/lib/canvas/types";
 import { emojiSchema, idSchema } from "./tasks";
 
@@ -39,33 +38,20 @@ export type RefineProposalInput = z.infer<typeof refineProposalSchema>;
 /** A scene is any object here; `sanitizeScene` decides what is kept. */
 const sceneInput = z.unknown();
 
-export const createCanvasSchema = z
-  .strictObject({
-    kind: z.enum(["DRAWING", "BOARD"]).optional(),
-    /** A sticky board starts from a preset (the server builds the columns). */
-    preset: z.enum(BOARD_PRESETS).optional(),
-    title: canvasTitleSchema.optional(),
-    emoji: emojiSchema.nullish(),
-    projectId: idSchema.nullish(),
-    scene: sceneInput.optional(),
-    /** Set when the scene came from an AI diagram: applies once and writes one audit row, from these counts only. */
-    proposal: proposalSchema.optional(),
-  })
-  .superRefine((v, ctx) => {
-    if (v.kind === "BOARD" && (v.scene !== undefined || v.proposal)) {
-      ctx.addIssue({ code: "custom", message: "A sticky board has no drawing." });
-    }
-    if (v.kind !== "BOARD" && v.preset) {
-      ctx.addIssue({ code: "custom", message: "Only a sticky board has a preset." });
-    }
-  });
+export const createCanvasSchema = z.strictObject({
+  kind: z.enum(["DRAWING"]).optional(),
+  title: canvasTitleSchema.optional(),
+  emoji: emojiSchema.nullish(),
+  projectId: idSchema.nullish(),
+  scene: sceneInput.optional(),
+  /** Set when the scene came from an AI diagram: applies once and writes one audit row, from these counts only. */
+  proposal: proposalSchema.optional(),
+});
 
 export const saveCanvasSchema = z.strictObject({
   id: idSchema,
   version: versionSchema,
   scene: sceneInput.optional(),
-  /** A sticky board's columns (checked by `sanitizeBoard`). */
-  board: sceneInput.optional(),
   title: canvasTitleSchema.optional(),
   /** "Add to this canvas": the diagram that was put on it. Applies once, with an audit row of counts. */
   proposal: proposalSchema.optional(),

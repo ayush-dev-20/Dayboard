@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import * as mutations from "@/db/mutations/canvases";
+import { listCanvasStickies } from "@/db/queries/stickies";
 import {
   getCanvas,
   listLinkedTasks,
@@ -11,6 +12,7 @@ import {
 } from "@/db/queries/canvases";
 import { runAction, type ActionResult } from "@/lib/actions";
 import type {
+  StickyInfoDTO,
   CanvasSaveResult,
   CanvasTaskDTO,
   CardTargetDTO,
@@ -174,5 +176,16 @@ export async function findCanvasesToLink(input: unknown): Promise<ActionResult<L
   return runAction("canvases.findCanvases", async () => {
     const user = await requireUser();
     return searchCanvasesToLink(user.id, findLinkSchema.parse(input).query);
+  });
+}
+
+/** The tasks of this canvas's sticky notes, read again: after the task panel closes, a save, or a status change. */
+export async function loadCanvasStickies(input: unknown): Promise<ActionResult<StickyInfoDTO[]>> {
+  return runAction("canvases.loadStickies", async () => {
+    const user = await requireUser();
+    const { id } = canvasIdSchema.parse(input);
+    // Someone else's canvas, or one in Trash, is simply not there.
+    if (!(await getCanvas(user.id, id))) throw new AppError("NOT_FOUND");
+    return listCanvasStickies(user.id, id);
   });
 }

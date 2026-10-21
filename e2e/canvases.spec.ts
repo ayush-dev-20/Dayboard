@@ -42,7 +42,6 @@ async function drawRectangle(page: Page, from = { x: 300, y: 250 }, size = { w: 
 async function newCanvas(page: Page) {
   await page.goto("/canvases");
   await page.getByRole("button", { name: "New canvas" }).first().click();
-  await page.getByRole("menuitem", { name: "New drawing" }).click();
   await expect(page).toHaveURL(/\/canvases\/[0-9a-f-]{36}$/);
   await expect(surface(page)).toBeVisible({ timeout: 30_000 });
 }

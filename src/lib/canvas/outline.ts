@@ -27,7 +27,8 @@ const SHAPES = new Set(["rectangle", "ellipse", "diamond"]);
 const dayboard = (e: SceneElement) =>
   (
     e.customData as
-      { dayboard?: { ref?: { type: "note" | "task" | "project"; id: string } } } | undefined
+      | { dayboard?: { ref?: { type: "note" | "task" | "project"; id: string }; sticky?: unknown } }
+      | undefined
   )?.dayboard;
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
@@ -55,6 +56,8 @@ export function buildOutline(scene: Scene): Outline {
   const boxes = new Map<string, OutlineBox>();
   for (const e of scene.elements) {
     if (!SHAPES.has(e.type)) continue;
+    // A sticky note has its own section in the panel (with its task), so it is not also a box.
+    if (dayboard(e)?.sticky) continue;
     const { label, tech } = splitLabel(labelOf.get(e.id) ?? "");
     const card = dayboard(e)?.ref ?? null;
     // A shape with no words and no target is decoration, not a box.

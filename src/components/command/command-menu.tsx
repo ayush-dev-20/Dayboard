@@ -75,7 +75,7 @@ const QUICK_ACTIONS = [
 type Props = { mode: CommandMode; onModeChange: (mode: CommandMode) => void; onClose: () => void };
 
 function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) => void }) {
-  const Icon = hit.journalDate ? BookOpen : hit.stickyBoardId ? StickyNote : ICONS[hit.type];
+  const Icon = hit.journalDate ? BookOpen : hit.stickyCanvasId ? StickyNote : ICONS[hit.type];
   return (
     <Command.Item
       value={`${hit.type}:${hit.id}`}
@@ -102,7 +102,7 @@ function HitRow({ hit, onSelect }: { hit: SearchHit; onSelect: (hit: SearchHit) 
         {hit.journalDate ? (
           <span className="ml-2 type-label-caps text-muted-foreground">Journal</span>
         ) : null}
-        {hit.stickyBoardId ? (
+        {hit.stickyCanvasId ? (
           <span className="ml-2 type-label-caps text-muted-foreground">Sticky note</span>
         ) : null}
         {hit.archived ? (

@@ -2,7 +2,6 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { projectRefsFor } from "@/db/queries/meta";
-import { countStickies } from "@/db/queries/stickies";
 import { plainTasks } from "@/db/queries/task-filters";
 import { canvases, notes, projects, taskCanvases, tasks } from "@/db/schema";
 import type { Canvas } from "@/db/schema";
@@ -40,20 +39,12 @@ function toListItem(
 }
 
 async function withRefs(userId: string, rows: Canvas[]): Promise<CanvasListItemDTO[]> {
-  const [refs, stickies] = await Promise.all([
-    projectRefsFor(
-      db,
-      userId,
-      rows.map((r) => r.projectId),
-    ),
-    countStickies(
-      userId,
-      rows.filter((r) => r.kind === "BOARD").map((r) => r.id),
-    ),
-  ]);
-  return rows.map((row) =>
-    toListItem(row, refs, row.kind === "BOARD" ? (stickies.get(row.id) ?? 0) : null),
+  const refs = await projectRefsFor(
+    db,
+    userId,
+    rows.map((r) => r.projectId),
   );
+  return rows.map((row) => toListItem(row, refs));
 }
 
 /** Canvases that are not archived or in Trash, newest first. With `projectId`, only that project's (its page). */

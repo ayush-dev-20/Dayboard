@@ -53,9 +53,9 @@ function Row({
         {item.parentTitle ? (
           <span className="ml-2 type-body-sm text-muted-foreground">in {item.parentTitle}</span>
         ) : null}
-        {item.board ? (
+        {item.canvas ? (
           <span className="ml-2 type-body-sm text-muted-foreground">
-            Sticky note{item.board.title ? ` on ${item.board.title}` : ""}
+            Sticky note{item.canvas.title ? ` on ${item.canvas.title}` : ""}
           </span>
         ) : null}
       </button>

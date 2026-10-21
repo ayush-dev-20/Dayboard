@@ -14,7 +14,7 @@ import {
 // own while its parent is alive is listed itself.
 function union(userId: string) {
   return sql`
-    select 'task'::text as type, t.id, t.title, t.emoji, t.deleted_at, 0::int as sub_notes, 0::int as descendants, null::text as journal_date, t.board_canvas_id::text as sticky_board_id from tasks t
+    select 'task'::text as type, t.id, t.title, t.emoji, t.deleted_at, 0::int as sub_notes, 0::int as descendants, null::text as journal_date, t.sticky_canvas_id::text as sticky_canvas_id from tasks t
       where t.user_id = ${userId} and t.deleted_at is not null
         and (t.parent_task_id is null or not exists (
           select 1 from tasks p where p.id = t.parent_task_id and p.deleted_at is not null))
@@ -59,7 +59,7 @@ type Row = {
   sub_notes: number;
   descendants: number;
   journal_date: string | null;
-  sticky_board_id: string | null;
+  sticky_canvas_id: string | null;
 };
 
 export type TrashCursor = { at: string; id: string };
@@ -81,7 +81,7 @@ export async function listTrash(
     : sql`true`;
 
   const rows = (await db.execute(sql`
-    select u.type, u.id, u.title, u.emoji, u.deleted_at, u.sub_notes, u.descendants, u.journal_date, u.sticky_board_id from (${union(userId)}) u
+    select u.type, u.id, u.title, u.emoji, u.deleted_at, u.sub_notes, u.descendants, u.journal_date, u.sticky_canvas_id from (${union(userId)}) u
     where ${typeCond} and ${cursorCond}
     order by u.deleted_at desc, u.id desc
     limit ${TRASH_PAGE + 1}`)) as unknown as Row[];
@@ -98,7 +98,7 @@ export async function listTrash(
       subNotes: r.sub_notes,
       descendants: r.descendants,
       journalDate: r.journal_date,
-      stickyBoardId: r.sticky_board_id,
+      stickyCanvasId: r.sticky_canvas_id,
     })),
     next:
       rows.length > TRASH_PAGE && last

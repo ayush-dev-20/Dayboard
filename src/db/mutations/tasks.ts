@@ -4,11 +4,11 @@ import { db } from "@/db/client";
 import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject } from "@/db/mutations/guards";
 import { rejectReusedId } from "@/db/mutations/reused-id";
-import { stickyPlacementFor, stickyRestorePatch } from "@/db/mutations/sticky-column";
 import { logTaskDeletes, logTaskUpserts } from "@/lib/sync/change-log";
 import { projectDoc, syncNoteLinks } from "@/db/mutations/note-links";
 import { taskMetaFor } from "@/db/queries/meta";
 import {
+  canvases,
   inboxItems,
   taskNotes,
   tasks,
@@ -363,11 +363,7 @@ export async function completeTask(
         ),
       );
 
-    // A sticky note follows its status to the board's Completed column.
-    const patch: Partial<NewTask> = {
-      ...statusPatch("DONE", now),
-      ...(await stickyPlacementFor(tx, task, "DONE")),
-    };
+    const patch: Partial<NewTask> = { ...statusPatch("DONE", now) };
     let nextOccurrenceId: string | null = null;
 
     if (task.recurrenceRule && task.dueDate && !task.parentTaskId) {
@@ -477,11 +473,7 @@ export async function undoCompleteTask(
     if (!task) throw new AppError("NOT_FOUND");
     if (task.status !== "DONE") return { task: await dto(tx, task), removedOccurrence: false };
 
-    const undoneStatus = statusAfterUndo(input.previousStatus);
-    const patch: Partial<NewTask> = {
-      ...statusPatch(undoneStatus, new Date()),
-      ...(await stickyPlacementFor(tx, task, undoneStatus)),
-    };
+    const patch: Partial<NewTask> = statusPatch(statusAfterUndo(input.previousStatus), new Date());
     let removed = false;
 
     if (input.nextOccurrenceId) {
@@ -525,14 +517,10 @@ export async function setTaskStatus(
   if (status === "DONE") return (await completeTask(userId, id)).task;
 
   return db.transaction(async (tx) => {
-    const current = await loadOwned(tx, userId, id);
+    await loadOwned(tx, userId, id);
     const [updated] = await tx
       .update(tasks)
-      .set({
-        ...statusPatch(status, new Date()),
-        // A sticky note follows its status to the first column of its board with that status.
-        ...(await stickyPlacementFor(tx, current, status)),
-      })
+      .set(statusPatch(status, new Date()))
       .where(owned(userId, id))
       .returning();
     if (!updated) throw new AppError("NOT_FOUND");
@@ -654,9 +642,20 @@ export async function restoreTask(userId: string, id: string): Promise<TaskDTO> 
       }
     }
 
+    // A sticky note comes back only with its canvas: on a canvas in Trash it would have nowhere to be.
+    if (task.kind === "STICKY" && task.stickyCanvasId) {
+      const [canvas] = await tx
+        .select({ deletedAt: canvases.deletedAt })
+        .from(canvases)
+        .where(and(eq(canvases.id, task.stickyCanvasId), eq(canvases.userId, userId)))
+        .limit(1);
+      if (!canvas || canvas.deletedAt) {
+        throw new AppError("CONFLICT", "Restore the canvas first.");
+      }
+    }
     await tx
       .update(tasks)
-      .set({ deletedAt: null, ...(await stickyRestorePatch(tx, task)) })
+      .set({ deletedAt: null })
       .where(owned(userId, id, true));
     const subtasks = await tx
       .update(tasks)
