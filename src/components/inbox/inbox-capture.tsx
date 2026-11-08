@@ -1,17 +1,19 @@
 "use client";
 
 import { Inbox } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { saveToInbox } from "@/components/command/capture";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { DictationTextButton } from "@/components/voice/dictation-text-button";
 import { MicButton } from "@/components/voice/mic-button";
 import { INBOX_TEXT_MAX } from "@/lib/validations/inbox";
 
 /** The textarea at the top of the Inbox: write anything, Cmd/Ctrl+Enter or Capture saves, and the box clears for the next one. */
 export function InboxCapture() {
   const [text, setText] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -33,6 +35,7 @@ export function InboxCapture() {
   return (
     <div>
       <textarea
+        ref={inputRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -52,6 +55,12 @@ export function InboxCapture() {
           <Kbd>⌘↵</Kbd> to save
         </span>
         <MicButton />
+        <DictationTextButton
+          inputRef={inputRef}
+          value={text}
+          onChange={setText}
+          maxLength={INBOX_TEXT_MAX}
+        />
         <Button onClick={() => void save()} disabled={saving || !text.trim()}>
           <Inbox strokeWidth={1.5} aria-hidden />
           Capture

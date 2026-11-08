@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Kbd } from "@/components/ui/kbd";
 import { saveToInbox } from "@/components/command/capture";
+import { DictationTextButton } from "@/components/voice/dictation-text-button";
 import { MicButton } from "@/components/voice/mic-button";
 import { INBOX_TEXT_MAX } from "@/lib/validations/inbox";
 
 /** A quiet one-line "Capture to Inbox" under the greeting: type, Enter, done. Failure keeps the text. */
 export function TodayCapture() {
   const [text, setText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -35,6 +37,7 @@ export function TodayCapture() {
     >
       <Plus className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden />
       <input
+        ref={inputRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
         maxLength={INBOX_TEXT_MAX}
@@ -44,6 +47,14 @@ export function TodayCapture() {
         className="h-12 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground md:h-11 md:text-[14px]"
       />
       <MicButton className="-mr-2" />
+      <DictationTextButton
+        inputRef={inputRef}
+        singleLine
+        value={text}
+        onChange={setText}
+        maxLength={INBOX_TEXT_MAX}
+        className="-mr-2"
+      />
       <span className="hidden shrink-0 items-center gap-1.5 type-body-sm text-muted-foreground md:inline-flex">
         <Kbd>C</Kbd> from anywhere
       </span>

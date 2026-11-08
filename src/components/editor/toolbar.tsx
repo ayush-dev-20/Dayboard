@@ -14,6 +14,7 @@ import {
   List,
   ListOrdered,
   ListTodo,
+  Mic,
   Minus,
   Plus,
   Quote,
@@ -35,8 +36,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { openSlashMenu } from "./blocks/slash-menu";
+import { useDictation, useDictationSupported } from "./use-dictation";
 import { WritingHelpMenu, type HelpMode } from "./ai-selection-menu";
 import { isAllowedLink } from "@/lib/editor/schema";
+import { formatDictation } from "@/lib/dictation/format";
 import { cn } from "@/lib/utils";
 
 function ToolButton({
@@ -237,6 +240,59 @@ export type WritingHelpControl = {
   onOpenChange: (open: boolean) => void;
 };
 
+/**
+ * The microphone: dictate into the text at the cursor. What the browser hears is capitalised and punctuated by
+ * `formatDictation` and typed in like anything else, so Undo, lists and the autosave all work as usual. Not shown in a
+ * browser that cannot recognise speech.
+ */
+function DictateButton({ editor }: { editor: Editor }) {
+  const supported = useDictationSupported();
+  const { listening, interim, toggle } = useDictation((heard, commands) => {
+    const { $from } = editor.state.selection;
+    const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
+    const ops = formatDictation(heard, { before, commands });
+    if (ops.length === 0) return;
+    const chain = editor.chain().focus();
+    for (const op of ops) {
+      // A text node, not a string: a string is read as HTML and loses the space at its start.
+      if (op.type === "text") chain.insertContent({ type: "text", text: op.text });
+      else if (op.type === "paragraph") {
+        // Inside a list a new paragraph is a new item, as Enter makes.
+        if (editor.isActive("taskItem")) chain.splitListItem("taskItem");
+        else if (editor.isActive("listItem")) chain.splitListItem("listItem");
+        else chain.splitBlock();
+      } else chain.setHardBreak();
+    }
+    chain.scrollIntoView().run();
+  });
+  if (!supported) return null;
+  return (
+    <>
+      <ToolButton
+        label={listening ? "Stop dictating" : "Dictate"}
+        active={listening}
+        onClick={toggle}
+      >
+        <Mic className={icon} strokeWidth={1.5} aria-hidden />
+      </ToolButton>
+      {/* Screen readers hear "Dictating" once; the words being heard are shown for sighted people only. */}
+      <span role="status" className="shrink-0 type-body-sm text-muted-foreground">
+        {listening ? (
+          <>
+            <span className="sr-only">Dictating</span>
+            <span aria-hidden>
+              <span className="mr-1.5 inline-block size-1.5 rounded-full bg-primary motion-safe:animate-pulse" />
+              <span className="inline-block max-w-40 truncate align-bottom">
+                {interim ? interim : "Listening…"}
+              </span>
+            </span>
+          </>
+        ) : null}
+      </span>
+    </>
+  );
+}
+
 export function FormatToolbar({
   editor,
   variant,
@@ -293,6 +349,7 @@ export function FormatToolbar({
         <Plus className={icon} strokeWidth={1.5} aria-hidden />
       </ToolButton>
       {doc ? <BlockMenu editor={editor} value={state.block} /> : null}
+      <DictateButton editor={editor} />
       <ToolButton
         label="Bold"
         active={state.bold}

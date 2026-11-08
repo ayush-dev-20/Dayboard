@@ -30,6 +30,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | Background worker and jobs            | V2    | In progress | [background-worker-and-jobs_v2.md](background-worker-and-jobs_v2.md)             |
 | Google Calendar                       | V2    | In progress | [google-calendar_v2.md](google-calendar_v2.md)                                   |
 | Voice capture                         | V2    | In progress | [voice-capture_v2.md](voice-capture_v2.md)                                       |
+| Dictation in editors                  | V2    | In progress | [dictation-in-editors_v2.md](dictation-in-editors_v2.md)                         |
 | AI weekly review                      | V2    | In progress | [ai-weekly-review_v2.md](ai-weekly-review_v2.md)                                 |
 | Push notifications and reminders      | V2    | In progress | [push-notifications-and-reminders_v2.md](push-notifications-and-reminders_v2.md) |
 | Canvas with AI diagrams               | V3    | Done        | [canvas-with-ai-diagrams_v3.md](canvas-with-ai-diagrams_v3.md)                   |

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, CircleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { saveToInbox } from "./capture";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { DictationTextButton } from "@/components/voice/dictation-text-button";
 import { MicButton } from "@/components/voice/mic-button";
 import { INBOX_TEXT_MAX } from "@/lib/validations/inbox";
 
@@ -24,6 +25,7 @@ export function CaptureBox({
   onClose: () => void;
 }) {
   const [text, setText] = useState(initialText);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -49,9 +51,17 @@ export function CaptureBox({
         <span className="flex items-center gap-1 type-body-sm text-muted-foreground">
           To Inbox
           <MicButton onBefore={onClose} className="-my-2 -mr-2" />
+          <DictationTextButton
+            inputRef={inputRef}
+            value={text}
+            onChange={setText}
+            maxLength={INBOX_TEXT_MAX}
+            className="-my-2 -mr-2"
+          />
         </span>
       </div>
       <textarea
+        ref={inputRef}
         autoFocus
         value={text}
         onChange={(e) => setText(e.target.value)}
