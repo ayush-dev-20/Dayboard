@@ -217,10 +217,21 @@ describe("the notification payload", () => {
       title: "Dentist",
       body: "Due at 14:30",
       url: `/tasks?task=${input.taskId}`,
-      tag: "reminder-r1",
+      tag: `reminder-${input.taskId}`,
       reminderId: "r1",
       token: "tok",
     });
+  });
+
+  it("gives two reminders of one task the same tag, so they replace each other instead of stacking", () => {
+    // An automatic "5 minutes before" and a custom "5 minutes before" fire at the same moment: one notification.
+    const first = reminderPayload({ ...input, reminderId: "r1" });
+    const second = reminderPayload({ ...input, reminderId: "r2" });
+    expect(second.tag).toBe(first.tag);
+    expect(second.reminderId).toBe("r2");
+    // Another task keeps its own notification.
+    const other = reminderPayload({ ...input, taskId: "7b0f5a0e-0000-4000-8000-000000000002" });
+    expect(other.tag).not.toBe(first.tag);
   });
 
   it("says nothing private when titles are off", () => {

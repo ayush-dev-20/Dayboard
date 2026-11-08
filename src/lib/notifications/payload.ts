@@ -41,7 +41,9 @@ export function reminderPayload(input: {
     title: input.showTitles ? clip(input.taskTitle, MAX_TITLE) : "A task is due soon",
     body: input.showTitles ? input.when : "Open Dayboard to see it.",
     url: `/tasks?task=${input.taskId}`,
-    tag: `reminder-${input.reminderId}`,
+    // One tag per task, not per reminder: two reminders of one task at the same moment (an automatic one and a custom one
+    // with the same lead) replace each other on the device instead of showing the same notification twice.
+    tag: `reminder-${input.taskId}`,
     reminderId: input.reminderId,
     token: input.token,
   };

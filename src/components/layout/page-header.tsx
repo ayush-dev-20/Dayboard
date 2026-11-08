@@ -19,6 +19,8 @@ type Props = {
   visibleOnPhone?: boolean;
   /** The title's type style. */
   size?: "page" | "display";
+  /** On phones, put the actions on their own row under the title (a long title would otherwise sit under them). */
+  stackActionsOnPhone?: boolean;
 };
 
 /**
@@ -33,6 +35,7 @@ export function PageHeader({
   sticky = true,
   visibleOnPhone = false,
   size = "page",
+  stackActionsOnPhone = false,
 }: Props) {
   const sentinel = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -62,6 +65,7 @@ export function PageHeader({
             "md:sticky md:top-12 md:z-20 md:-mx-8 md:-mt-px md:bg-background md:px-8 md:pt-3 md:pb-3",
           sticky && "md:border-b md:border-transparent md:transition-colors md:duration-150",
           sticky && scrolled && "md:border-border",
+          stackActionsOnPhone && "max-md:flex-col max-md:items-stretch max-md:gap-4",
           className,
         )}
       >
@@ -86,7 +90,16 @@ export function PageHeader({
             </p>
           ) : null}
         </div>
-        {children ? <div className="flex shrink-0 items-center gap-2">{children}</div> : null}
+        {children ? (
+          <div
+            className={cn(
+              "flex shrink-0 items-center gap-2",
+              stackActionsOnPhone && "max-md:justify-between",
+            )}
+          >
+            {children}
+          </div>
+        ) : null}
       </div>
     </>
   );

@@ -123,6 +123,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Search
                   size="display"
                   sticky={false}
                   visibleOnPhone
+                  stackActionsOnPhone
                   className="mb-8 items-center"
                 >
                   <PlanDay focusId={data.focus?.id ?? null} />
