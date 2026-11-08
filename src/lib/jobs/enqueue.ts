@@ -34,6 +34,18 @@ export async function enqueue(executor: Executor, input: EnqueueInput): Promise<
   const queue = input.queue ?? "default";
   if (!QUEUES.includes(queue)) throw new AppError("VALIDATION_ERROR", `Unknown queue ${queue}.`);
 
+  // A job that failed and waits to retry is FAILED, which the unique index on the key does not cover. It still holds the
+  // key: making a second job beside it would leave two jobs for one piece of work, and claiming the older one later would
+  // violate the index (see `claimJobs`). The waiting job is the answer, and it runs again when its time comes.
+  if (input.dedupeKey) {
+    const [waiting] = await executor
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(and(eq(jobs.dedupeKey, input.dedupeKey), eq(jobs.status, "FAILED")))
+      .limit(1);
+    if (waiting) return waiting.id;
+  }
+
   const id = uuidv7();
   const inserted = await executor
     .insert(jobs)

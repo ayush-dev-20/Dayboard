@@ -44,6 +44,7 @@ Reminders are the one place the app talks to the person when they are not lookin
 ## Hand-off notes
 
 - **To turn it on:** `npx web-push generate-vapid-keys`, then set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (`mailto:` or `https:`). All three or none. **Keep the pair**: changing it ends every device's subscription. Without them, push is off and the UI says so; in-app reminders still work. Run a worker or tick mode (`reminders.scan` is a schedule); with tick mode reminders can be a few minutes late, and the settings page says so when no worker heartbeat is fresh.
+- **On Vercel, reminders only go out when the jobs tick runs often.** See `background-worker-and-jobs_v2.md` (the dedupe fix and the GitHub cron note). The Settings test notification does not use the queue, so it can work while real reminders do not.
 - **Migration `0018`** is applied to the test database only. The dev database and Neon still need it (ask first for Neon).
 - Tests set the clock the delivery job acts at through `notificationClock` (`src/lib/notifications/clock.ts`); nothing else changes it. The scan looks at everyone's reminders, so integration tests cancel all waiting reminders in `beforeEach`.
 - A new way to change a task needs nothing: it already calls `logTaskUpserts`, which reconciles. A new reminder kind needs a branch in `reconcileTaskReminders` and the check in the migration.

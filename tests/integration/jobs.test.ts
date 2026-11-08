@@ -369,6 +369,72 @@ describe("enqueue", () => {
   });
 });
 
+// A job that failed waits to retry with the status FAILED, and the unique index on the dedupe key covers only QUEUED and
+// RUNNING. In production a retry-waiting job and a newer job with the same key ended up side by side, and claiming the
+// older one (always first in line) violated the index: every claim failed, so the tick queued new jobs and ran none.
+describe("a job waiting to retry and its dedupe key", () => {
+  const KEY = "test:retry-key";
+  const waiting = async (key = "w") => {
+    const id = await enqueue(db, { type: "test.count", payload: { key }, dedupeKey: KEY });
+    await db
+      .update(jobs)
+      .set({
+        status: "FAILED",
+        attempts: 1,
+        runAt: new Date(Date.now() - 3_600_000),
+        lastError: "Could not reach the service.",
+      })
+      .where(eq(jobs.id, id));
+    return id;
+  };
+  const twinOf = async (key: string) => {
+    // The twin as production has it: made while the first job waited, so it holds the key as QUEUED.
+    const [row] = await db
+      .insert(jobs)
+      .values({
+        id: uuidv7(),
+        type: "test.count",
+        payload: { key },
+        queue: "default",
+        dedupeKey: KEY,
+        runAt: new Date(Date.now() - 1000),
+      })
+      .returning({ id: jobs.id });
+    return row!.id;
+  };
+
+  it("enqueueing the same key returns the waiting job and does not make a twin", async () => {
+    const stale = await waiting();
+    const again = await enqueue(db, { type: "test.count", payload: { key: "w" }, dedupeKey: KEY });
+    expect(again).toBe(stale);
+    expect(await db.select().from(jobs).where(eq(jobs.dedupeKey, KEY))).toHaveLength(1);
+  });
+
+  it("a waiting job that already has a twin does not block the claim, and is cancelled as superseded", async () => {
+    const stale = await waiting();
+    const twin = await twinOf("t");
+
+    const claimed = await claimJobs("worker-a", ["default"], 5);
+    expect(claimed.map((j) => j.id)).toEqual([twin]);
+
+    await reapStaleLocks();
+    const old = await statusOf(stale);
+    expect(old.status).toBe("CANCELLED");
+    expect(old.lastError).toContain("Superseded");
+  });
+
+  it("a tick still runs the jobs that sit behind such a job", async () => {
+    await waiting();
+    await twinOf("behind");
+    await enqueue(db, { type: "test.count", payload: { key: "other" } });
+
+    const result = await runTick({ budgetMs: 5000 });
+    expect(result.ran).toBe(2);
+    expect(seen("behind")).toBe(1);
+    expect(seen("other")).toBe(1);
+  });
+});
+
 describe("the scheduler", () => {
   it("fires a due schedule once per slot even when two workers race, then moves on", async () => {
     const slot = new Date(Date.now() - 5000);

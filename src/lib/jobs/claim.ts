@@ -8,6 +8,14 @@ import type { QueueName } from "./types";
 // Claiming (V2 feature 08 §3). One statement picks jobs and locks them, and SKIP LOCKED means two workers never
 // take the same job. Jobs waiting to retry (FAILED) are eligible like new ones once their time has come.
 
+/**
+ * A job waiting to retry whose dedupe key is now held by a QUEUED or RUNNING job. The unique index covers only those two
+ * statuses, so claiming such a job would violate it, and because the oldest job is always claimed first, one of them
+ * made every claim fail and stopped the whole queue. It is skipped here and cancelled by `reapStaleLocks`.
+ */
+const superseded = sql`(${jobs.status} = 'FAILED' and ${jobs.dedupeKey} is not null and exists (
+  select 1 from jobs twin where twin.dedupe_key = ${jobs.dedupeKey} and twin.status in ('QUEUED', 'RUNNING')))`;
+
 export async function claimJobs(
   workerId: string,
   queues: readonly QueueName[],
@@ -22,6 +30,7 @@ export async function claimJobs(
         inArray(jobs.status, ["QUEUED", "FAILED"]),
         lte(jobs.runAt, new Date()),
         inArray(jobs.queue, [...queues]),
+        sql`not ${superseded}`,
       ),
     )
     .orderBy(asc(jobs.runAt))
@@ -55,6 +64,15 @@ export async function extendLock(workerId: string, jobId: string): Promise<void>
  */
 export async function reapStaleLocks(): Promise<number> {
   const now = new Date();
+  // Jobs that were waiting to retry but have been replaced by a newer job for the same work are not retried.
+  await db
+    .update(jobs)
+    .set({
+      status: "CANCELLED",
+      lastError: "Superseded by a newer job with the same key.",
+      finishedAt: now,
+    })
+    .where(superseded);
   const reaped = await db
     .update(jobs)
     .set({
