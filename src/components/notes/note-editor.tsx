@@ -108,7 +108,7 @@ type Props = {
    * typed. Back goes to Journal, the sub-note and Move to actions are not offered, and the day's finished work is
    * listed under the text.
    */
-  journal?: { date: string; done: DoneOnDay; timeZone: string };
+  journal?: { date: string; done: DoneOnDay; timeZone: string; startDoc?: TiptapDoc | null };
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -183,7 +183,7 @@ export function NoteEditor({ note, start, backlinks = [], journal }: Props) {
   const [tasks, setTasks] = useState<LinkedTaskDTO[]>(note?.tasks ?? []);
   const [seed, setSeed] = useState<{ key: number; doc: TiptapDoc | null }>({
     key: 0,
-    doc: note?.contentJson ?? null,
+    doc: note?.contentJson ?? journal?.startDoc ?? null,
   });
   const [draftDismissed, setDraftDismissed] = useState(false);
   // Sub-notes: the ones whose block is not in the text are listed at the end (feature 07 §3).
@@ -210,6 +210,7 @@ export function NoteEditor({ note, start, backlinks = [], journal }: Props) {
       : null,
     create: { projectId: project?.id ?? null, linkTaskId: start?.linkTaskId ?? null },
     newTitle: journal ? journalTitle(journal.date) : undefined,
+    newDoc: !note ? (journal?.startDoc ?? undefined) : undefined,
     journal: journal
       ? {
           onExists: (id, doc, typedTitle) => {
@@ -289,7 +290,7 @@ export function NoteEditor({ note, start, backlinks = [], journal }: Props) {
   const summary = useAIStream("/api/ai/summarize-note");
   const extract = useAICall<{ items: PreviewTask[] }>("/api/ai/action-items");
   // The latest document, kept for "Insert into note" (read in a click handler, never in render).
-  const liveDoc = useRef<TiptapDoc | null>(note?.contentJson ?? null);
+  const liveDoc = useRef<TiptapDoc | null>(note?.contentJson ?? journal?.startDoc ?? null);
 
   // Generate with AI (feature 08): the panel streams a draft; this component applies it with editor
   // transactions (one undo) or creates a new note from it. The editor instance is kept in a ref and

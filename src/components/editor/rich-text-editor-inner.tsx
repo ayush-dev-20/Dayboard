@@ -60,6 +60,11 @@ export type RichTextEditorProps = {
   ensureOwner?: () => Promise<string | null>;
   /** Offer sub-notes (the slash item and the link picker's "as a sub-note"). Default true; off in the journal. */
   subNotes?: boolean;
+  /**
+   * The editor of a template (V3 feature 03): no images, files or sub-notes, whatever the workspace allows. The slash
+   * menu leaves them out and a pasted or dropped image is refused, so the person is told before saving.
+   */
+  template?: boolean;
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -92,6 +97,7 @@ export default function RichTextEditor({
   ownerId = null,
   ensureOwner,
   subNotes = true,
+  template = false,
 }: RichTextEditorProps) {
   const offline = !useSyncExternalStore(
     subscribeOnline,
@@ -105,11 +111,11 @@ export default function RichTextEditor({
       surface: surface ?? (variant === "document" ? "note" : "task"),
       ownerId,
       offline,
-      filesEnabled,
+      filesEnabled: template ? false : filesEnabled,
       ensureOwner,
-      subNotes,
+      subNotes: template ? false : subNotes,
     }),
-    [surface, variant, ownerId, offline, filesEnabled, ensureOwner, subNotes],
+    [surface, variant, ownerId, offline, filesEnabled, ensureOwner, subNotes, template],
   );
   // The editor is created once; its extensions read the latest context through a holder.
   const [holder] = useState(() => createContextHolder(context));

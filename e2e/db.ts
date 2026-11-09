@@ -1015,3 +1015,54 @@ export async function stickyByTitle(userId: string, title: string) {
 export async function setStickyDue(taskId: string, date: string | null) {
   await sql`update tasks set due_date = ${date} where id = ${taskId}`;
 }
+
+// ---- Templates (V3 feature 03) ----
+
+export async function insertTemplate(
+  userId: string,
+  seed: {
+    name: string;
+    titlePattern?: string;
+    text?: string;
+    deleted?: boolean;
+    journal?: boolean;
+  },
+) {
+  const text = seed.text ?? "";
+  const [row] = await sql<{ id: string }[]>`
+    insert into templates (id, user_id, name, title_pattern, content_json, content_text, deleted_at)
+    values (gen_random_uuid(), ${userId}, ${seed.name}, ${seed.titlePattern ?? ""}, ${sql.json(docOf(text))}, ${text},
+            ${seed.deleted ? sql`now()` : null})
+    returning id`;
+  if (seed.journal) {
+    await sql`update user_preferences set journal_template_id = ${row!.id} where user_id = ${userId}`;
+  }
+  return row!.id;
+}
+
+export async function templatesOf(userId: string) {
+  return sql<
+    {
+      id: string;
+      name: string;
+      title_pattern: string;
+      content_text: string;
+      content_json: unknown;
+      version: number;
+      deleted_at: Date | null;
+      starter_key: string | null;
+    }[]
+  >`select id, name, title_pattern, content_text, content_json, version, deleted_at, starter_key
+    from templates where user_id = ${userId} order by created_at`;
+}
+
+export async function journalTemplateOf(userId: string) {
+  const [row] = await sql<{ id: string | null }[]>`
+    select journal_template_id as id from user_preferences where user_id = ${userId}`;
+  return row?.id ?? null;
+}
+
+/** Saves a template as another window would: the version goes up, so the open page's next save is stale. */
+export async function saveTemplateElsewhere(templateId: string, text: string) {
+  await sql`update templates set version = version + 1, content_text = ${text} where id = ${templateId}`;
+}

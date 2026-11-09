@@ -9,6 +9,7 @@ const PROTECTED_PREFIXES = [
   "/journal",
   "/canvases",
   "/projects",
+  "/templates",
   "/search",
   "/trash",
   "/settings",

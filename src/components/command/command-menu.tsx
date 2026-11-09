@@ -14,6 +14,7 @@ import {
   FileText,
   Folder,
   History,
+  LayoutTemplate,
   MessageCircleQuestion,
   Mic,
   StickyNote,
@@ -23,6 +24,7 @@ import {
   Tag as TagIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { openTemplatePicker } from "@/components/templates/template-picker";
 import { AskPanel } from "@/components/ai/ask-panel";
 import { createThread, titleFrom } from "@/components/assistant/threads";
 import { useAIStream } from "@/components/ai/use-ai";
@@ -440,6 +442,37 @@ export function CommandMenu({ mode, onModeChange, onClose }: Props) {
                         Journal: today&apos;s entry
                       </Command.Item>
                     ) : null}
+                    {mode === "create" ? (
+                      <Command.Item
+                        value="new-note-from-template"
+                        onSelect={() => {
+                          // The picker is a dialog: close this menu first, never nest them.
+                          close();
+                          openTemplatePicker();
+                        }}
+                        className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 type-body-md data-[selected=true]:bg-primary-subtle md:min-h-9"
+                      >
+                        <Plus
+                          className="size-4 text-muted-foreground"
+                          strokeWidth={1.5}
+                          aria-hidden
+                        />{" "}
+                        New note from template…
+                      </Command.Item>
+                    ) : (
+                      <Command.Item
+                        value="templates-page"
+                        onSelect={() => go("/templates")}
+                        className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 type-body-md data-[selected=true]:bg-primary-subtle md:min-h-9"
+                      >
+                        <LayoutTemplate
+                          className="size-4 text-muted-foreground"
+                          strokeWidth={1.5}
+                          aria-hidden
+                        />{" "}
+                        Templates
+                      </Command.Item>
+                    )}
                     <Command.Item
                       value="capture-mode"
                       onSelect={() => onModeChange("capture")}

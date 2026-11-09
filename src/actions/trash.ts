@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { permanentlyDeleteCanvas, restoreCanvas } from "@/db/mutations/canvases";
+import { permanentlyDeleteTemplate, restoreTemplate } from "@/db/mutations/templates";
 import { restoreInboxItem, permanentlyDeleteInboxItem } from "@/db/mutations/inbox";
 import { restoreNote, restoreNoteAsTopLevel, permanentlyDeleteNote } from "@/db/mutations/notes";
 import { restoreProject, permanentlyDeleteProject } from "@/db/mutations/projects";
@@ -43,6 +44,7 @@ export async function restoreTrashItem(input: unknown): Promise<ActionResult<{ h
       project: () => restoreProject(user.id, id),
       inbox: () => restoreInboxItem(user.id, id),
       canvas: () => restoreCanvas(user.id, id),
+      template: () => restoreTemplate(user.id, id),
     };
     await restore[type]();
     refresh();
@@ -61,6 +63,7 @@ export async function permanentlyDeleteTrashItem(input: unknown): Promise<Action
       project: () => permanentlyDeleteProject(user.id, id),
       inbox: () => permanentlyDeleteInboxItem(user.id, id),
       canvas: () => permanentlyDeleteCanvas(user.id, id),
+      template: () => permanentlyDeleteTemplate(user.id, id),
     };
     await remove[type]();
     refresh();

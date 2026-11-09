@@ -2,6 +2,7 @@ import { AssistantBoot } from "@/components/assistant/assistant-boot";
 import { RecordVisit } from "@/components/pwa/record-visit";
 import { AssistantLauncher } from "@/components/assistant/assistant-launcher";
 import { CommandProvider } from "@/components/command/command-provider";
+import { TemplatePickerHost } from "@/components/templates/template-picker";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { VoiceProvider } from "@/components/voice/voice-provider";
 import { AccountBlock } from "./account-block";
@@ -55,6 +56,7 @@ export function AppShell({ name, email, sidebarCollapsed, children }: Props) {
           </TooltipProvider>
 
           <AppShortcuts />
+          <TemplatePickerHost />
           <AssistantBoot />
           <RecordVisit />
           <MobileNav />

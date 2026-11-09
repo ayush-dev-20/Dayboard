@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { Plus, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { NewNoteMenu } from "@/components/templates/new-note-menu";
 import { NotesTreeSheet } from "@/components/notes/tree/notes-tree-sheet";
 import { TaskContextProvider } from "@/components/tasks/task-context";
 import { buttonVariants } from "@/components/ui/button";
@@ -61,6 +62,8 @@ export default async function NotesPage({ searchParams }: { searchParams: Search
       <PageContainer width={view.type === "LIST" || isTree ? "content" : "wide"}>
         <PageHeader
           title="Notes"
+          // Four actions do not fit beside each other at 360px: they stack under the (phone-hidden) title and wrap.
+          stackActionsOnPhone
           description={`${counts.active} ${counts.active === 1 ? "note" : "notes"}`}
         >
           <NotesTreeSheet />
@@ -69,9 +72,7 @@ export default async function NotesPage({ searchParams }: { searchParams: Search
               <Sparkles strokeWidth={1.5} aria-hidden /> Write with AI
             </Link>
           ) : null}
-          <Link href="/notes/new" className={buttonVariants()}>
-            <Plus strokeWidth={1.5} aria-hidden /> New note
-          </Link>
+          <NewNoteMenu />
         </PageHeader>
 
         <NotesCollection

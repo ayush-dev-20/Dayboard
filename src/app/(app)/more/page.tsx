@@ -17,6 +17,7 @@ const MORE_LINKS = NAV_ITEMS.filter((item) =>
     "/journal",
     "/canvases",
     "/projects",
+    "/templates",
     "/assistant",
     "/search",
     "/trash",

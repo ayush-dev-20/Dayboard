@@ -27,6 +27,8 @@ type Options = {
   journal?: { onExists: (id: string, doc: TiptapDoc | null, title: string) => void };
   /** The title a new note starts with (a journal entry starts with its date). */
   newTitle?: string;
+  /** The text a new note starts with (a journal entry made from the journal template). Saved with the first change. */
+  newDoc?: TiptapDoc;
 };
 
 const CONTENT_DELAY_MS = 800;
@@ -61,13 +63,20 @@ export type NoteSync = {
  * back online. A new note is created on its first change, so abandoned "new note" clicks leave
  * nothing behind.
  */
-export function useNoteSync({ initial, create, onCreated, journal, newTitle }: Options): NoteSync {
+export function useNoteSync({
+  initial,
+  create,
+  onCreated,
+  journal,
+  newTitle,
+  newDoc,
+}: Options): NoteSync {
   const [state, dispatch] = useReducer(noteSaveReducer, INITIAL_SAVE_STATE);
 
   const [noteId, setNoteId] = useState<string | null>(initial?.id ?? null);
   const idRef = useRef<string | null>(initial?.id ?? null);
   const versionRef = useRef(initial?.version ?? 1);
-  const docRef = useRef<TiptapDoc | null>(initial?.doc ?? null);
+  const docRef = useRef<TiptapDoc | null>(initial?.doc ?? newDoc ?? null);
   const titleRef = useRef(initial?.title ?? newTitle ?? "");
   const emojiRef = useRef<string | null>(null);
   const dirtyDoc = useRef<TiptapDoc | null>(null);

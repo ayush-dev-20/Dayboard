@@ -5,6 +5,7 @@ import {
   File,
   Folder,
   Inbox,
+  LayoutTemplate,
   List,
   MessageCircle,
   Search,
@@ -30,6 +31,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // Canvases (V3 feature 01): drawings and sticky boards. Templates joins this group when it is built.
   { href: "/canvases", label: "Canvases", icon: Shapes },
   { href: "/projects", label: "Projects", icon: Folder },
+  // Templates (V3 feature 03): saved starting shapes for notes and journal entries.
+  { href: "/templates", label: "Templates", icon: LayoutTemplate },
   // The workspace assistant (V2 feature 11): shown only while AI is on. Speech bubble, never a sparkle.
   { href: "/assistant", label: "Assistant", icon: MessageCircle },
   { href: "/search", label: "Search", icon: Search },
@@ -46,7 +49,7 @@ export const NAV_GROUPS: readonly { label: string | null; items: readonly NavIte
   { label: "Plan", items: itemsFor("/today", "/inbox", "/tasks", "/review") },
   {
     label: "Library",
-    items: itemsFor("/notes", "/journal", "/canvases", "/projects", "/assistant"),
+    items: itemsFor("/notes", "/journal", "/canvases", "/projects", "/templates", "/assistant"),
   },
   { label: null, items: itemsFor("/search", "/trash", "/settings") },
 ];
@@ -70,6 +73,7 @@ const MORE_PREFIXES = [
   "/journal",
   "/canvases",
   "/projects",
+  "/templates",
   "/assistant",
   "/search",
   "/trash",

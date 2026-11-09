@@ -8,8 +8,10 @@ import {
   time,
   timestamp,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
+import { templates } from "./templates";
 import { taskPriorityEnum, themeEnum } from "./enums";
 import { tasks } from "./tasks";
 
@@ -34,6 +36,10 @@ export const userPreferences = pgTable(
     // V2 feature 13: the microphone button and the voice captures list. On by default; it only shows when
     // AI is available, because a recording is sent to the AI provider to be transcribed.
     voiceCaptureEnabled: boolean("voice_capture_enabled").notNull().default(true),
+    // The template that starts every new journal entry (V3 feature 03). Null: entries start empty.
+    journalTemplateId: uuid("journal_template_id").references((): AnyPgColumn => templates.id, {
+      onDelete: "set null",
+    }),
     // V2 feature 15: the weekly review. On by default (it works without AI, as facts only). `day` is 0 (Sunday) to 6,
     // null for the last day of the person's week; `hour` is local.
     weeklyReviewEnabled: boolean("weekly_review_enabled").notNull().default(true),

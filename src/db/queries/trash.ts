@@ -47,7 +47,10 @@ function union(userId: string) {
       where i.user_id = ${userId} and i.deleted_at is not null
     union all
     select 'canvas', c.id, case when c.title = '' then 'Untitled canvas' else c.title end, c.emoji, c.deleted_at, 0, 0, null, null from canvases c
-      where c.user_id = ${userId} and c.deleted_at is not null`;
+      where c.user_id = ${userId} and c.deleted_at is not null
+    union all
+    select 'template', m.id, m.name, m.emoji, m.deleted_at, 0, 0, null, null from templates m
+      where m.user_id = ${userId} and m.deleted_at is not null`;
 }
 
 type Row = {
@@ -118,6 +121,7 @@ export async function trashCounts(userId: string): Promise<TrashCounts> {
     project: 0,
     inbox: 0,
     canvas: 0,
+    template: 0,
     total: 0,
   } as TrashCounts;
   for (const type of TRASH_TYPES) counts[type] = rows.find((r) => r.type === type)?.n ?? 0;

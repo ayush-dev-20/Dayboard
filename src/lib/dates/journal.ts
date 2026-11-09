@@ -33,6 +33,17 @@ export function journalTitle(date: string): string {
   return `${weekday}, ${d} ${MONTHS[m - 1]} ${y}`;
 }
 
+/** "13 October 2026": the date without the weekday (the `{{date}}` placeholder of a template). */
+export function journalDateLabel(date: string): string {
+  const { y, m, d } = partsOf(date);
+  return `${d} ${MONTHS[m - 1]} ${y}`;
+}
+
+/** "Tuesday": the weekday of a calendar date (the `{{day}}` placeholder). */
+export function weekdayName(date: string): string {
+  return partsOf(date).weekday;
+}
+
 /** "Tue 13 Oct": the short form in the sidebar. */
 export function journalShortDate(date: string): string {
   const { m, d, weekday } = partsOf(date);

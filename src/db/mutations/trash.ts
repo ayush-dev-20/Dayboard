@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { canvases, inboxItems, notes, projects, tasks, todos } from "@/db/schema";
+import { canvases, inboxItems, notes, projects, tasks, templates, todos } from "@/db/schema";
 import { TRASH_TYPES, type TrashType } from "@/lib/trash";
 
 /**
@@ -64,6 +64,14 @@ export async function emptyTrash(
               .delete(canvases)
               .where(and(eq(canvases.userId, userId), isNotNull(canvases.deletedAt)))
               .returning({ id: canvases.id })
+          ).length;
+          break;
+        case "template":
+          deleted += (
+            await tx
+              .delete(templates)
+              .where(and(eq(templates.userId, userId), isNotNull(templates.deletedAt)))
+              .returning({ id: templates.id })
           ).length;
           break;
       }

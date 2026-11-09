@@ -149,3 +149,12 @@ describe("doneTime", () => {
     expect(doneTime("2026-10-13T00:05:00.000Z", "UTC")).toBe("00:05");
   });
 });
+
+describe("journalDateLabel and weekdayName", () => {
+  it("writes the date without the weekday, and the weekday alone", async () => {
+    const { journalDateLabel, weekdayName } = await import("@/lib/dates/journal");
+    expect(journalDateLabel("2026-10-13")).toBe("13 October 2026");
+    expect(journalDateLabel("2026-03-04")).toBe("4 March 2026");
+    expect(weekdayName("2026-10-13")).toBe("Tuesday");
+  });
+});

@@ -24,6 +24,16 @@ const GAPS = new Set([
   "canvases.ts:unlinkTaskCanvas",
   // The journal (V3 feature 02) creates notes that carry a date; notes are not in the sync protocol.
   "journal.ts:createJournalEntry",
+  // Templates (V3 feature 03) are server-backed like notes and are not in the sync protocol.
+  "templates.ts:createTemplate",
+  "templates.ts:saveTemplate",
+  "templates.ts:updateTemplateMeta",
+  "templates.ts:duplicateTemplate",
+  "templates.ts:deleteTemplate",
+  "templates.ts:restoreTemplate",
+  "templates.ts:permanentlyDeleteTemplate",
+  "templates.ts:setJournalTemplate",
+  "templates.ts:addStarterTemplates",
   "attachments.ts:createIntent",
   "attachments.ts:finalizeAttachment",
   "attachments.ts:deleteAttachment",

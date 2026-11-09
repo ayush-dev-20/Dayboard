@@ -94,7 +94,7 @@ export function PageHeader({
           <div
             className={cn(
               "flex shrink-0 items-center gap-2",
-              stackActionsOnPhone && "max-md:justify-between",
+              stackActionsOnPhone && "max-md:flex-wrap max-md:justify-between",
             )}
           >
             {children}

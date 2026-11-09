@@ -11,6 +11,7 @@ import {
   FileText,
   Folder,
   Inbox,
+  LayoutTemplate,
   Shapes,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -39,6 +40,7 @@ const ICONS = {
   project: Folder,
   inbox: Inbox,
   canvas: Shapes,
+  template: LayoutTemplate,
 } as const;
 
 type Row = TrashItemDTO & { when: string };
@@ -159,7 +161,16 @@ export function TrashList({
   // Sub-notes are only counted with notes, so only the notes tab and the full list name them.
   const includedSubNotes = type === null || type === "note" ? subNotes : 0;
   const scopeCounts = type
-    ? { task: 0, todo: 0, note: 0, project: 0, inbox: 0, canvas: 0, [type]: counts[type] }
+    ? {
+        task: 0,
+        todo: 0,
+        note: 0,
+        project: 0,
+        inbox: 0,
+        canvas: 0,
+        template: 0,
+        [type]: counts[type],
+      }
     : counts;
 
   async function confirmTopLevel() {

@@ -2,6 +2,37 @@
 
 > **Build priority: third V3 feature** (owner, 2026-10-13). Behaviour is in V3 product spec §6. It can start once the canvas (01) is done, and it completes feature 02's slice C (the journal's starting template). Where this doc is more detailed, this doc wins for this feature.
 
+## 0. Reality check and progress (2026-11-09)
+
+Checked against the code and `agent_docs/` (notes, nested notes, journal, canvas, search and Trash, dictation) before building. Every "Action" is the builder's proposal and can be vetoed.
+
+| Spec says | What the project has | Action |
+|---|---|---|
+| Migration "a new table and one nullable column" | Next free migration is `0023`. `user_preferences` is read with `select *` in many places and has no `journal_*` column | One expand-only migration: `templates`, the unique `starter_key` index, and `user_preferences.journal_template_id` (`on delete set null`) |
+| Library "Notes, Journal, Canvases, Projects, Templates, Assistant" | `NAV_GROUPS` already uses explicit lists; Library is Notes, Journal, Canvases, Projects, Assistant | Add `/templates` after Projects. `MORE_PREFIXES`, the More page and `PROTECTED_PREFIXES` gain it |
+| "`template` joins `TRASH_TYPES` and `trashHref`" | `TRASH_TYPES` has six members (task, todo, note, project, inbox, canvas); **6 files** hold a `Record<TrashType, …>` or switch over it (`lib/trash`, the union query, `emptyTrash`, the restore and delete actions, the Trash list) | Add `template` in each, as `canvas` was. Not in `SEARCH_TYPES` (as specified) |
+| Template "mode is a prop on `RichTextEditor`", "hides slash items and refuses paste and drop of files and images" | The editor already hides image, file and sub-note blocks and refuses a pasted image when its context has `filesEnabled: false` and `subNotes: false` (the journal added the second flag) | A `template` prop sets both flags off for that editor. No new editor |
+| `sanitizeTemplateDoc` "rejects the three forbidden node types" | `sanitizeDoc` has `allowSubNotes: false`, which already **rejects** a sub-note block. Nothing rejects `image` or `file` | `sanitizeTemplateDoc` = `sanitizeDoc(doc, { allowSubNotes: false })` plus a walk that rejects `image` and `file` |
+| Template editor "autosave and conflict banner as notes" | `useNoteSync` is bound to the note actions (create, load, save content, save title). Canvases have their own small hook (`use-canvas-save`) for the same pattern | A small `use-template-save` (versioned autosave, conflict banner, device draft) in the canvas hook's shape; the note hook is not generalised |
+| `createNoteFromTemplate` "creates the note now" with content and title | `createNote(userId, { title, contentJson, projectId })` already takes all three and builds the text copy and links | Call it; no parallel path |
+| `{{date}}` is "13 October 2026, as the journal title helper formats the date part" | `journalTitle` returns the weekday too; there is no helper for the date part alone | Add `journalDateLabel` and `weekdayName` to `src/lib/dates/journal.ts`; the template code uses them |
+| "Feature 02's `/journal/today` calls `getJournalTemplate` and `applyPlaceholders`" | `/journal/today` renders `NoteEditor` in new mode with no starting text; `NoteEditor` seeds the editor from `note?.contentJson` | `NoteEditor`'s `journal` prop gains `startDoc`. Nothing is saved until the person edits (as now); then the whole text, template included, is saved through `createJournalEntry`. The entry's own title stays the date. A missing, trashed or invalid template gives an empty entry |
+| "New note from template" in the command menu (Create mode) and on the Notes page as "a split control" | One command menu (cmdk) with modes; the Notes header has two plain links (Write with AI, New note); the shared `handlePickerKeys` list exists | One `TemplatePickerDialog` (searchable list, keyboard and 44 px rows) mounted once in the app shell and opened by an event, so the menu, the Notes page and the Templates page all use it and dialogs never nest. The Notes control becomes **New note** with a small menu entry **From template…** |
+| Deleting the journal template "clears the preference" | `on delete set null` only fires on permanent delete; Trash is a soft delete | `deleteTemplate` clears the preference in the same transaction; `getJournalTemplate` also ignores a trashed one |
+| Template content may hold a `noteLink` | `note_links` is derived for notes and task descriptions only | A link in a template is stored as is and is **not** counted as a backlink; a note made from it gets its links through `createNote` |
+| Sync | Notes and tasks only are synced; canvases and journal writers are listed in `GAPS` | The new `templates.ts` writers are listed in `GAPS` in `sync-change-log-coverage.test.ts` |
+| Spec silence: the two limits and the name | `QUOTA_EXCEEDED` is the canvas limit's code; names may collide | 50 live templates, over it `QUOTA_EXCEEDED`; a duplicate is named "<name> copy" cut to 120 characters; names need not be unique |
+| Account export (feature 12) includes templates | Feature 12 is not built | Nothing to do now |
+| No design file for templates | `designs/` has none (it predates V3) | Built from `DESIGN.md` and the Notes and Projects screens; recorded for the owner |
+
+**No ADR needed:** no package or stack change, no departure from V3 product §6.
+
+**Order of work:** slices A and B together (the journal link and the starters are small): migration and schema, dates and the pure template code with tests, mutations, queries and actions, Trash, navigation, the Templates page and editor, the picker, journal link, tests, docs.
+
+**Progress (2026-11-10):** slices A and B are built and tested (migration `0023`, the Templates page and editor, placeholders, New note from template from the Notes page, the Templates page and the command menu, the starters, the journal link); see `agent_docs/templates_v3.md`.
+
+---
+
 ## 1. Scope
 
 - A **Templates** sidebar tab and `/templates` page: create, edit, duplicate, delete and restore templates.
@@ -199,6 +230,17 @@ Nothing new. `TEMPLATE_LIMIT` (50) is a constant.
 - [ ] Axe passes; 360 px; reduced motion
 - [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass
 - [ ] `agent_docs/templates_v3.md` written and indexed; an "As built" section here lists every deviation
+
+### As built (2026-11-10)
+
+Deviations from this document, in one place (details in `agent_docs/templates_v3.md`):
+
+- The editor's template mode is two existing context flags (no files, no sub-notes) set by a `template` prop; `sanitizeTemplateDoc` is `sanitizeDoc` without sub-notes plus a check for `image` and `file`.
+- The template editor has its own small autosave hook (`use-template-save`) in the canvas hook's shape instead of generalising the note hook; it has **no device draft**.
+- One `TemplatePickerHost` in the app shell, opened by an event, serves the command menu, the Notes page and the Templates page. The Notes control is **New note** with a menu entry **From template…** (a button group, not a split-button component).
+- The journal link passes the template text to `NoteEditor` as `journal.startDoc` and `useNoteSync` takes it as `newDoc`, so a new entry's first change (even a title edit) saves the template text with it.
+- The Notes page header actions wrap on a phone (`stackActionsOnPhone` and `flex-wrap`), because four actions did not fit at 360 px.
+- The generated `0023` migration was cut down by hand: the repo's `0022` snapshot lacked the sticky-note columns, so drizzle wanted to repeat them.
 
 ---
 

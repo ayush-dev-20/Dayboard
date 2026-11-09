@@ -1,4 +1,12 @@
-export const TRASH_TYPES = ["task", "todo", "note", "project", "inbox", "canvas"] as const;
+export const TRASH_TYPES = [
+  "task",
+  "todo",
+  "note",
+  "project",
+  "inbox",
+  "canvas",
+  "template",
+] as const;
 export type TrashType = (typeof TRASH_TYPES)[number];
 
 export const TRASH_LABELS: Record<TrashType, string> = {
@@ -8,6 +16,7 @@ export const TRASH_LABELS: Record<TrashType, string> = {
   project: "Project",
   inbox: "Inbox",
   canvas: "Canvas",
+  template: "Template",
 };
 
 export type TrashItemDTO = {
@@ -45,6 +54,8 @@ export function trashHref(type: TrashType, id: string): string {
       return "/inbox";
     case "canvas":
       return `/canvases/${id}`;
+    case "template":
+      return `/templates/${id}`;
   }
 }
 
@@ -57,6 +68,7 @@ export function describeCounts(counts: Omit<TrashCounts, "total">): string {
     project: ["project", "projects"],
     inbox: ["inbox item", "inbox items"],
     canvas: ["canvas", "canvases"],
+    template: ["template", "templates"],
   };
   const parts = TRASH_TYPES.filter((t) => counts[t] > 0).map(
     (t) => `${counts[t]} ${noun[t][counts[t] === 1 ? 0 : 1]}`,
