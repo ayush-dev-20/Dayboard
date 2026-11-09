@@ -35,6 +35,7 @@ Add one line per feature when you create its file. Keep it sorted by phase, then
 | Push notifications and reminders      | V2    | In progress | [push-notifications-and-reminders_v2.md](push-notifications-and-reminders_v2.md) |
 | Canvas with AI diagrams               | V3    | Done        | [canvas-with-ai-diagrams_v3.md](canvas-with-ai-diagrams_v3.md)                   |
 | Journal (daily notes)                 | V3    | In progress | [journal-daily-notes_v3.md](journal-daily-notes_v3.md)                           |
+| Templates                             | V3    | In progress | [templates_v3.md](templates_v3.md)                                               |
 
 Status is `Done` or `In progress`.
 

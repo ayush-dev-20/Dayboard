@@ -1,7 +1,7 @@
 # Feature: Journal (daily notes)
 
 **Phase:** V3 (feature 02)
-**Status:** In progress. Slices A (the entry, the Journal tab, list and sidebar) and B (Done on this day, Add to entry) are built and tested. Slice C (the starting template) waits for feature 03 (Templates).
+**Status:** In progress. Slices A (the entry, the Journal tab, list and sidebar) and B (Done on this day, Add to entry) are built and tested. Slice C (the starting template) is done by feature 03 (`templates_v3.md`).
 **Date:** 2026-10-20
 
 ## What was built
@@ -22,7 +22,7 @@ A person who finishes work every day has nowhere to write about it. Making the e
 
 ## What was deferred
 
-- **Slice C**: a starting template for new entries (feature 03). The seam is `/journal/today`'s "new" mode, which will call `getJournalTemplate` and `applyPlaceholders` with the entry's day.
+- **Slice C** (a starting template for new entries) was built with feature 03: `/journal/today` reads `getJournalTemplate`, fills the placeholders with the entry's own day and passes the text to `NoteEditor` as `journal.startDoc`. See `templates_v3.md`.
 - Sticky notes (`kind = 'STICKY'`, canvas slice D) are listed in Done on this day with their board's name, unless their board is in Trash or archived (`getDoneOnDay`, `countDoneByDay`).
 - No entries for past or future days (the list is the way back), freezing the Done list, mood, streaks, reminders, sharing, offline editing (notes are server-backed today). See the feature doc's out of scope.
 - Not tested on a real phone, Safari or Firefox. No journal design file exists; built from `DESIGN.md` and the Notes and Projects screens, so the owner has not signed off the look.
@@ -39,7 +39,7 @@ A person who finishes work every day has nowhere to write about it. Making the e
 ## Hand-off notes
 
 - **Adding a query that reads `notes`?** Add it to `NOTE_QUERY_CLASSES` (`plain` if it lists the Notes collection and must use `plainNotes`, `includes` if it reads by id, link or search). `tests/unit/note-query-classes.test.ts` fails until you do.
-- **Days follow today's preferences.** `dayBounds` uses the person's *current* time zone and start of day, so changing them re-slices history (an old entry's Done list and counts move with them). The entry's own `journal_date` never changes.
+- **Days follow today's preferences.** `dayBounds` uses the person's _current_ time zone and start of day, so changing them re-slices history (an old entry's Done list and counts move with them). The entry's own `journal_date` never changes.
 - **A day with a daylight-saving change is 23 or 25 hours long**, counted from one start of day to the next; the one that contains the change is the day that began before it.
 - **The "exists" path.** If `createJournalEntry` answers `exists` (another tab or device made the entry first), the editor writes what was typed as the **device draft of that entry** and opens it; the existing "Recover / Discard" banner offers it back. Nothing is merged silently.
 - **Blank title:** nothing is stored; the list and breadcrumb show the date. A renamed entry shows its date under the title.

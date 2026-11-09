@@ -30,7 +30,7 @@ Checked against the code and `agent_docs/` before building (hand-offs read: note
 
 **Order of work (proposed):** slices A and B together as the spec says (one migration, one change), in this order: migration and schema, date helpers and their tests, query condition and the classification test, mutations and actions, `/journal/today` and the entry page on `NoteEditor`, Journal list, sidebar, search/Trash/picker labels, Done on this day and Add to entry, tests, docs. Slice C waits for feature 03.
 
-**Progress (2026-10-20):** slices A and B are built and tested (migration `0020`, the Journal tab, list, sidebar section, entry page, Done on this day, Add to entry); see `agent_docs/journal-daily-notes_v3.md`. Slice C (the starting template) waits for feature 03.
+**Progress (2026-10-20):** slices A and B are built and tested (migration `0020`, the Journal tab, list, sidebar section, entry page, Done on this day, Add to entry); see `agent_docs/journal-daily-notes_v3.md`. Slice C (the starting template) was completed by feature 03 on 2026-11-10 (`agent_docs/templates_v3.md`).
 
 ---
 
