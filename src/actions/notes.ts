@@ -17,6 +17,7 @@ import { runAction, type ActionResult } from "@/lib/actions";
 import { AppError } from "@/lib/errors";
 import type { BacklinkDTO, NoteChildDTO, NoteDTO, NoteTreeRow } from "@/lib/notes/dto";
 import type { NoteMeta } from "@/lib/notes/links";
+import { createdByFor, ownerFor, ownerForNew } from "@/modules/permissions/acting";
 import { requireUser } from "@/lib/session";
 import {
   createLinkedNoteForTaskSchema,
@@ -55,7 +56,9 @@ export async function createNote(
     const user = await requireUser();
     // No revalidation: the editor keeps running while the address bar changes to the new note, and a
     // refresh here would reset it. The lists are read fresh each time they are opened.
-    return mutations.createNote(user.id, createNoteSchema.parse(input));
+    const values = createNoteSchema.parse(input);
+    const ownerId = await ownerForNew(user.id, values.projectId);
+    return mutations.createNote(ownerId, { ...values, createdBy: createdByFor(user.id, ownerId) });
   });
 }
 
@@ -67,14 +70,24 @@ export async function createNote(
 export async function saveNoteContent(input: unknown): Promise<ActionResult<mutations.SaveResult>> {
   return runAction("notes.saveContent", async () => {
     const user = await requireUser();
-    return mutations.saveNoteContent(user.id, saveNoteContentSchema.parse(input));
+    const values = saveNoteContentSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "NOTE", values.id, "update");
+    return mutations.saveNoteContent(ownerId, {
+      ...values,
+      updatedBy: createdByFor(user.id, ownerId),
+    });
   });
 }
 
 export async function saveNoteTitle(input: unknown): Promise<ActionResult<mutations.SaveResult>> {
   return runAction("notes.saveTitle", async () => {
     const user = await requireUser();
-    return mutations.saveNoteTitle(user.id, saveNoteTitleSchema.parse(input));
+    const values = saveNoteTitleSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "NOTE", values.id, "update");
+    return mutations.saveNoteTitle(ownerId, {
+      ...values,
+      updatedBy: createdByFor(user.id, ownerId),
+    });
   });
 }
 
@@ -83,7 +96,8 @@ export async function updateNoteMeta(input: unknown): Promise<ActionResult> {
   return runAction("notes.updateMeta", async () => {
     const user = await requireUser();
     const { id, emoji } = updateNoteMetaSchema.parse(input);
-    if (emoji !== undefined) await mutations.updateNoteEmoji(user.id, id, emoji);
+    const ownerId = await ownerFor(user.id, "NOTE", id, "update");
+    if (emoji !== undefined) await mutations.updateNoteEmoji(ownerId, id, emoji);
     refreshNotes();
   });
 }
@@ -102,7 +116,8 @@ export async function archiveNote(
   return runAction("notes.archive", async () => {
     const user = await requireUser();
     const { id, archived, asTopLevel } = archiveSchema.parse(input);
-    const result = await mutations.archiveNote(user.id, id, archived, { asTopLevel });
+    const ownerId = await ownerFor(user.id, "NOTE", id, "archive");
+    const result = await mutations.archiveNote(ownerId, id, archived, { asTopLevel });
     refreshTree();
     return result;
   });
@@ -115,7 +130,8 @@ export async function deleteNote(
   return runAction("notes.delete", async () => {
     const user = await requireUser();
     const { id } = idOnlySchema.parse(input);
-    const result = await mutations.deleteNote(user.id, id);
+    const ownerId = await ownerFor(user.id, "NOTE", id, "trash");
+    const result = await mutations.deleteNote(ownerId, id);
     refreshTree();
     revalidatePath("/tasks", "layout");
     return result;
@@ -180,7 +196,12 @@ export async function createSubNote(input: unknown): Promise<
 > {
   return runAction("notes.createSub", async () => {
     const user = await requireUser();
-    return mutations.createSubNote(user.id, createSubNoteSchema.parse(input));
+    const values = createSubNoteSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "NOTE", values.parentId, "create");
+    return mutations.createSubNote(ownerId, {
+      ...values,
+      createdBy: createdByFor(user.id, ownerId),
+    });
   });
 }
 
@@ -190,7 +211,9 @@ export async function moveNote(
 ): Promise<ActionResult<{ depth: number; sortOrder: number; parentId: string | null }>> {
   return runAction("notes.move", async () => {
     const user = await requireUser();
-    const result = await mutations.moveNote(user.id, moveNoteSchema.parse(input));
+    const values = moveNoteSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "NOTE", values.id, "update");
+    const result = await mutations.moveNote(ownerId, values);
     refreshTree();
     return result;
   });
@@ -305,7 +328,8 @@ export async function loadNote(input: unknown): Promise<ActionResult<NoteDTO>> {
   return runAction("notes.load", async () => {
     const user = await requireUser();
     const { id } = idOnlySchema.parse(input);
-    const note = await getNote(user.id, id);
+    const ownerId = await ownerFor(user.id, "NOTE", id, "read");
+    const note = await getNote(ownerId, id);
     if (!note) throw new AppError("NOT_FOUND");
     return note;
   });
@@ -315,7 +339,9 @@ export async function loadNote(input: unknown): Promise<ActionResult<NoteDTO>> {
 export async function reorderNote(input: unknown): Promise<ActionResult<{ sortOrder: number }>> {
   return runAction("notes.reorder", async () => {
     const user = await requireUser();
-    return mutations.reorderNote(user.id, reorderSchema.parse(input));
+    const values = reorderSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "NOTE", values.id, "update");
+    return mutations.reorderNote(ownerId, values);
   });
 }
 
@@ -334,6 +360,7 @@ export async function loadNoteChildren(input: unknown): Promise<ActionResult<Not
   return runAction("notes.children", async () => {
     const user = await requireUser();
     const { id } = idOnlySchema.parse(input);
-    return getChildren(user.id, id);
+    const ownerId = await ownerFor(user.id, "NOTE", id, "read");
+    return getChildren(ownerId, id);
   });
 }

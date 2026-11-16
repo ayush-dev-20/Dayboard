@@ -100,7 +100,8 @@ async function bottomOrder(executor: Executor, userId: string, parentId: string)
 export async function createTask(
   userId: string,
   input: CreateTaskInput,
-  defaults: { priority: TaskPriority },
+  // `createdBy`: who made it when that is not the owner (an editor of a shared project); null for the owner.
+  defaults: { priority: TaskPriority; createdBy?: string | null },
   outer?: Tx,
 ): Promise<TaskDTO> {
   return inTransaction(outer, async (tx) => {
@@ -149,6 +150,7 @@ export async function createTask(
         .values({
           ...(input.id ? { id: input.id } : {}),
           userId,
+          createdByUserId: defaults.createdBy ?? null,
           projectId,
           parentTaskId: input.parentTaskId ?? null,
           title: input.title,

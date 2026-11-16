@@ -107,11 +107,14 @@ export async function listProjectRefs(userId: string): Promise<ProjectRef[]> {
       name: projects.name,
       color: projects.color,
       status: projects.status,
+      shared: sql<boolean>`exists (select 1 from resource_grants g where g.resource_type = 'PROJECT' and g.resource_id = ${projects.id})`,
     })
     .from(projects)
     .where(and(eq(projects.userId, userId), isNull(projects.deletedAt)))
     .orderBy(asc(sql`lower(${projects.name})`));
-  return rows.sort((a, b) => pickerRank(a.status) - pickerRank(b.status));
+  return rows
+    .map(({ shared, ...ref }) => (shared ? { ...ref, shared: true as const } : ref))
+    .sort((a, b) => pickerRank(a.status) - pickerRank(b.status));
 }
 
 export type ProjectDetail = {

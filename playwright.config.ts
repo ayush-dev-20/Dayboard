@@ -95,6 +95,8 @@ export default defineConfig({
       NEXT_PUBLIC_APP_URL: baseURL,
       // A test seam (V3 feature 01): a canvas page exposes its drawing as `window.__canvasApi`, so a test can find a box.
       NEXT_PUBLIC_E2E: "1",
+      // Sharing (V3 feature 04) is staged behind a flag; tests exercise it.
+      SHARING_ENABLED: "true",
     },
   },
 });

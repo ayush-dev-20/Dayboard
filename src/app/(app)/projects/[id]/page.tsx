@@ -16,6 +16,8 @@ import { getViews, loadViewItems } from "@/db/queries/views";
 import type { SearchParams } from "@/lib/oauth-providers";
 import { projectProgress } from "@/lib/projects/progress";
 import { requireUser } from "@/lib/session";
+import { readAccessFor } from "@/modules/permissions/acting";
+import { shareContext } from "@/modules/sharing/service";
 import { loadTaskContext } from "@/lib/tasks/context";
 import { parseTasksParams } from "@/lib/tasks/params";
 import { idSchema } from "@/lib/validations/tasks";
@@ -37,12 +39,19 @@ export default async function ProjectPage({
   // A malformed id and someone else's id both look like any other missing page.
   if (!idSchema.safeParse(id).success) notFound();
 
-  const detail = await getProjectDetail(user.id, id);
+  // Through the person's access: the owner's project, read as the owner's rows (V3 feature 04).
+  const access = await readAccessFor(user.id, "PROJECT", id);
+  if (!access) notFound();
+  const ownerId = access.ownerId;
+  const share = await shareContext(user.id, access, "PROJECT", id);
+  // A viewer or commenter sees everything and changes nothing: every control inside is switched off.
+  const readOnly = access.role === "VIEWER" || access.role === "COMMENTER";
+  const detail = await getProjectDetail(ownerId, id);
   if (!detail) notFound();
 
   const [{ context, dayPrefs, now, weekStart }, canvases] = await Promise.all([
     loadTaskContext(user.id),
-    listCanvases(user.id, { projectId: id }),
+    listCanvases(ownerId, { projectId: id }),
   ]);
   const engine = { nowMs: now.getTime(), weekStart, prefs: dayPrefs };
   const { project } = detail;
@@ -81,9 +90,9 @@ export default async function ProjectPage({
   const showTodos = detail.openTodos.length > 0;
   const showNotes = detail.notes.length > 0;
   const [taskItems, todoItems, noteItems] = await Promise.all([
-    showTasks ? loadViewItems(user.id, "TASKS", taskView, [], id) : Promise.resolve([]),
-    showTodos ? loadViewItems(user.id, "TODOS", todoView, [], id) : Promise.resolve([]),
-    showNotes ? loadViewItems(user.id, "NOTES", noteView, [], id) : Promise.resolve([]),
+    showTasks ? loadViewItems(ownerId, "TASKS", taskView, [], id) : Promise.resolve([]),
+    showTodos ? loadViewItems(ownerId, "TODOS", todoView, [], id) : Promise.resolve([]),
+    showNotes ? loadViewItems(ownerId, "NOTES", noteView, [], id) : Promise.resolve([]),
   ]);
 
   const base = { engine, basePath: `/projects/${id}`, quick: [], projectId: id };
@@ -97,8 +106,9 @@ export default async function ProjectPage({
           key={`${project.id}:${project.updatedAt}`}
           project={project}
           progress={progress}
+          access={share}
         />
-        <ProjectQuickAdd projectId={project.id} />
+        {readOnly ? null : <ProjectQuickAdd projectId={project.id} />}
 
         {empty ? (
           <EmptyState
@@ -106,7 +116,7 @@ export default async function ProjectPage({
             description="New tasks, todos, notes and canvases added here are assigned to this project."
           />
         ) : (
-          <div className="flex flex-col gap-10">
+          <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-10 border-0 p-0">
             {showTasks ? (
               <section aria-labelledby="project-tasks">
                 <h2 id="project-tasks" className="sr-only">
@@ -178,7 +188,7 @@ export default async function ProjectPage({
                 </ul>
               </section>
             ) : null}
-          </div>
+          </fieldset>
         )}
         <AttachmentsSection ownerType="PROJECT" ownerId={project.id} className="mt-10" />
       </PageContainer>

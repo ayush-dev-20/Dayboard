@@ -41,7 +41,7 @@ One list per collection could not show the same work as a board, a table or a ca
 
 - **Do not call a provider or write a new mutation for a drop.** Add a `MoveCommand` (`move-card.ts`), its patch (`patch.ts`) and its runner (`commands.ts`), and reuse the Server Action.
 - **dnd-kit lives in `dnd.tsx` and `dnd-nodes.tsx` only.** `dnd-nodes.tsx` has a file-level lint disable for `react-hooks/refs` (the library hands out refs during render). Keyboard drag lifts on Space only (Enter opens an item) and arrows jump to the nearest column or card (`jumpToNeighbour`).
-- **Saving settings:** `useViewConfig` keeps a local copy and saves after 500 ms. It refreshes the page only when the *scope key* changes (whether finished or archived items must be read). It adopts the server's copy when the view prop's version changes and nothing is unsaved. A router refresh during a drag can cancel the drag; tests wait for the save first.
+- **Saving settings:** `useViewConfig` keeps a local copy and saves after 500 ms. It refreshes the page only when the _scope key_ changes (whether finished or archived items must be read). It adopts the server's copy when the view prop's version changes and nothing is unsaved. A router refresh during a drag can cancel the drag; tests wait for the save first.
 - **Quick filters stay in the URL** (status, due, project, tag, archived) and are merged over the view's own filters for display (`withQuickFilters`); they are not written into the view.
 - **A Board always has a group-by**; a view with none is shown by the first option (`collection-host.tsx`).
 - **The `none` day key** on the calendar means "No date"; never pass it to a date function.

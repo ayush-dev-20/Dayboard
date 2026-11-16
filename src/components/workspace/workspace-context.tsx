@@ -29,6 +29,10 @@ export type WorkspaceValue = {
   journalEntries: JournalSidebarEntry[];
   /** The notes under Notes in the sidebar: the first 50 top-level notes and what is under them. */
   noteTree: { rows: NoteTreeRow[]; rootTotal: number };
+  /** Items shared with the person plus invitations waiting (V3 feature 04). Shared with me shows only when above 0. */
+  sharedCount: number;
+  /** Invitations waiting for the person: the number beside Shared in the sidebar. */
+  pendingInvitations: number;
 };
 
 const WorkspaceContext = createContext<WorkspaceValue>({
@@ -43,6 +47,8 @@ const WorkspaceContext = createContext<WorkspaceValue>({
   canvases: [],
   journalEntries: [],
   noteTree: { rows: [], rootTotal: 0 },
+  sharedCount: 0,
+  pendingInvitations: 0,
 });
 
 export function WorkspaceProvider({

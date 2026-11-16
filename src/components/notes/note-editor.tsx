@@ -49,6 +49,8 @@ import {
   type ApplyResult,
 } from "@/components/editor/ai-apply";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { SharedBadge, type ShareAccess } from "@/components/sharing/shared-badge";
+import { ShareButton } from "@/components/sharing/share-dialog";
 import { copyFlavours, copyToClipboard, type CopyKind } from "@/components/editor/copy-note";
 import { pasteSingleLine } from "@/components/editor/single-line-paste";
 import { Button } from "@/components/ui/button";
@@ -109,6 +111,8 @@ type Props = {
    * listed under the text.
    */
   journal?: { date: string; done: DoneOnDay; timeZone: string; startDoc?: TiptapDoc | null };
+  /** Present when sharing is on: the person's role on this note and who owns it (V3 feature 04). */
+  access?: ShareAccess;
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -162,7 +166,10 @@ function saveStatus(state: NoteSaveState): SaveStatus {
  * The full-page note editor, for new and existing notes alike. A new note is created on the first
  * change, then the address bar is updated without remounting, so the cursor never moves.
  */
-export function NoteEditor({ note, start, backlinks = [], journal }: Props) {
+export function NoteEditor({ note, start, backlinks = [], journal, access }: Props) {
+  const isOwner = !access || access.role === "OWNER";
+  // A viewer or commenter reads; an editor writes the text but does not run the note (move, tags, share).
+  const readOnly = Boolean(access) && (access!.role === "VIEWER" || access!.role === "COMMENTER");
   const router = useRouter();
   // Inside the peek dialog (Today): no back arrow or tree button, the dialog's own buttons, and Trash closes it.
   const dialog = useExpandableDialog();
@@ -594,6 +601,7 @@ export function NoteEditor({ note, start, backlinks = [], journal }: Props) {
         placeholder="Untitled"
         aria-label="Note title"
         maxLength={300}
+        readOnly={readOnly}
         // A new note, or a note just made and still blank (a sub-note), opens ready for its title.
         autoFocus={
           (!note && !start?.ai) || (Boolean(note) && !note?.title && isEmptyDoc(note!.contentJson))
@@ -676,170 +684,182 @@ export function NoteEditor({ note, start, backlinks = [], journal }: Props) {
         <SaveState status={saveStatus(sync.state)} />
         <LinkedTasks noteId={noteId} tasks={tasks} onChange={setTasks} />
 
-        <div className="relative">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="More actions"
-              className="inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-8"
-            >
-              <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
+        {isOwner && access?.shareable && note ? (
+          <ShareButton
+            type="NOTE"
+            id={note.id}
+            name={title.trim() || "Untitled"}
+            ownerName={access.ownerName}
+            path={`/notes/${note.id}`}
+          />
+        ) : null}
+
+        {isOwner ? (
+          <div className="relative">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="More actions"
+                className="inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-8"
+              >
+                <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="min-w-60"
+                onCloseAutoFocus={(event) => {
+                  const next = afterMenu.current;
+                  afterMenu.current = null;
+                  if (!next) return;
+                  event.preventDefault();
+                  next();
+                }}
+              >
+                {noteId ? (
+                  <AskAboutMenuItem
+                    type="note"
+                    id={noteId}
+                    onBefore={() => {
+                      afterMenu.current = null;
+                    }}
+                  />
+                ) : null}
+                <DropdownMenuItem
+                  disabled={!noteId}
+                  title={noteId ? undefined : needsNote}
+                  onSelect={() => {
+                    afterMenu.current = () => setProjectOpen(true);
+                  }}
+                >
+                  <Folder strokeWidth={1.5} aria-hidden /> Project
+                  <span className="ml-auto max-w-28 truncate type-body-sm text-muted-foreground">
+                    {project?.name ?? "None"}
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!noteId}
+                  title={noteId ? undefined : needsNote}
+                  onSelect={() => {
+                    afterMenu.current = () => setTagsOpen(true);
+                  }}
+                >
+                  <Tag strokeWidth={1.5} aria-hidden /> Tags
+                  <span className="ml-auto max-w-28 truncate type-body-sm text-muted-foreground">
+                    {tags.length > 0 ? tags.map((t) => t.name).join(", ") : "None"}
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    afterMenu.current = () =>
+                      document.querySelector<HTMLElement>("#note-emoji button")?.click();
+                  }}
+                >
+                  <SmilePlus strokeWidth={1.5} aria-hidden /> Emoji
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {journal ? null : (
+                  <>
+                    <DropdownMenuItem
+                      disabled={!noteId}
+                      title={noteId ? undefined : needsNote}
+                      onSelect={() => {
+                        afterMenu.current = () => void addSubNote();
+                      }}
+                    >
+                      <FilePlus2 strokeWidth={1.5} aria-hidden /> New sub-note
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!noteId}
+                      title={noteId ? undefined : needsNote}
+                      onSelect={() => {
+                        afterMenu.current = () => setMoveOpen(true);
+                      }}
+                    >
+                      <FolderInput strokeWidth={1.5} aria-hidden /> Move to…
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem onSelect={() => void copyNote("note")}>
+                  <Copy strokeWidth={1.5} aria-hidden /> Copy note
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void copyNote("markdown")}>
+                  <Copy strokeWidth={1.5} aria-hidden /> Copy as Markdown
+                </DropdownMenuItem>
+                {aiEnabled ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={Boolean(journal) && !noteId}
+                      title={journal && !noteId ? needsNote : undefined}
+                      onSelect={() => {
+                        afterMenu.current = () => {
+                          generateFocus.current = true;
+                          setGenerateOpen(true);
+                        };
+                      }}
+                    >
+                      Generate with AI
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!noteId}
+                      title={noteId ? undefined : needsNote}
+                      onSelect={() => {
+                        afterMenu.current = () => void startAi("summary");
+                      }}
+                    >
+                      Summarize
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!noteId}
+                      title={noteId ? undefined : needsNote}
+                      onSelect={() => {
+                        afterMenu.current = () => void startAi("extract");
+                      }}
+                    >
+                      Extract tasks
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled={!noteId} onSelect={() => void toggleArchive(!archived)}>
+                  <Archive strokeWidth={1.5} aria-hidden /> {archived ? "Unarchive" : "Archive"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive data-[highlighted]:text-destructive"
+                  onSelect={() => void trash()}
+                >
+                  <Trash2 strokeWidth={1.5} aria-hidden /> Move to Trash
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Where the pickers open from when chosen in the menu. */}
+            <ProjectPicker
+              value={project}
+              onChange={changeProject}
+              open={projectOpen}
+              onOpenChange={setProjectOpen}
               align="end"
-              className="min-w-60"
-              onCloseAutoFocus={(event) => {
-                const next = afterMenu.current;
-                afterMenu.current = null;
-                if (!next) return;
-                event.preventDefault();
-                next();
+            >
+              <span aria-hidden className="absolute right-0 bottom-0 size-0" />
+            </ProjectPicker>
+            <TagPicker
+              selected={tags}
+              open={tagsOpen}
+              onOpenChange={setTagsOpen}
+              align="end"
+              onChange={async (tagIds) => {
+                if (!noteId) return null;
+                const result = await setNoteTags({ id: noteId, tagIds });
+                if (!result.ok) return null;
+                setTags(result.data);
+                return result.data;
               }}
             >
-              {noteId ? (
-                <AskAboutMenuItem
-                  type="note"
-                  id={noteId}
-                  onBefore={() => {
-                    afterMenu.current = null;
-                  }}
-                />
-              ) : null}
-              <DropdownMenuItem
-                disabled={!noteId}
-                title={noteId ? undefined : needsNote}
-                onSelect={() => {
-                  afterMenu.current = () => setProjectOpen(true);
-                }}
-              >
-                <Folder strokeWidth={1.5} aria-hidden /> Project
-                <span className="ml-auto max-w-28 truncate type-body-sm text-muted-foreground">
-                  {project?.name ?? "None"}
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={!noteId}
-                title={noteId ? undefined : needsNote}
-                onSelect={() => {
-                  afterMenu.current = () => setTagsOpen(true);
-                }}
-              >
-                <Tag strokeWidth={1.5} aria-hidden /> Tags
-                <span className="ml-auto max-w-28 truncate type-body-sm text-muted-foreground">
-                  {tags.length > 0 ? tags.map((t) => t.name).join(", ") : "None"}
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  afterMenu.current = () =>
-                    document.querySelector<HTMLElement>("#note-emoji button")?.click();
-                }}
-              >
-                <SmilePlus strokeWidth={1.5} aria-hidden /> Emoji
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {journal ? null : (
-                <>
-                  <DropdownMenuItem
-                    disabled={!noteId}
-                    title={noteId ? undefined : needsNote}
-                    onSelect={() => {
-                      afterMenu.current = () => void addSubNote();
-                    }}
-                  >
-                    <FilePlus2 strokeWidth={1.5} aria-hidden /> New sub-note
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!noteId}
-                    title={noteId ? undefined : needsNote}
-                    onSelect={() => {
-                      afterMenu.current = () => setMoveOpen(true);
-                    }}
-                  >
-                    <FolderInput strokeWidth={1.5} aria-hidden /> Move to…
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              <DropdownMenuItem onSelect={() => void copyNote("note")}>
-                <Copy strokeWidth={1.5} aria-hidden /> Copy note
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void copyNote("markdown")}>
-                <Copy strokeWidth={1.5} aria-hidden /> Copy as Markdown
-              </DropdownMenuItem>
-              {aiEnabled ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    disabled={Boolean(journal) && !noteId}
-                    title={journal && !noteId ? needsNote : undefined}
-                    onSelect={() => {
-                      afterMenu.current = () => {
-                        generateFocus.current = true;
-                        setGenerateOpen(true);
-                      };
-                    }}
-                  >
-                    Generate with AI
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!noteId}
-                    title={noteId ? undefined : needsNote}
-                    onSelect={() => {
-                      afterMenu.current = () => void startAi("summary");
-                    }}
-                  >
-                    Summarize
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!noteId}
-                    title={noteId ? undefined : needsNote}
-                    onSelect={() => {
-                      afterMenu.current = () => void startAi("extract");
-                    }}
-                  >
-                    Extract tasks
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled={!noteId} onSelect={() => void toggleArchive(!archived)}>
-                <Archive strokeWidth={1.5} aria-hidden /> {archived ? "Unarchive" : "Archive"}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive data-[highlighted]:text-destructive"
-                onSelect={() => void trash()}
-              >
-                <Trash2 strokeWidth={1.5} aria-hidden /> Move to Trash
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Where the pickers open from when chosen in the menu. */}
-          <ProjectPicker
-            value={project}
-            onChange={changeProject}
-            open={projectOpen}
-            onOpenChange={setProjectOpen}
-            align="end"
-          >
-            <span aria-hidden className="absolute right-0 bottom-0 size-0" />
-          </ProjectPicker>
-          <TagPicker
-            selected={tags}
-            open={tagsOpen}
-            onOpenChange={setTagsOpen}
-            align="end"
-            onChange={async (tagIds) => {
-              if (!noteId) return null;
-              const result = await setNoteTags({ id: noteId, tagIds });
-              if (!result.ok) return null;
-              setTags(result.data);
-              return result.data;
-            }}
-          >
-            <span aria-hidden className="absolute right-0 bottom-0 size-0" />
-          </TagPicker>
-        </div>
+              <span aria-hidden className="absolute right-0 bottom-0 size-0" />
+            </TagPicker>
+          </div>
+        ) : null}
         <ExpandableDialogActions className="-mr-2" />
       </header>
 
@@ -927,6 +947,7 @@ export function NoteEditor({ note, start, backlinks = [], journal }: Props) {
         ownerId={noteId}
         ensureOwner={ensureOwner}
         label="Note content"
+        readOnly={readOnly}
         placeholder={
           journal
             ? "Write about your day. The entry is created when you type."
@@ -948,6 +969,9 @@ export function NoteEditor({ note, start, backlinks = [], journal }: Props) {
         beforeContent={
           <>
             {titleField}
+            {access && (access.role !== "OWNER" || access.sharedWithOthers) ? (
+              <SharedBadge access={access} className="-mt-2 mb-4" />
+            ) : null}
             {journal && title.trim() !== journalTitle(journal.date) ? (
               <p className="-mt-2 mb-4 type-body-md text-muted-foreground">
                 {journalTitle(journal.date)}

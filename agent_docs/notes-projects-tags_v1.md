@@ -5,21 +5,25 @@
 **Date:** 2026-10-01
 
 ## What was built
+
 - **Notes:** a full-page editor (`/notes`, `/notes/new`, `/notes/[id]`) with a toolbar, a selection menu, emoji, project, tags, archive, trash with Undo and "Linked tasks". Autosave never loses text: offline typing, a conflict with another window, and a closed tab are all handled (see hand-off notes). A new note is created on its first keystroke.
 - **Projects:** list by status with progress, a detail page (name, status and description edited in place, quick add of a task, todo or note, open tasks, todos, notes, completed tasks), a picker used everywhere, and Trash with Undo. Everything also works with no project.
 - **Tags:** created inline from a combobox on tasks and notes, filters on both lists, and Settings → Tags (rename, colour, delete with usage counts). Task ↔ note linking works both ways ("Related notes" on a task, "Linked tasks" on a note, "New linked note").
 - Tests: 248 unit, 92 integration (28 new, including a table-driven ownership check), 128 Playwright (desktop and phone). A production build was made by the Playwright run.
 
 ## Why
+
 Notes and projects are what turn a task list into a workspace, and the spec wants no content lost, ever. The server owns every rule (ownership on both sides of a link, version check, project and tag limits); the client only keeps text safe and asks the person when two copies disagree.
 
 - **Since feature 07** (`ui-modernization_v1.md`): the Projects page is a card grid (`ProjectCard` with color strip, progress, counts and next due task from `nextDueTasks()`), and Notes has a list/grid toggle (`?view=grid`, `NoteTile`).
 
 ## What was deferred
+
 - Trash screen, search, Inbox, Today and quick capture were built in feature 04 (`inbox-today-search-trash_v1.md`), which calls these restore and permanent-delete actions. AI actions on notes (Summarize, Extract tasks): built in feature 05 (`ai-assistant_v1.md`).
 - Tags on todos and projects, nested projects, note history and backlinks (out of scope in V1).
 
 ## Related files
+
 - `src/db/schema/{projects,notes,tags}.ts`, `drizzle/migrations/0002_notes-projects-tags.sql` (also adds the `project_id` foreign keys on tasks and todos).
 - `src/db/mutations/{projects,notes,tags,guards}.ts`: every write; `guards.ts` is the "both sides belong to the person" check. `src/db/queries/{projects,notes,tags,meta}.ts`: reads; `meta.ts` batches project and tags for lists (no N+1).
 - `src/actions/{projects,notes,tags}.ts`; Zod in `src/lib/validations/{projects,notes,tags}.ts`.
@@ -29,6 +33,7 @@ Notes and projects are what turn a task list into a workspace, and the spec want
 - `src/lib/projects/progress.ts` (progress rule), `src/lib/tags.ts` (normalisation).
 
 ## Hand-off notes
+
 - **Never send raw ProseMirror JSON to a Server Action.** Node attributes (a heading's level, a checklist item's `checked`) have no prototype, so React sent them as nothing: headings were refused and ticked checklist items saved as unticked. This also affected feature 02 task descriptions. `RichTextEditor` now round-trips the document through JSON (`toPlainDoc`). Keep that if you add another editor.
 - **Saving a note** returns `{ outcome: "saved" | "conflict", version }` as data, not an error, so the editor can offer Load latest / Keep mine (the spec said `CONFLICT`; this carries the latest version). Each save sends the version the editor last saw; title and content saves are sent one at a time. `useAutosave` was not reused (it has no versions or conflicts); tasks still use it.
 - **`createNote` does not revalidate.** The editor keeps running while `history.replaceState` changes the address; a refresh would reset it. Later actions that revalidate (project, tags, archive) do remount the editor once, after the text is already saved.
@@ -44,6 +49,7 @@ Notes and projects are what turn a task list into a workspace, and the spec want
 - **Design vs spec:** the note's Project and Tags menu items open anchored pickers, not new pages. On a phone "New note" is a button in the page header (the design shows a "+" in the top bar). The project page reuses `TaskList` with one group.
 
 ## Not verified
+
 - Touch behaviour and the on-screen keyboard on a real phone (emulated only); Safari and Firefox.
 - The Dockerfile and Compose with the new migration: Docker is not installed on this machine.
 

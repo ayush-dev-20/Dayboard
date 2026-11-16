@@ -45,6 +45,8 @@ export async function createTodo(
   userId: string,
   input: CreateTodoInput,
   outer?: Tx,
+  /** Who made it when that is not the owner (an editor of a shared project); null for the owner. */
+  options: { createdBy?: string | null } = {},
 ): Promise<TodoDTO> {
   return inTransaction(outer, async (tx) => {
     if (input.projectId) await assertOwnedProject(tx, userId, input.projectId);
@@ -57,6 +59,7 @@ export async function createTodo(
       .insert(todos)
       .values({
         userId,
+        createdByUserId: options.createdBy ?? null,
         projectId: input.projectId ?? null,
         title: input.title,
         emoji: input.emoji ?? null,

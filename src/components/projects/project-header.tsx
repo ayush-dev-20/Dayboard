@@ -20,17 +20,22 @@ import { ColorDot } from "@/components/workspace/tokens";
 import type { ProjectDTO } from "@/lib/projects/dto";
 import type { Progress } from "@/lib/projects/progress";
 import { PROJECT_STATUSES, PROJECT_STATUS_LABELS, type ProjectStatus } from "@/lib/projects/status";
+import { SharedBadge } from "@/components/sharing/shared-badge";
+import { ShareButton } from "@/components/sharing/share-dialog";
+import type { ShareAccess } from "@/components/sharing/shared-badge";
 import { ProgressBar } from "./progress-bar";
 import { ProjectDialog } from "./project-dialog";
 
-type Props = { project: ProjectDTO; progress: Progress };
+type Props = { project: ProjectDTO; progress: Progress; access?: ShareAccess };
 
 /**
  * Name, status, description and progress of one project. Name and description are edited in
  * place and saved when you click away; colour is in "Edit details". Moving to Trash asks first and
  * says what happens to the items.
  */
-export function ProjectHeader({ project, progress }: Props) {
+export function ProjectHeader({ project, progress, access }: Props) {
+  // A collaborator sees the project but does not run it: name, status, description and the menu are the owner's.
+  const isOwner = !access || access.role === "OWNER";
   const router = useRouter();
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description ?? "");
@@ -107,54 +112,75 @@ export function ProjectHeader({ project, progress }: Props) {
             }
           }}
           maxLength={100}
+          readOnly={!isOwner}
           aria-label="Project name"
           className="min-w-0 flex-1 bg-transparent type-headline-md text-foreground outline-none md:type-headline-lg"
         />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label={`Status: ${PROJECT_STATUS_LABELS[project.status]}`}
-            className="inline-flex h-11 shrink-0 items-center gap-1 rounded-md px-2 type-label-md text-foreground hover:bg-accent md:h-8"
-          >
-            {PROJECT_STATUS_LABELS[project.status]}
-            <ChevronDown className="size-4 text-muted-foreground" strokeWidth={1.5} aria-hidden />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuRadioGroup
-              value={project.status}
-              onValueChange={(v) => void changeStatus(v as ProjectStatus)}
-            >
-              {PROJECT_STATUSES.map((status) => (
-                <DropdownMenuRadioItem key={status} value={status}>
-                  {PROJECT_STATUS_LABELS[status]}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {isOwner && access?.shareable ? (
+          <ShareButton
+            type="PROJECT"
+            id={project.id}
+            name={project.name}
+            ownerName={access.ownerName}
+            path={`/projects/${project.id}`}
+          />
+        ) : null}
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label="More actions"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-8"
-          >
-            <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <AskAboutMenuItem type="project" id={project.id} />
-            <DropdownMenuItem onSelect={() => setEditing(true)}>
-              <Pencil strokeWidth={1.5} aria-hidden /> Edit details
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive data-[highlighted]:text-destructive"
-              onSelect={() => setConfirming(true)}
+        {!isOwner ? (
+          <span className="type-label-md text-muted-foreground">
+            {PROJECT_STATUS_LABELS[project.status]}
+          </span>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={`Status: ${PROJECT_STATUS_LABELS[project.status]}`}
+              className="inline-flex h-11 shrink-0 items-center gap-1 rounded-md px-2 type-label-md text-foreground hover:bg-accent md:h-8"
             >
-              <Trash2 strokeWidth={1.5} aria-hidden /> Move to Trash
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              {PROJECT_STATUS_LABELS[project.status]}
+              <ChevronDown className="size-4 text-muted-foreground" strokeWidth={1.5} aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuRadioGroup
+                value={project.status}
+                onValueChange={(v) => void changeStatus(v as ProjectStatus)}
+              >
+                {PROJECT_STATUSES.map((status) => (
+                  <DropdownMenuRadioItem key={status} value={status}>
+                    {PROJECT_STATUS_LABELS[status]}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {isOwner ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="More actions"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-8"
+            >
+              <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <AskAboutMenuItem type="project" id={project.id} />
+              <DropdownMenuItem onSelect={() => setEditing(true)}>
+                <Pencil strokeWidth={1.5} aria-hidden /> Edit details
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive data-[highlighted]:text-destructive"
+                onSelect={() => setConfirming(true)}
+              >
+                <Trash2 strokeWidth={1.5} aria-hidden /> Move to Trash
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
+
+      {access ? <SharedBadge access={access} className="mt-2" /> : null}
 
       <textarea
         rows={1}
@@ -164,6 +190,7 @@ export function ProjectHeader({ project, progress }: Props) {
         placeholder="Add a description"
         aria-label="Project description"
         maxLength={2000}
+        readOnly={!isOwner}
         className="mt-2 field-sizing-content w-full resize-none bg-transparent type-body-md text-muted-foreground outline-none placeholder:text-muted-foreground"
       />
 

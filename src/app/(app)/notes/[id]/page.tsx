@@ -5,6 +5,8 @@ import { RecordOpened } from "@/components/search/record-opened";
 import { getBacklinks } from "@/db/queries/note-tree";
 import { getNote } from "@/db/queries/notes";
 import { requireUser } from "@/lib/session";
+import { readAccessFor } from "@/modules/permissions/acting";
+import { shareContext } from "@/modules/sharing/service";
 import { idSchema } from "@/lib/validations/tasks";
 
 export const metadata: Metadata = { title: "Note" };
@@ -15,8 +17,16 @@ export default async function NotePage({ params }: { params: Promise<{ id: strin
   // A malformed id and someone else's id both look like any other missing page.
   if (!idSchema.safeParse(id).success) notFound();
 
-  const [note, backlinks] = await Promise.all([getNote(user.id, id), getBacklinks(user.id, id)]);
+  // The owner's rows, read through the person's access (V3 feature 04). Backlinks stay the owner's own: what links here
+  // may be in notes nobody shared.
+  const access = await readAccessFor(user.id, "NOTE", id);
+  if (!access) notFound();
+  const [note, backlinks] = await Promise.all([
+    getNote(access.ownerId, id),
+    access.role === "OWNER" ? getBacklinks(user.id, id) : Promise.resolve([]),
+  ]);
   if (!note) notFound();
+  const share = await shareContext(user.id, access, "NOTE", id);
   // A journal entry has its own page (V3 feature 02): every older link to it still lands there.
   if (note.journalDate) redirect(`/journal/${note.id}`);
 
@@ -24,7 +34,7 @@ export default async function NotePage({ params }: { params: Promise<{ id: strin
   return (
     <>
       <RecordOpened type="note" id={note.id} />
-      <NoteEditor key={note.id} note={note} backlinks={backlinks} />
+      <NoteEditor key={note.id} note={note} backlinks={backlinks} access={share} />
     </>
   );
 }

@@ -2,6 +2,42 @@
 
 > **Build position: fourth V3 feature** (V3 plan phase 2). Everything after it in V3 (live editing, comments, automations, agents) depends on one rule: *who may do what to which item*. Behaviour is in V3 product spec §7 (Collaboration). Where this doc is more detailed, this doc wins for this feature.
 
+## 0. Reality check and progress (2026-11-14)
+
+Checked against the code and `agent_docs/` (notes, nested notes, tasks, files, sync and offline, search, assistant, push, canvas, journal, templates) before building. Every "Action" is the builder's proposal and can be vetoed. **This feature changes who can reach almost everything, so the proposals marked (decision) want the owner's yes before slice B.**
+
+| Spec says | What the project has | Action |
+|---|---|---|
+| "Switching every existing query and mutation ... from rows I own to rows I may access" | **121 exported functions in 40 files** read or write `projects`, `tasks`, `todos` or `notes` (50 in `db/mutations`, 59 in `db/queries`, 12 elsewhere in `src/lib`), called from 19 action files and 35 route handlers (counted 2026-11-14). Every one scopes by one `userId` that is both the actor and the owner | Track the switch function by function: `ACCESS_CLASSES` (`src/modules/permissions/classes.ts`) names every such function as `owner` (today), `access` (switched) or `owner-by-design` (stays personal), and a test fails when a function that touches the four tables is not listed. All start as `owner`; the switch moves them one type at a time, as §4 stages it |
+| "Every Server Action starts `requireUser()` then `requireAccess(...)`" and items made by an editor "still belong to the owner's workspace" | Mutations take `userId` and put it in every `WHERE` and in the new row's `user_id`. That is exactly the **owner** for a shared item | The action checks the **actor** with `requireAccess` and then passes `access.ownerId` as the existing `userId` argument. Mutations stay as they are, apart from recording `created_by_user_id` / `updated_by_user_id`. This is why most of the 50 mutations change by one line, not by a rewrite |
+| `accessibleWhere` "so lists, counts, search and the assistant's tools filter before anything is returned" | Personal lists (Tasks, Today, Inbox counts, reminders, the day-progress ring, the weekly review, Trash) are "my day". Adding shared rows to them would put another person's work in the person's own Today and counts | (decision) Personal lists, counts, Today, reminders, the review and Trash stay **owner-only**. Shared items appear in **Shared with me**, on a shared project's own page and in a shared note's own page, by id, and in search (labelled with the owner). `accessibleWhere` is used for those, not for the personal lists |
+| "Canvases, journal entries, templates ... are excluded from inheritance" | Journal entries are rows of `notes` with `journal_date` set, and **sticky notes are rows of `tasks`** with `kind = 'STICKY'`; either can carry a `project_id`, so a project grant would reach them | `accessibleWhere` and `resolveAccess` apply `plainNotes` and `plainTasks` (the shared conditions already used by every Notes and Tasks query) and never grant a journal entry or a sticky; a test creates both inside a shared project |
+| "`src/modules/permissions/` (new modules live under `src/modules/<name>/`)" | No `src/modules/` exists; V1 and V2 and V3 features 01 to 03 used `src/lib`, `src/db` and `src/actions` | Follow the spec for this module: `src/modules/permissions/` (the `@/` alias already reaches it). Nothing existing moves |
+| `SHARING_ENABLED` default off | `src/lib/env-schema.ts` holds the typed flags (`aiAvailable`, `storageAvailable`) | Add `SHARING_ENABLED` there. Off: every `resolveAccess` answers owner-or-nothing and the sharing actions answer `NOT_FOUND`, so behaviour is identical to today (a test compares) |
+| Roles `owner`, `EDITOR`, `COMMENTER`, `VIEWER` and "tasks and todos are shared through their project" | A task's project is `tasks.project_id`; a subtask copies its parent's project; a note's sub-notes use `parent_note_id` and `depth` | `resolveAccess` follows exactly that: the item, then its project, then (notes) its ancestors; the highest role wins. A sub-task is the task's access |
+| "`UNAUTHORIZED` (the existing code, HTTP 403)" | `UNAUTHORIZED` is in `ERROR_CODES` (403) and used nowhere for "can see, cannot do" | Use it for that and nothing else |
+| "Invitation email ... uses the existing `EmailSender` and `APP_URL`" | `EmailSender` (Resend, console in dev) and `src/lib/email/templates.ts` exist. There is no `APP_URL`: the app's address is `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` | Use `BETTER_AUTH_URL`. (The GitHub tick workflow has a repository secret called `APP_URL`; that is a different thing.) Slice B |
+| "Search shows only accessible items", "the assistant ... reads only what the signed-in person may read" | Keyword search is one module (`db/queries/search.ts`); the semantic index and the assistant's tools are keyed by the person's own rows | Slice B: keyword search gains shared items (labelled). **The semantic index and the assistant do not read other people's items in this feature**: a shared item is not embedded for a collaborator. Recorded as a limit, since an index of someone else's text for a collaborator is a privacy decision of its own |
+| Offline and sync | The local database and the sync snapshot hold only the person's own rows (tasks today) | Shared items are **online only** for a collaborator: never in the snapshot, the pull or the local database. The owner's own sync is unchanged |
+| "Files only through the note or task that holds them" | `attachments` are owned and read by `user_id`; the file routes check the owner | Slice B: a file is served when the person may read its holder (note or task) through `resolveAccess`; uploads on a shared item by an editor are stored under the **owner** |
+| Tags | Tags are per person and unique by name; a task or note carries the owner's tags | An editor sees the tags on a shared item and may attach tags the owner already has; they cannot create, rename or delete the owner's tags (decision) |
+| "Reminders", notifications | Reminders and pushes belong to the task's `user_id` (the owner) | Unchanged: an editor's change never creates a reminder for the editor, and assignment does not exist |
+| "Audit of sharing events" | `audit_log.source` is a check on `ASSISTANT`, `WEEKLY_REVIEW`, `VOICE`, `CANVAS` | Slice C widens the check with `SHARING` (counts and ids only) |
+| "No team workspaces ... an open decision for ADR 0018" | One personal workspace per person | **ADR 0018 decides: no workspaces; items are shared, people do not join a team.** Written before any table |
+| "Live sessions closed within a minute", comments, presence | Features 05 and 06 are not built | Nothing to do now; revocation is immediate for requests |
+| Account deletion rules | Feature 12 is not built; `grantee_id` and `owner_id` cascade from `user` | The cascades give the owner-deletes rule; "Former member" attribution waits for feature 12 |
+
+**No new package.**
+
+**Order of work (proposed), smaller than the spec's slice A, because the first thing that can go wrong is the foundation:**
+1. **A1 (this change):** ADR 0018, migration `0024` (grants, invitations, the three created/updated-by columns), the policy table, `resolveAccess`, `can`, `requireAccess`, `accessibleWhere`, the `ACCESS_CLASSES` registry and its test, `SHARING_ENABLED`, and the ACL matrix test against the real database. **Nothing reads the new tables yet; nothing changes for a single user.**
+2. **A2:** switch reads type by type (projects, then tasks and todos, then notes) behind the flag, with a golden comparison with the flag off.
+3. **B**, **C** as the spec says, after the owner has confirmed the (decision) rows.
+
+**Progress (2026-11-16):** A1, A2, B and C are built and tested (see `agent_docs/permissions-and-sharing_v3.md`). Sharing is still behind `SHARING_ENABLED` (default off) until the owner has used it.
+
+---
+
 ## 1. Scope
 
 - **Sharing** a project or a single note with another signed-in person, with four roles: owner, editor, commenter, viewer.
@@ -179,17 +215,17 @@ Email address privacy: `inviteToShare` answers the same whether or not the addre
 
 ## 10. Definition of done
 
-- [ ] ADR 0018 written before building: the policy model, resource grants, no workspaces yet, inheritance rules, `NOT_FOUND` versus `UNAUTHORIZED`, the staged switch
-- [ ] Every read and write path for projects, tasks, todos and notes goes through `requireAccess` / `accessibleWhere`; a test fails if a query for those types ignores it
-- [ ] The ACL matrix is generated from the policy and passes
-- [ ] Sharing, inviting, accepting, changing role, removing and leaving work for projects and notes
-- [ ] Canvases, journal entries, templates and memories cannot be reached by any grant
-- [ ] Shared and private content are visibly distinct; read-only items have no editing controls
-- [ ] Revocation takes effect immediately for requests
-- [ ] Sharing events are audited (counts and ids only)
-- [ ] Axe passes; 360 px
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass
-- [ ] `agent_docs/permissions-and-sharing_v3.md` written and indexed; an "As built" section here lists every deviation
+- [x] ADR 0018 written before building: the policy model, resource grants, no workspaces yet, inheritance rules, `NOT_FOUND` versus `UNAUTHORIZED`, the staged switch
+- [x] Every read and write path for projects, tasks, todos and notes goes through `requireAccess` / `accessibleWhere`; a test fails if a query for those types ignores it
+- [x] The ACL matrix is generated from the policy and passes
+- [x] Sharing, inviting, accepting, changing role, removing and leaving work for projects and notes
+- [x] Canvases, journal entries, templates and memories cannot be reached by any grant
+- [x] Shared and private content are visibly distinct; read-only items have no editing controls
+- [x] Revocation takes effect immediately for requests
+- [x] Sharing events are audited (counts and ids only)
+- [~] Axe passes (the share dialog is checked in `e2e/sharing.spec.ts`; Shared and the 360 px layout are not checked yet)
+- [~] `pnpm lint`, `typecheck`, `test`, `test:integration` and `build` pass; the full `test:e2e` suite was not re-run after this feature (only `e2e/sharing.spec.ts`)
+- [x] `agent_docs/permissions-and-sharing_v3.md` written and indexed; an "As built" section here lists every deviation
 
 ---
 
@@ -202,3 +238,17 @@ Email address privacy: `inviteToShare` answers the same whether or not the addre
 - Transferring ownership of an item or project (an open question).
 - Real-time editing, presence and comments (features 05 and 06 build on this).
 - Notifications beyond the invitation email and the in-app list (feature 06 adds the notification centre).
+
+---
+
+## 12. As built (deviations from this document)
+
+- **Action pattern.** Actions call `ownerFor` / `ownerForNew` / `requireOwner` (`src/modules/permissions/acting.ts`, built on `requireAccess`) and pass the owner's id to the unchanged mutations and queries, instead of `requireAccess` inside every mutation. `tests/unit/action-access.test.ts` is the "a test fails if an action ignores it" check for the four action files; `ACCESS_CLASSES` still lists the owner-scoped functions underneath.
+- **Personal lists stay owner-only** (Today, Tasks, counts, reminders, review, Trash, sync, the semantic index and the assistant); shared items are online only and are found in **Shared** and in the shared project's or note's own page.
+- **Label.** The sidebar entry is **Shared** (it lists what is shared with the person and what they share), shown only when either exists or an invitation waits, with the number of waiting invitations beside it. The sections are Invitations, Shared with me, Shared by me.
+- **Search** of shared items is a title search on the Shared page (`?q=`), not part of the main search or the command menu.
+- **Invitations** use `BETTER_AUTH_URL` (there is no `APP_URL`). An invitee must have a verified email equal to the invited address; accept works by token or by id. Re-inviting an address replaces its open invitation.
+- **Audit:** `audit_log.source` accepts `SHARING` (migration `0025`); events are `share.invite`, `share.accept`, `share.decline`, `share.changeRole`, `share.remove`, `share.revokeInvitation`, `share.revokeAll`, `share.leave`, with ids and counts only; nothing reads them in a screen yet.
+- **Owner controls:** the dialog lists everyone with a role and open invitations and has **Stop sharing with everyone**; the Shared page lists each shared item with the number of people and **Stop sharing**.
+- **Account deletion:** feature 12 is not built. The database rules already give the spec's behaviour (deleting an owner removes their items and grants; deleting a collaborator removes their grants and sets `created_by_user_id` to null, so their work stays with the owner), and `tests/integration/sharing-owner-controls.test.ts` checks it. There is no "Former member" label in a screen yet because no screen shows who made an item; the Shared page falls back to that name.
+- **Not built:** comments (feature 06), the phone bottom-sheet form of the dialog, collaborator file uploads, editor-side menus for a shared note (Trash, archive), a "Leave" item in an item's own menu (Leave is on the Shared page), moving a note out of a shared project asking in the note menu is covered by the project picker only.

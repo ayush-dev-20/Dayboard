@@ -171,3 +171,33 @@ export function changeEmailMessage(opts: {
     ),
   };
 }
+
+/** Names the person and the kind of item only: never a title or any content (V3 feature 04 §9). */
+export function shareInvitationMessage(opts: {
+  to: string;
+  ownerName: string;
+  kind: "project" | "note";
+  role: string;
+  url: string;
+}): EmailMessage {
+  const who = escapeHtml(opts.ownerName);
+  const line = `${opts.ownerName} invited you to a ${opts.kind} on Dayboard as ${opts.role.toLowerCase()}.`;
+  const footnote =
+    "The link works for 14 days and needs you to sign in with this email address. If you don't know this person, you can ignore this message.";
+  return {
+    template: "share-invitation",
+    to: opts.to,
+    subject: `${opts.ownerName} shared a ${opts.kind} with you on Dayboard`,
+    link: opts.url,
+    html: layout({
+      heading: `You're invited to a ${opts.kind}`,
+      paragraphs: [
+        `${who} invited you to a ${opts.kind} on Dayboard as ${escapeHtml(opts.role.toLowerCase())}.`,
+      ],
+      cta: "View invitation",
+      link: opts.url,
+      footnote,
+    }),
+    text: plain([line], opts.url, footnote),
+  };
+}

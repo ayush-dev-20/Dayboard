@@ -100,6 +100,8 @@ const rawSchema = z.object({
     z.enum(["true", "false"]).default("false"),
   ),
   STORAGE_DISK_DIR: optionalString,
+  // Sharing (V3 feature 04): off until the owner turns it on. Off, every person reaches only their own rows.
+  SHARING_ENABLED: z.preprocess(blankToUndefined, z.enum(["true", "false"]).default("false")),
   STORAGE_QUOTA_MB: z.preprocess(blankToUndefined, z.coerce.number().int().min(1).default(500)),
   STORAGE_TOTAL_LIMIT_MB: z.preprocess(
     blankToUndefined,
@@ -282,6 +284,7 @@ export function parseEnv(
     storageDriver,
     storageAvailable: storageDriver !== null,
     storageForcePathStyle: v.STORAGE_FORCE_PATH_STYLE === "true",
+    sharingEnabled: v.SHARING_ENABLED === "true",
     storageQuotaBytes: v.STORAGE_QUOTA_MB * 1024 * 1024,
     storageTotalLimitBytes: v.STORAGE_TOTAL_LIMIT_MB * 1024 * 1024,
     googleEnabled: Boolean(v.GOOGLE_CLIENT_ID && v.GOOGLE_CLIENT_SECRET),

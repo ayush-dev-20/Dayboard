@@ -38,6 +38,9 @@ export const todos = pgTable(
       .$onUpdate(() => new Date()),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    // Who made it, when that is not the owner (V3 feature 04): an editor of a shared project. Null means the owner. The
+    // row's `user_id` stays the owner, so the owner keeps everything if the editor leaves.
+    createdByUserId: uuid("created_by_user_id").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
     check("todos_title_length", sql`char_length(${t.title}) between 1 and 300`),

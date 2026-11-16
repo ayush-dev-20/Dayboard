@@ -571,6 +571,7 @@ describe("trash", () => {
       project: 1,
       inbox: 1,
       canvas: 1,
+      template: 0,
       total: 6,
     });
     expect((await listTrash(person.id, { type: "note" })).items.map((x) => x.title)).toEqual([

@@ -7,6 +7,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { env } from "@/lib/env";
 import { getPreferences } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
+import { listSharedByMe, listSharedWithMe } from "@/modules/sharing/service";
 
 export const metadata: Metadata = { title: "More" };
 
@@ -17,6 +18,7 @@ const MORE_LINKS = NAV_ITEMS.filter((item) =>
     "/journal",
     "/canvases",
     "/projects",
+    "/shared",
     "/templates",
     "/assistant",
     "/search",
@@ -28,7 +30,14 @@ const MORE_LINKS = NAV_ITEMS.filter((item) =>
 export default async function MorePage() {
   const user = await requireUser({ redirect: true });
   const aiOn = env.aiAvailable && (await getPreferences(user.id)).aiEnabled;
-  const links = MORE_LINKS.filter((item) => aiOn || item.href !== "/assistant");
+  const [shared, sharedByMe] = await Promise.all([
+    listSharedWithMe(user.id),
+    listSharedByMe(user.id),
+  ]);
+  const sharedOn = shared.items.length + shared.invitations.length + sharedByMe.length > 0;
+  const links = MORE_LINKS.filter(
+    (item) => (aiOn || item.href !== "/assistant") && (sharedOn || item.href !== "/shared"),
+  );
   const rowClasses = "type-body-lg flex h-11 w-full items-center gap-3 border-b border-border";
 
   return (

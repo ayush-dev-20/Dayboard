@@ -225,7 +225,9 @@ function sanitizeElement(raw: unknown): SceneElement | null {
 
   // A link is kept only when it is safe; otherwise it is removed.
   out.link = isAllowedSceneLink(raw.link) ? raw.link : null;
-  const dayboard = isRecord(raw.customData) ? sanitizeDayboard(raw.customData.dayboard, known) : undefined;
+  const dayboard = isRecord(raw.customData)
+    ? sanitizeDayboard(raw.customData.dayboard, known)
+    : undefined;
   if (dayboard) out.customData = { dayboard };
 
   switch (known) {

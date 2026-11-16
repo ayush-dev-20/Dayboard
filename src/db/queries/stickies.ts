@@ -82,7 +82,10 @@ export async function listStickiesForToday(
       .where(where)
       .orderBy(desc(tasks.updatedAt))
       .limit(limit),
-    db.select({ n: sql<number>`count(*)::int` }).from(tasks).where(where),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(where),
   ]);
   return {
     rows: rows.map((r) => ({

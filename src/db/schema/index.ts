@@ -4,6 +4,7 @@ export * from "./auth";
 export * from "./calendar";
 export * from "./canvases";
 export * from "./templates";
+export * from "./sharing";
 export * from "./enums";
 export * from "./inbox";
 export * from "./jobs";

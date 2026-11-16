@@ -6,6 +6,7 @@ import { attachments, notes, projects, tasks } from "@/db/schema";
 import { env } from "@/lib/env";
 import { toAttachmentDTO, type AttachmentDTO, type StorageUsage } from "@/lib/storage/dto";
 import type { OwnerType } from "@/lib/storage/types";
+import { resolveAccess } from "@/modules/permissions/access";
 
 // Reads for files (V2 feature 09 §4). Every one is scoped to the signed-in person, and a file
 // belongs to its note, task or project: a file whose owner is in Trash is hidden with it (and comes
@@ -27,19 +28,34 @@ export async function ownerIsLive(
   return row !== undefined;
 }
 
+/**
+ * Whose files to read for this note, task or project: the person's own, or the owner's when a share lets the person read
+ * it (V3 feature 04: a file is served by the access its holder has). Null when neither.
+ */
+async function holderFor(
+  userId: string,
+  ownerType: OwnerType,
+  ownerId: string,
+): Promise<string | null> {
+  if (await ownerIsLive(db, userId, ownerType, ownerId)) return userId;
+  const access = await resolveAccess(userId, ownerType, ownerId);
+  return access.role !== null ? access.ownerId : null;
+}
+
 /** The person's files that are ready, newest first, for one owner. Empty when the owner is gone. */
 export async function listAttachments(
   userId: string,
   ownerType: OwnerType,
   ownerId: string,
 ): Promise<AttachmentDTO[]> {
-  if (!(await ownerIsLive(db, userId, ownerType, ownerId))) return [];
+  const holderId = await holderFor(userId, ownerType, ownerId);
+  if (!holderId) return [];
   const rows = await db
     .select()
     .from(attachments)
     .where(
       and(
-        eq(attachments.userId, userId),
+        eq(attachments.userId, holderId),
         eq(attachments.ownerType, ownerType),
         eq(attachments.ownerId, ownerId),
         eq(attachments.status, "READY"),
@@ -56,17 +72,17 @@ export async function getReadyAttachment(userId: string, id: string) {
     .select()
     .from(attachments)
     .where(
-      and(
-        eq(attachments.id, id),
-        eq(attachments.userId, userId),
-        eq(attachments.status, "READY"),
-        isNull(attachments.deletedAt),
-      ),
+      and(eq(attachments.id, id), eq(attachments.status, "READY"), isNull(attachments.deletedAt)),
     )
     .limit(1);
   if (!row) return null;
-  if (!(await ownerIsLive(db, userId, row.ownerType, row.ownerId))) return null;
-  return row;
+  // The holder's own file, or one on an item the person may read through a share; never says which case failed.
+  if (row.userId === userId) {
+    if (!(await ownerIsLive(db, userId, row.ownerType, row.ownerId))) return null;
+    return row;
+  }
+  const holderId = await holderFor(userId, row.ownerType, row.ownerId);
+  return holderId === row.userId ? row : null;
 }
 
 /** What several files are now, for blocks that point at them: missing ones are simply absent. */
@@ -80,7 +96,6 @@ export async function getAttachmentsByIds(
     .from(attachments)
     .where(
       and(
-        eq(attachments.userId, userId),
         inArray(attachments.id, [...ids]),
         eq(attachments.status, "READY"),
         isNull(attachments.deletedAt),
@@ -88,7 +103,11 @@ export async function getAttachmentsByIds(
     );
   // A file whose owner is in Trash is hidden along with it, as on download.
   const live = await Promise.all(
-    rows.map((row) => ownerIsLive(db, userId, row.ownerType, row.ownerId)),
+    rows.map(async (row) =>
+      row.userId === userId
+        ? ownerIsLive(db, userId, row.ownerType, row.ownerId)
+        : (await holderFor(userId, row.ownerType, row.ownerId)) === row.userId,
+    ),
   );
   return rows.filter((_, index) => live[index]).map(toAttachmentDTO);
 }

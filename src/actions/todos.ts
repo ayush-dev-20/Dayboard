@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import * as mutations from "@/db/mutations/todos";
 import { runAction, type ActionResult } from "@/lib/actions";
+import { createdByFor, ownerFor, ownerForNew } from "@/modules/permissions/acting";
 import { requireUser } from "@/lib/session";
 import type { TodoDTO } from "@/lib/tasks/dto";
 import {
@@ -21,7 +22,11 @@ function refreshTodos() {
 export async function createTodo(input: unknown): Promise<ActionResult<TodoDTO>> {
   return runAction("todos.create", async () => {
     const user = await requireUser();
-    const todo = await mutations.createTodo(user.id, createTodoSchema.parse(input));
+    const values = createTodoSchema.parse(input);
+    const ownerId = await ownerForNew(user.id, values.projectId);
+    const todo = await mutations.createTodo(ownerId, values, undefined, {
+      createdBy: createdByFor(user.id, ownerId),
+    });
     refreshTodos();
     return todo;
   });
@@ -30,7 +35,9 @@ export async function createTodo(input: unknown): Promise<ActionResult<TodoDTO>>
 export async function updateTodo(input: unknown): Promise<ActionResult<TodoDTO>> {
   return runAction("todos.update", async () => {
     const user = await requireUser();
-    const todo = await mutations.updateTodo(user.id, updateTodoSchema.parse(input));
+    const values = updateTodoSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TODO", values.id, "update");
+    const todo = await mutations.updateTodo(ownerId, values);
     refreshTodos();
     return todo;
   });
@@ -46,14 +53,17 @@ export async function setTodoComplete(
   return runAction("todos.setComplete", async () => {
     const user = await requireUser();
     const { id, isComplete } = setTodoCompleteSchema.parse(input);
-    return mutations.setTodoComplete(user.id, id, isComplete);
+    const ownerId = await ownerFor(user.id, "TODO", id, "complete");
+    return mutations.setTodoComplete(ownerId, id, isComplete);
   });
 }
 
 export async function reorderTodo(input: unknown): Promise<ActionResult<{ sortOrder: number }>> {
   return runAction("todos.reorder", async () => {
     const user = await requireUser();
-    const result = await mutations.reorderTodo(user.id, reorderSchema.parse(input));
+    const values = reorderSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TODO", values.id, "update");
+    const result = await mutations.reorderTodo(ownerId, values);
     refreshTodos();
     return result;
   });
@@ -62,7 +72,9 @@ export async function reorderTodo(input: unknown): Promise<ActionResult<{ sortOr
 export async function archiveTodo(input: unknown): Promise<ActionResult<TodoDTO>> {
   return runAction("todos.archive", async () => {
     const user = await requireUser();
-    const todo = await mutations.archiveTodo(user.id, idOnlySchema.parse(input).id, true);
+    const { id } = idOnlySchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TODO", id, "archive");
+    const todo = await mutations.archiveTodo(ownerId, id, true);
     refreshTodos();
     return todo;
   });
@@ -71,7 +83,9 @@ export async function archiveTodo(input: unknown): Promise<ActionResult<TodoDTO>
 export async function unarchiveTodo(input: unknown): Promise<ActionResult<TodoDTO>> {
   return runAction("todos.unarchive", async () => {
     const user = await requireUser();
-    const todo = await mutations.archiveTodo(user.id, idOnlySchema.parse(input).id, false);
+    const { id } = idOnlySchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TODO", id, "archive");
+    const todo = await mutations.archiveTodo(ownerId, id, false);
     refreshTodos();
     return todo;
   });
@@ -80,7 +94,9 @@ export async function unarchiveTodo(input: unknown): Promise<ActionResult<TodoDT
 export async function deleteTodo(input: unknown): Promise<ActionResult<{ deletedAt: string }>> {
   return runAction("todos.delete", async () => {
     const user = await requireUser();
-    const result = await mutations.deleteTodo(user.id, idOnlySchema.parse(input).id);
+    const { id } = idOnlySchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TODO", id, "trash");
+    const result = await mutations.deleteTodo(ownerId, id);
     refreshTodos();
     return result;
   });

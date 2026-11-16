@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import * as mutations from "@/db/mutations/projects";
 import { runAction, type ActionResult } from "@/lib/actions";
 import type { ProjectDTO, ProjectRef } from "@/lib/projects/dto";
+import { requireOwner } from "@/modules/permissions/acting";
 import { requireUser } from "@/lib/session";
 import {
   assignToProjectSchema,
@@ -31,7 +32,10 @@ export async function createProject(input: unknown): Promise<ActionResult<Projec
 export async function updateProject(input: unknown): Promise<ActionResult<ProjectDTO>> {
   return runAction("projects.update", async () => {
     const user = await requireUser();
-    const project = await mutations.updateProject(user.id, updateProjectSchema.parse(input));
+    const values = updateProjectSchema.parse(input);
+    // Settings are the owner's: a collaborator who can see the project is told so, not shown "not found".
+    await requireOwner(user.id, "PROJECT", values.id);
+    const project = await mutations.updateProject(user.id, values);
     refreshEverywhere();
     return project;
   });
@@ -41,6 +45,7 @@ export async function deleteProject(input: unknown): Promise<ActionResult<{ dele
   return runAction("projects.delete", async () => {
     const user = await requireUser();
     const { id } = idOnlySchema.parse(input);
+    await requireOwner(user.id, "PROJECT", id);
     const result = await mutations.deleteProject(user.id, id);
     refreshEverywhere();
     return result;

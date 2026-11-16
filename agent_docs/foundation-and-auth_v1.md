@@ -5,19 +5,23 @@
 **Date:** 2026-10-01
 
 ## What was built
+
 - The app skeleton: Next.js 16 + Tailwind v4 theme from `DESIGN.md`, Drizzle + PostgreSQL migrations, env validation, error model, logger, `/api/health`, seed script, Dockerfile and local Compose.
 - Better Auth with email/password, Google, GitHub and magic link; `requireUser()`; onboarding; the app shell (sidebar, tablet sheet, phone bottom nav, theme); Settings (account, appearance, productivity, AI switch, delete account).
 - 88 unit tests and 57 Playwright tests, all passing, run against a production build.
 
 ## Why
+
 Every later feature needs a signed-in user, a database and a shell, so this is the one base. Better Auth (self-hosted, our Postgres) was chosen over Clerk and Auth.js; reasoning is in `specs/v1/features/01-foundation-and-auth.md` §2.
 
 ## What was deferred
+
 - Quick capture, Create, the search trigger and sidebar counts: built in feature 04.
 - Settings **Tags** tab: built in feature 03. AI usage meter and provider notice: built in feature 05. Session **location** (needs a GeoIP service). Provider rows show "Linked on {date}", not the provider email.
 - Production Compose, Caddy, CI/CD, backups, rollback: feature 06. `motion` and `cmdk` are not installed yet.
 
 ## Related files
+
 - `src/lib/session.ts`: `requireUser()`, the only way to get the user. `src/lib/auth.ts`: Better Auth config.
 - `src/proxy.ts`: cookie-presence redirect; sets `x-next-path` and `x-request-id`. Never the real access check.
 - `src/actions/settings.ts`, `onboarding.ts`: Server Actions (`runAction` in `src/lib/actions.ts` wraps them).
@@ -26,6 +30,7 @@ Every later feature needs a signed-in user, a database and a shell, so this is t
 - `e2e/` and `tests/unit/`; `scripts/migrate.ts`, `scripts/seed.ts`.
 
 ## Hand-off notes
+
 - **Better Auth `listSessions` and `unlinkAccount` demand a session under 10 minutes old.** Calling them from a page crashed Settings for anyone signed in longer. Sessions are read from the table instead (`db/queries/sessions.ts`); unlinking checks freshness first and shows "Sign in again". Check any new Better Auth call for this before using it in a page.
 - **Rate limits are keyed by client IP from `X-Forwarded-For`.** With no header, every visitor shares one bucket. Caddy (feature 06) must set it, and the app must only be reachable through Caddy. Tests give each test its own fake IP. The magic-link plugin has its own default limit (5 per minute on verify).
 - Better Auth replaces any `?error=` on `errorCallbackURL` with its own code (`INVALID_TOKEN`, `account_not_linked`, ...); the sign-in page maps those.
@@ -41,6 +46,7 @@ Every later feature needs a signed-in user, a database and a shell, so this is t
 - The repo is not a git repository yet (no `.git`); `husky` is set to tolerate that.
 
 ## Not verified
+
 - Google and GitHub sign-in and account linking (no credentials were available); checklist is in `README.md`.
 - Real Resend delivery (tests use the console sender).
 - `Dockerfile` and `docker-compose.yml` were written but **not run**: Docker is not installed on the development machine. What was checked instead: a build with no env vars, the standalone server on its own, and the bundled migration runner under plain `node`.

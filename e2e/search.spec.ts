@@ -107,7 +107,7 @@ test.describe("command menu search", () => {
     await expect(menu(page).getByRole("tab", { name: "ask", selected: true })).toBeVisible();
     await page.keyboard.press("Tab");
     await expect(menu(page).getByRole("tab", { name: "create", selected: true })).toBeVisible();
-    await menu(page).getByRole("option", { name: "New note" }).click();
+    await menu(page).getByRole("option", { name: "New note", exact: true }).click();
     await expect(page).toHaveURL(/\/notes\/new/);
 
     await page.getByRole("button", { name: "Create", exact: true }).click();

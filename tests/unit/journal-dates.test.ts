@@ -88,7 +88,10 @@ describe("dayBounds", () => {
   it("is ahead of UTC for a zone ahead of it and behind it for one behind", () => {
     const ahead = dayBounds("2026-10-13", { timezone: "Asia/Kolkata", startOfDay: "06:00" });
     expect(ahead.start.toISOString()).toBe("2026-10-13T00:30:00.000Z");
-    const behind = dayBounds("2026-10-13", { timezone: "America/Los_Angeles", startOfDay: "06:00" });
+    const behind = dayBounds("2026-10-13", {
+      timezone: "America/Los_Angeles",
+      startOfDay: "06:00",
+    });
     expect(behind.start.toISOString()).toBe("2026-10-13T13:00:00.000Z");
   });
 

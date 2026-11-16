@@ -3,7 +3,7 @@ import path from "node:path";
 
 export type CapturedEmail = {
   at: string;
-  template: "verify-email" | "reset-password" | "magic-link" | "change-email";
+  template: "verify-email" | "reset-password" | "magic-link" | "change-email" | "share-invitation";
   to: string;
   subject: string;
   link: string;

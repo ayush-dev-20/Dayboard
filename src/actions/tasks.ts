@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import * as mutations from "@/db/mutations/tasks";
 import { runAction, type ActionResult } from "@/lib/actions";
 import { getPreferences } from "@/lib/preferences";
+import { createdByFor, ownerFor, ownerForNew } from "@/modules/permissions/acting";
 import { requireUser } from "@/lib/session";
 import type { TaskDTO } from "@/lib/tasks/dto";
 import type { TaskStatus } from "@/lib/tasks/status";
@@ -31,7 +32,14 @@ export async function createTask(input: unknown): Promise<ActionResult<TaskDTO>>
     const user = await requireUser();
     const values = createTaskSchema.parse(input);
     const { defaultTaskPriority } = await getPreferences(user.id);
-    const task = await mutations.createTask(user.id, values, { priority: defaultTaskPriority });
+    // A task in a shared project (or under a task in one) belongs to the project's owner; an editor only authors it.
+    const ownerId = values.parentTaskId
+      ? await ownerFor(user.id, "TASK", values.parentTaskId, "create")
+      : await ownerForNew(user.id, values.projectId);
+    const task = await mutations.createTask(ownerId, values, {
+      priority: defaultTaskPriority,
+      createdBy: createdByFor(user.id, ownerId),
+    });
     refreshTasks();
     return task;
   });
@@ -59,7 +67,9 @@ export async function createTasksBatch(input: unknown): Promise<ActionResult<Tas
 export async function updateTask(input: unknown): Promise<ActionResult<TaskDTO>> {
   return runAction("tasks.update", async () => {
     const user = await requireUser();
-    const task = await mutations.updateTask(user.id, updateTaskSchema.parse(input));
+    const values = updateTaskSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TASK", values.id, "update");
+    const task = await mutations.updateTask(ownerId, values);
     refreshTasks();
     return task;
   });
@@ -72,7 +82,8 @@ export async function updateTaskDescription(
   return runAction("tasks.updateDescription", async () => {
     const user = await requireUser();
     const { id, descriptionJson } = updateTaskDescriptionSchema.parse(input);
-    return mutations.updateTaskDescription(user.id, id, descriptionJson);
+    const ownerId = await ownerFor(user.id, "TASK", id, "update");
+    return mutations.updateTaskDescription(ownerId, id, descriptionJson);
   });
 }
 
@@ -86,7 +97,8 @@ export async function completeTask(
   return runAction("tasks.complete", async () => {
     const user = await requireUser();
     const { id, nextOccurrenceId } = completeTaskSchema.parse(input);
-    return mutations.completeTask(user.id, id, new Date(), { nextOccurrenceId });
+    const ownerId = await ownerFor(user.id, "TASK", id, "complete");
+    return mutations.completeTask(ownerId, id, new Date(), { nextOccurrenceId });
   });
 }
 
@@ -95,7 +107,9 @@ export async function undoCompleteTask(
 ): Promise<ActionResult<{ task: TaskDTO; removedOccurrence: boolean }>> {
   return runAction("tasks.undoComplete", async () => {
     const user = await requireUser();
-    const result = await mutations.undoCompleteTask(user.id, undoCompleteSchema.parse(input));
+    const values = undoCompleteSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TASK", values.id, "complete");
+    const result = await mutations.undoCompleteTask(ownerId, values);
     refreshTasks();
     return result;
   });
@@ -105,7 +119,8 @@ export async function setTaskStatus(input: unknown): Promise<ActionResult<TaskDT
   return runAction("tasks.setStatus", async () => {
     const user = await requireUser();
     const { id, status } = setTaskStatusSchema.parse(input);
-    const task = await mutations.setTaskStatus(user.id, id, status as TaskStatus);
+    const ownerId = await ownerFor(user.id, "TASK", id, "complete");
+    const task = await mutations.setTaskStatus(ownerId, id, status as TaskStatus);
     refreshTasks();
     return task;
   });
@@ -114,7 +129,9 @@ export async function setTaskStatus(input: unknown): Promise<ActionResult<TaskDT
 export async function reorderTask(input: unknown): Promise<ActionResult<{ sortOrder: number }>> {
   return runAction("tasks.reorder", async () => {
     const user = await requireUser();
-    const result = await mutations.reorderTask(user.id, reorderSchema.parse(input));
+    const values = reorderSchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TASK", values.id, "update");
+    const result = await mutations.reorderTask(ownerId, values);
     refreshTasks();
     return result;
   });
@@ -123,7 +140,9 @@ export async function reorderTask(input: unknown): Promise<ActionResult<{ sortOr
 export async function archiveTask(input: unknown): Promise<ActionResult<TaskDTO>> {
   return runAction("tasks.archive", async () => {
     const user = await requireUser();
-    const task = await mutations.archiveTask(user.id, idOnlySchema.parse(input).id, true);
+    const { id } = idOnlySchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TASK", id, "archive");
+    const task = await mutations.archiveTask(ownerId, id, true);
     refreshTasks();
     return task;
   });
@@ -132,7 +151,9 @@ export async function archiveTask(input: unknown): Promise<ActionResult<TaskDTO>
 export async function unarchiveTask(input: unknown): Promise<ActionResult<TaskDTO>> {
   return runAction("tasks.unarchive", async () => {
     const user = await requireUser();
-    const task = await mutations.archiveTask(user.id, idOnlySchema.parse(input).id, false);
+    const { id } = idOnlySchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TASK", id, "archive");
+    const task = await mutations.archiveTask(ownerId, id, false);
     refreshTasks();
     return task;
   });
@@ -141,7 +162,9 @@ export async function unarchiveTask(input: unknown): Promise<ActionResult<TaskDT
 export async function deleteTask(input: unknown): Promise<ActionResult<{ deletedAt: string }>> {
   return runAction("tasks.delete", async () => {
     const user = await requireUser();
-    const result = await mutations.deleteTask(user.id, idOnlySchema.parse(input).id);
+    const { id } = idOnlySchema.parse(input);
+    const ownerId = await ownerFor(user.id, "TASK", id, "trash");
+    const result = await mutations.deleteTask(ownerId, id);
     refreshTasks();
     return result;
   });

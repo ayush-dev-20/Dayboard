@@ -65,6 +65,8 @@ export type RichTextEditorProps = {
    * menu leaves them out and a pasted or dropped image is refused, so the person is told before saving.
    */
   template?: boolean;
+  /** Shown but not editable (a viewer or commenter of a shared note, V3 feature 04): no toolbar, no menus. */
+  readOnly?: boolean;
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -98,6 +100,7 @@ export default function RichTextEditor({
   ensureOwner,
   subNotes = true,
   template = false,
+  readOnly = false,
 }: RichTextEditorProps) {
   const offline = !useSyncExternalStore(
     subscribeOnline,
@@ -129,6 +132,7 @@ export default function RichTextEditor({
 
   const editor = useEditor({
     immediatelyRender: false,
+    editable: !readOnly,
     content: initialContent ?? undefined,
     autofocus: autoFocus ? "end" : false,
     extensions: createExtensions(placeholder, {
@@ -195,19 +199,19 @@ export default function RichTextEditor({
           className,
         )}
       >
-        {editor ? (
+        {editor && readOnly ? null : editor ? (
           <FormatToolbar editor={editor} variant={variant} writingHelp={helpControl} />
         ) : (
           <div className="mb-2 h-8" aria-hidden />
         )}
         {beforeContent}
         <EditorContent editor={editor} />
-        {editor ? <TableToolbar editor={editor} root={root} /> : null}
-        {editor ? <BlockHandle editor={editor} root={root} /> : null}
+        {editor && !readOnly ? <TableToolbar editor={editor} root={root} /> : null}
+        {editor && !readOnly ? <BlockHandle editor={editor} root={root} /> : null}
         {editor ? <PasteChoiceHost view={editor.view} /> : null}
         {editor ? <UrlPromptHost view={editor.view} /> : null}
         {/* Notes always have the floating menu; a task description gets it with Writing help (feature 11 §6B). */}
-        {editor && (variant === "document" || writingHelp) ? (
+        {editor && !readOnly && (variant === "document" || writingHelp) ? (
           <SelectionMenu
             editor={editor}
             writingHelp={helpControl ? { onChoose: chooseHelp } : undefined}

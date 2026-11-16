@@ -614,7 +614,7 @@ test.describe("failures, limits, stopping and switching AI off", () => {
     await expect(page.getByRole("button", { name: "Plan my day" })).toHaveCount(0);
     await page.keyboard.press("ControlOrMeta+k");
     await page.getByRole("tab", { name: "Create" }).click();
-    await expect(page.getByRole("option", { name: "New note" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "New note", exact: true })).toBeVisible();
     await expect(page.getByRole("option", { name: "Write a note with AI" })).toHaveCount(0);
     await page.keyboard.press("Escape");
 

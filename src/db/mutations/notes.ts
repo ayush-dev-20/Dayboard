@@ -39,7 +39,7 @@ function owned(userId: string, id: string, includeDeleted = false) {
 
 export async function createNote(
   userId: string,
-  input: CreateNoteInput,
+  input: CreateNoteInput & { createdBy?: string | null },
   outer?: Tx,
 ): Promise<{ id: string; version: number }> {
   return inTransaction(outer, async (tx) => {
@@ -52,6 +52,7 @@ export async function createNote(
       .insert(notes)
       .values({
         userId,
+        createdByUserId: input.createdBy ?? null,
         // A new note goes to the top of the top level (boards, the tree).
         sortOrder: await orderAtTopOf(tx, userId, null),
         projectId: input.projectId ?? null,
@@ -96,7 +97,8 @@ async function conflictOrMissing(
  */
 export async function saveNoteContent(
   userId: string,
-  input: { id: string; contentJson: TiptapDoc; baseVersion: number },
+  // `updatedBy`: the person saving when that is not the owner; null when the owner saves.
+  input: { id: string; contentJson: TiptapDoc; baseVersion: number; updatedBy?: string | null },
 ): Promise<SaveResult> {
   return db.transaction(async (tx) => {
     const doc = await forNoteKind(tx, userId, input.id, input.contentJson);
@@ -106,6 +108,7 @@ export async function saveNoteContent(
       .set({
         contentJson: doc,
         contentText: text,
+        updatedByUserId: input.updatedBy ?? null,
         version: sql`${notes.version} + 1`,
       })
       .where(and(owned(userId, input.id), eq(notes.version, input.baseVersion)))
@@ -139,11 +142,15 @@ async function forNoteKind(
 
 export async function saveNoteTitle(
   userId: string,
-  input: { id: string; title: string; baseVersion: number },
+  input: { id: string; title: string; baseVersion: number; updatedBy?: string | null },
 ): Promise<SaveResult> {
   const [row] = await db
     .update(notes)
-    .set({ title: input.title, version: sql`${notes.version} + 1` })
+    .set({
+      title: input.title,
+      updatedByUserId: input.updatedBy ?? null,
+      version: sql`${notes.version} + 1`,
+    })
     .where(and(owned(userId, input.id), eq(notes.version, input.baseVersion)))
     .returning({ version: notes.version, updatedAt: notes.updatedAt });
   if (!row) return conflictOrMissing(db, userId, input.id);

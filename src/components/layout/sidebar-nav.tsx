@@ -38,10 +38,14 @@ const itemBase =
 export function SidebarNav({ onNavigate, collapsible = false, account }: Props) {
   const pathname = usePathname();
   const command = useCommandMenu();
-  const { counts, projects, aiEnabled, canvases } = useWorkspace();
+  const { counts, projects, aiEnabled, canvases, sharedCount, pendingInvitations } = useWorkspace();
   const { collapsed: collapsedState, toggle, toggled } = useSidebar();
   const collapsed = collapsible && collapsedState;
-  const countFor: Record<string, number> = { "/today": counts.today, "/inbox": counts.inbox };
+  const countFor: Record<string, number> = {
+    "/today": counts.today,
+    "/inbox": counts.inbox,
+    "/shared": pendingInvitations,
+  };
   const projectsSection = useSidebarSection("projects");
   const canvasesSection = useSidebarSection("canvases");
   const active = projects.filter((p) => p.status === "ACTIVE");
@@ -141,7 +145,11 @@ export function SidebarNav({ onNavigate, collapsible = false, account }: Props) 
           // The Assistant is only offered while AI is on (feature 11 §6).
           const group = {
             ...fullGroup,
-            items: fullGroup.items.filter((item) => aiEnabled || item.href !== "/assistant"),
+            items: fullGroup.items.filter(
+              (item) =>
+                (aiEnabled || item.href !== "/assistant") &&
+                (sharedCount > 0 || item.href !== "/shared"),
+            ),
           };
           return (
             <div key={group.label ?? "more"} className={cn(index > 0 && "mt-4")}>

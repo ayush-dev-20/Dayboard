@@ -62,6 +62,11 @@ export const notes = pgTable(
       .$onUpdate(() => new Date()),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    // Who made it, when that is not the owner (V3 feature 04): an editor of a shared project. Null means the owner. The
+    // row's `user_id` stays the owner, so the owner keeps everything if the editor leaves.
+    createdByUserId: uuid("created_by_user_id").references(() => user.id, { onDelete: "set null" }),
+    // The last person to save the text (V3 feature 04), for "last edited by". Null: the owner, or not yet saved by anyone else.
+    updatedByUserId: uuid("updated_by_user_id").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
     check("notes_title_length", sql`char_length(${t.title}) <= 300`),

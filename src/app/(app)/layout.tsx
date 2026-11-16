@@ -16,6 +16,7 @@ import { getPreferences } from "@/lib/preferences";
 import { safeNextPath } from "@/lib/redirects";
 import { SIDEBAR_COOKIE } from "@/components/layout/sidebar-state";
 import { requireUser } from "@/lib/session";
+import { listSharedByMe, listSharedWithMe } from "@/modules/sharing/service";
 import { voiceEnabledFor } from "@/lib/voice/availability";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -28,17 +29,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
-  const [projects, tags, counts, noteTree, canvases, journalEntries] = await Promise.all([
-    listProjectRefs(user.id),
-    listTags(user.id),
-    getNavCounts(user.id, {
-      timezone: preferences.timezone,
-      startOfDay: preferences.startOfDay.slice(0, 5),
-    }),
-    getNoteTree(user.id),
-    latestCanvases(user.id, 5),
-    listSidebarEntries(user.id),
-  ]);
+  const [projects, tags, counts, noteTree, canvases, journalEntries, shared, sharedByMe] =
+    await Promise.all([
+      listProjectRefs(user.id),
+      listTags(user.id),
+      getNavCounts(user.id, {
+        timezone: preferences.timezone,
+        startOfDay: preferences.startOfDay.slice(0, 5),
+      }),
+      getNoteTree(user.id),
+      latestCanvases(user.id, 5),
+      listSidebarEntries(user.id),
+      listSharedWithMe(user.id),
+      listSharedByMe(user.id),
+    ]);
 
   return (
     <WorkspaceProvider
@@ -54,6 +58,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         noteTree,
         canvases,
         journalEntries,
+        sharedCount: shared.items.length + shared.invitations.length + sharedByMe.length,
+        pendingInvitations: shared.invitations.length,
       }}
     >
       <PushHeartbeat />

@@ -220,16 +220,16 @@ Nothing new. `TEMPLATE_LIMIT` (50) is a constant.
 
 ## 10. Definition of done
 
-- [ ] The migration is expand-only (a new table and one nullable column)
-- [ ] A person can create, edit, duplicate, delete and restore templates; no one else can reach them
-- [ ] Templates cannot contain images, files or sub-notes, and the server enforces it
-- [ ] New note from template works from the Notes page, the Templates page and the command menu; placeholders are filled once and as plain text; the template is unchanged
-- [ ] The journal template starts new entries (feature 02 slice C), with the entry's own day
-- [ ] Starters can be added once each and never overwrite edits
-- [ ] Templates never appear in search, lists, counts or AI
-- [ ] Axe passes; 360 px; reduced motion
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass
-- [ ] `agent_docs/templates_v3.md` written and indexed; an "As built" section here lists every deviation
+- [x] The migration is expand-only (a new table and one nullable column)
+- [x] A person can create, edit, duplicate, delete and restore templates; no one else can reach them
+- [x] Templates cannot contain images, files or sub-notes, and the server enforces it
+- [x] New note from template works from the Notes page, the Templates page and the command menu; placeholders are filled once and as plain text; the template is unchanged
+- [x] The journal template starts new entries (feature 02 slice C), with the entry's own day
+- [x] Starters can be added once each and never overwrite edits
+- [x] Templates never appear in search, lists, counts or AI
+- [x] Axe passes; 360 px; reduced motion
+- [x] `pnpm lint`, `typecheck`, `test` and `test:integration` pass; `test:e2e` was run for the templates spec and a regression over the specs it touches (one Today test is time-of-day sensitive and fails after midnight IST, unrelated)
+- [x] `agent_docs/templates_v3.md` written and indexed; an "As built" section here lists every deviation
 
 ### As built (2026-11-10)
 

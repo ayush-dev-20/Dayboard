@@ -5,6 +5,7 @@
 **Date:** 2026-10-02
 
 ## What was built
+
 - **Quick capture and Inbox:** one command menu (`⌘/Ctrl+K`) for Search and Create, with capture always one keystroke away (`⌘/Ctrl+Enter` on typed text, or `C` for a plain capture box). The Inbox page lists open items and converts each to a task, todo, note, task + note, or project idea through one confirm dialog. Archive, delete (with Undo), and a "Recently converted" section with links to what was made.
 - **Today:** greeting, quick capture, a Focus card (chosen by hand, clears itself when done), Overdue, Today (+ "Scheduled later today"), Todos, Needs planning, Recently updated notes, and a collapsed Completed today. An empty day says so. The sidebar shows the Today and Inbox numbers. **Rebuilt in feature 07** (`ui-modernization_v1.md`): day-progress ring, focus hero with suggestions (`focus-hero.tsx`), the AI brief carrying "Help me clean up", a collapsible Overdue, and a right rail (Up next, Recently updated notes, Inbox, getting-started checklist).
 - **Search:** the command menu (results grouped by type, recent searches and items) and a `/search` page with type tabs and Status / Project / Tag / Due-updated filters, all in the URL. Archived items are labelled; Trash is never searched.
@@ -12,13 +13,16 @@
 - Tests: 280 unit, 124 integration, and the Playwright suite (desktop and phone), all run against a production build.
 
 ## Why
+
 These are the views that cut across every item type, so each is built on the owning feature's own queries and actions: Today reuses `TaskRow`/`TodoRow`/`NoteCard`, conversion calls the same `createTask`/`createNote`/`createTodo`/`createProject` inside one transaction, and Trash calls each feature's own `restore*` and `permanentlyDelete*`.
 
 ## What was deferred
+
 - **AI:** built in feature 05 (`ai-assistant_v1.md`): the Today suggestion slot, the inbox suggestion chip and the menu's Ask tab.
 - Inline editing of an inbox item's text: `updateInboxItem` exists and is tested but has no UI. Saved searches, `pg_trgm` indexes and automatic trash purge are out of scope (add the index only if search is slow).
 
 ## Related files
+
 - `src/db/schema/inbox.ts`, `drizzle/migrations/0003_inbox-and-focus.sql` (also adds the foreign key on `user_preferences.focus_task_id`).
 - `src/db/mutations/inbox.ts` (`convertInboxItem` is one transaction), `src/db/mutations/{today,trash}.ts`, `src/db/queries/{inbox,today,search,trash,nav-counts}.ts`, `src/actions/{inbox,today,trash}.ts`, `src/app/api/search/route.ts`.
 - `src/lib/search/` (escape, ranking, snippets, URL), `src/lib/inbox/convert.ts` (first-line / rest rules), `src/lib/today/buckets.ts`, `src/lib/trash.ts`.
@@ -27,6 +31,7 @@ These are the views that cut across every item type, so each is built on the own
 - Tests: `tests/unit/inbox-today-search.test.ts`, `tests/integration/inbox-today-search-trash.test.ts`, `e2e/{inbox,today,search,trash}.spec.ts`.
 
 ## Hand-off notes
+
 - **Capture never throws.** `saveToInbox` (components/command/capture.ts) turns a dropped connection into a failed result, so the text stays and Retry works. Use it for any new capture entry point; a bare `await captureInboxItem()` rejects when offline.
 - **Search is ILIKE** with `%`, `_` and `\` escaped, 2–200 characters, ranked exact title > prefix > contains > body, ties newest first. Snippets are cut in SQL and returned as `{ before, match, after }` text segments, rendered with `<mark>`, never HTML. A status filter means tasks only; a tag filter means tasks and notes. The menu calls `GET /api/search` (150 ms debounce; the next keystroke aborts the last request); the query is never logged.
 - **"Today" is the person's day:** it rolls over at their start-of-day, so a timed task whose time passed is Overdue, an untimed task due today is Today, a later time is "Scheduled later today".
@@ -42,5 +47,6 @@ These are the views that cut across every item type, so each is built on the own
 - **Notes open in a dialog on Today (2026-10-19, ADR 0028):** a note in "Recently updated notes" opens at `/today?note=id` in `ExpandableDialog` (`components/layout/expandable-dialog.tsx`, 80% of the screen from tablet width up, almost full on a phone) holding the real `NoteEditor`. Close returns to Today; Expand is a link to `/notes/id`. The editor knows it is in the dialog through `useExpandableDialog()`. `NoteCard` has an optional `href`. Other lists still open the note's page. Reuse the frame for any other peek.
 
 ## Not verified
+
 - Touch behaviour and the on-screen keyboard on a real phone (emulated only); Safari and Firefox.
 - The Dockerfile and Compose with the new migration: Docker is not installed on this machine.

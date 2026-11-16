@@ -1,4 +1,5 @@
-export type EmailTemplate = "verify-email" | "reset-password" | "magic-link" | "change-email";
+export type EmailTemplate =
+  "verify-email" | "reset-password" | "magic-link" | "change-email" | "share-invitation";
 
 export type EmailMessage = {
   template: EmailTemplate;

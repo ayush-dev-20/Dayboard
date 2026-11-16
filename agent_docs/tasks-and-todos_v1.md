@@ -5,22 +5,26 @@
 **Date:** 2026-10-01
 
 ## What was built
+
 - Tasks: status, priority, due and start date/time, one-level subtasks, repeat (daily, weekdays, weekly with days, every N weeks, monthly, yearly), rich-text description, emoji, keyboard and menu reordering, archive, trash with Undo. The list is grouped Overdue / Today / Upcoming / No date with a collapsed Completed section; filters live in the URL.
 - Todos: a separate light type (round checkbox, emoji, title, optional date). No subtasks, priority, tags or description.
 - The shared pieces other features reuse: `RichTextEditor` (Tiptap), `EmojiButton` (frimousse), `useAutosave`, `useOverride`, `CheckButton`, and the pure task logic in `src/lib/tasks/`.
 - Tests: 221 unit, 63 integration (real actions, real database), 92 Playwright (desktop and phone), all passing. A production build was made by the Playwright run.
 
 ## Why
+
 Tasks and todos are the daily-use core, so everything here has to be quick and safe: every mutation is one transaction scoped to the signed-in user, and recurrence, ordering and status rules are pure functions with their own tests.
 
 - **Since feature 07** (`ui-modernization_v1.md`): "red is rare" (overdue rows are red text with "Nd late"; only the oldest overdue item per section keeps the filled chip, via `oldestOverdueId()`), hover/focus quick actions for due date and priority (`task-quick-actions.tsx`), and row motion (`motion.li`, `AnimatePresence`, layout off past 100 rows).
 
 ## What was deferred
+
 - Project, tags and related notes on a task: done in feature 03 (`notes-projects-tags_v1.md`), which also added the `project_id` foreign key.
 - Trash screen, Inbox, Today content, search and Quick capture / Create: built in feature 04 (`inbox-today-search-trash_v1.md`). AI actions on a task: built in feature 05 (`ai-assistant_v1.md`).
 - Drag and drop (not wanted in V1), custom repeat rules, turning a todo into a task (V2).
 
 ## Related files
+
 - `src/db/mutations/tasks.ts`, `todos.ts`: all writes (transactions, owner id in every WHERE, `FOR UPDATE` on complete/undo). `src/db/queries/`: reads. `src/actions/`: thin Server Actions.
 - `src/lib/tasks/`: `status`, `recurrence`, `ordering`, `subtasks`, `grouping`, `params` (URL ↔ filters). `src/lib/dates/today.ts`: what "today" and "overdue" mean.
 - `src/lib/editor/`: `sanitizeDoc` (whitelist, size and depth caps) and `toPlainText` (the server-built projection). The client never sends text columns.
@@ -29,6 +33,7 @@ Tasks and todos are the daily-use core, so everything here has to be quick and s
 - `tests/integration/` (harness mocks only session, `next/cache`, headers, navigation), `e2e/tasks.spec.ts`, `todos.spec.ts`.
 
 ## Hand-off notes
+
 - **Completing does not revalidate.** The row must stay put during the 5-second Undo toast; the client calls `router.refresh()` when the toast closes. Same for todo toggles and description autosave. Don't "fix" this by adding `revalidatePath`.
 - **Recurrence:** completing a repeating task creates the next one in the same transaction, dated from the old due date, and sets the finished task's rule to NULL. Undo removes the next one only if it is unedited (`updated_at == created_at`).
 - **Dates are `YYYY-MM-DD` strings plus optional `HH:MM`**, not timestamps. "Today" rolls over at the person's `start_of_day`. All date math goes through `src/lib/dates/`.
@@ -45,5 +50,6 @@ Tasks and todos are the daily-use core, so everything here has to be quick and s
 - **Design vs spec:** the design shows the detail as a docked panel, spec 02 said "side sheet"; the design was followed (spec updated).
 
 ## Not verified
+
 - Touch behaviour on a real phone (only emulated), and Safari/Firefox (Chrome only).
 - `Dockerfile` / Compose with the new build step (`prebuild` copies emoji data): Docker is not installed here.

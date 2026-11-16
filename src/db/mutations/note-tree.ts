@@ -82,7 +82,8 @@ export async function loadSubtree(
 
 export const JOURNAL_DAY_TAKEN =
   "There is already an entry for that day. Open it, or delete it first.";
-const JOURNAL_STRUCTURE_MESSAGE = "A journal entry stays in the Journal. It can't hold sub-notes or be moved.";
+const JOURNAL_STRUCTURE_MESSAGE =
+  "A journal entry stays in the Journal. It can't hold sub-notes or be moved.";
 
 async function loadNoteRow(executor: Executor, userId: string, id: string) {
   const [row] = await executor
@@ -134,6 +135,8 @@ export type CreateSubNoteInput = {
   title?: string;
   emoji?: string | null;
   contentJson?: TiptapDoc;
+  /** Who made it when that is not the owner (an editor); null for the owner. */
+  createdBy?: string | null;
 };
 
 /**
@@ -165,6 +168,7 @@ export async function createSubNote(
       .insert(notes)
       .values({
         userId,
+        createdByUserId: input.createdBy ?? null,
         parentNoteId: parent.id,
         depth: parent.depth + 1,
         projectId: parent.projectId,

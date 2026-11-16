@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Plus, Search, X } from "lucide-react";
 import { ProjectDialog } from "@/components/projects/project-dialog";
+import { ConfirmDialog } from "@/components/layout/confirm-dialog";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { ProjectRef } from "@/lib/projects/dto";
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from "@/lib/projects/status";
@@ -58,9 +59,28 @@ export function ProjectPicker({
     .map((status) => ({ status, items: visible.filter((p) => p.status === status) }))
     .filter((g) => g.items.length > 0);
 
+  // Moving an item into or out of a shared project changes who can see it, so the person is asked first (V3 feature 04).
+  const [confirm, setConfirm] = useState<{ projectId: string | null; message: string } | null>(
+    null,
+  );
+
   function choose(projectId: string | null) {
     setOpen(false);
-    void onChange(projectId);
+    if (projectId === (value?.id ?? null)) return void onChange(projectId);
+    const target = projects.find((p) => p.id === projectId);
+    if (target?.shared) {
+      setConfirm({
+        projectId,
+        message: `People who can see “${target.name}” will be able to see this item.`,
+      });
+    } else if (value?.shared) {
+      setConfirm({
+        projectId,
+        message: `People who can see “${value.name}” will no longer be able to see this item.`,
+      });
+    } else {
+      void onChange(projectId);
+    }
   }
 
   return (
@@ -155,6 +175,21 @@ export function ProjectPicker({
           </div>
         </PopoverContent>
       </Popover>
+
+      <ConfirmDialog
+        open={confirm !== null}
+        onOpenChange={(next) => {
+          if (!next) setConfirm(null);
+        }}
+        title="Change who can see this?"
+        description={confirm?.message ?? ""}
+        confirmLabel="Move"
+        onConfirm={() => {
+          const next = confirm?.projectId ?? null;
+          setConfirm(null);
+          void onChange(next);
+        }}
+      />
 
       <ProjectDialog
         open={creating}
