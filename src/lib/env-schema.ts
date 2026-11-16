@@ -100,6 +100,18 @@ const rawSchema = z.object({
     z.enum(["true", "false"]).default("false"),
   ),
   STORAGE_DISK_DIR: optionalString,
+  // Real-time collaboration (V3 feature 05). COLLAB_URL is the public WebSocket address of the collaboration service;
+  // unset, the feature is off and shared notes use the ordinary save-and-conflict flow. The two secrets are shared by
+  // the app and the service (32+ characters). COLLAB_INTERNAL_URL is where the app reaches the service's internal
+  // endpoint (default http://127.0.0.1:COLLAB_PORT).
+  COLLAB_URL: optionalString,
+  COLLAB_TOKEN_SECRET: optionalString,
+  COLLAB_INTERNAL_SECRET: optionalString,
+  COLLAB_INTERNAL_URL: optionalString,
+  COLLAB_PORT: z.preprocess(
+    blankToUndefined,
+    z.coerce.number().int().min(1).max(65535).default(1234),
+  ),
   // Sharing (V3 feature 04): off until the owner turns it on. Off, every person reaches only their own rows.
   SHARING_ENABLED: z.preprocess(blankToUndefined, z.enum(["true", "false"]).default("false")),
   STORAGE_QUOTA_MB: z.preprocess(blankToUndefined, z.coerce.number().int().min(1).default(500)),
@@ -196,6 +208,15 @@ export function parseEnv(
     if (!queueNames.includes(name)) problems.push(`WORKER_QUEUES: unknown queue "${name}"`);
   }
 
+  if (v.COLLAB_URL) {
+    if (!/^wss?:\/\//.test(v.COLLAB_URL))
+      problems.push("COLLAB_URL: must start with ws:// or wss://");
+    if (!v.COLLAB_TOKEN_SECRET || v.COLLAB_TOKEN_SECRET.length < 32)
+      problems.push("COLLAB_TOKEN_SECRET: required (32+ characters) when COLLAB_URL is set");
+    if (!v.COLLAB_INTERNAL_SECRET || v.COLLAB_INTERNAL_SECRET.length < 32)
+      problems.push("COLLAB_INTERNAL_SECRET: required (32+ characters) when COLLAB_URL is set");
+  }
+
   // Calendar: the key must be 32 bytes of base64, and a real provider needs every Google value.
   const decodesTo32 = (value: string | undefined) =>
     value === undefined || Buffer.from(value, "base64").length === 32;
@@ -285,6 +306,11 @@ export function parseEnv(
     storageAvailable: storageDriver !== null,
     storageForcePathStyle: v.STORAGE_FORCE_PATH_STYLE === "true",
     sharingEnabled: v.SHARING_ENABLED === "true",
+    // Live editing needs sharing, a URL and both secrets.
+    collabEnabled:
+      v.SHARING_ENABLED === "true" &&
+      Boolean(v.COLLAB_URL && v.COLLAB_TOKEN_SECRET && v.COLLAB_INTERNAL_SECRET),
+    collabInternalUrl: v.COLLAB_INTERNAL_URL ?? `http://127.0.0.1:${v.COLLAB_PORT}`,
     storageQuotaBytes: v.STORAGE_QUOTA_MB * 1024 * 1024,
     storageTotalLimitBytes: v.STORAGE_TOTAL_LIMIT_MB * 1024 * 1024,
     googleEnabled: Boolean(v.GOOGLE_CLIENT_ID && v.GOOGLE_CLIENT_SECRET),

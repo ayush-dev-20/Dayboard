@@ -38,7 +38,7 @@ type Found = {
   noteId: string | null;
 };
 
-async function ancestorsOf(executor: Executor, noteId: string): Promise<string[]> {
+export async function ancestorsOf(executor: Executor, noteId: string): Promise<string[]> {
   const rows = (await executor.execute(sql`
     with recursive up(id, parent_id) as (
       select id, parent_note_id from notes where id = ${noteId}

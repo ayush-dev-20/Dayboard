@@ -92,5 +92,40 @@ services:
     # Longer than the worker's 30 second drain, so a stop finishes running jobs instead of killing them.
     stop_grace_period: 40s
 
+  # Real-time collaboration (V3 feature 05, docs/decisions/0019): the same image, a WebSocket service on port 1234.
+  # Without Docker: `pnpm collab` runs it natively next to `pnpm dev` (with COLLAB_URL, COLLAB_TOKEN_SECRET and
+  # COLLAB_INTERNAL_SECRET in .env.local, and SHARING_ENABLED=true). To use it in the full profile, set the same three
+  # COLLAB_* values on `web` too, with COLLAB_URL=ws://localhost:1234 and COLLAB_INTERNAL_URL=http://collab:1234.
+  collab:
+    profiles: ["full"]
+    build:
+      context: .
+      args:
+        APP_VERSION: local
+    command: ["node", "collab.mjs"]
+    ports:
+      - "127.0.0.1:1234:1234"
+    environment:
+      DATABASE_URL: postgres://dayboard:dayboard@db:5432/dayboard
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET (openssl rand -base64 32)}
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SHARING_ENABLED: "true"
+      COLLAB_URL: ws://localhost:1234
+      COLLAB_PORT: "1234"
+      COLLAB_TOKEN_SECRET: ${COLLAB_TOKEN_SECRET:-dev-only-collab-token-secret-0123456789abcdef}
+      COLLAB_INTERNAL_SECRET: ${COLLAB_INTERNAL_SECRET:-dev-only-collab-internal-secret-0123456789ab}
+      E2E: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:1234/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 15s
+
 volumes:
   dayboard-db-dev:

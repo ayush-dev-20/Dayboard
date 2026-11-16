@@ -36,6 +36,8 @@ export const ACCESS_CLASSES: Record<string, AccessClass> = {
   "src/db/mutations/notes.ts:createNote": "owner",
   "src/db/mutations/notes.ts:saveNoteContent": "owner",
   "src/db/mutations/notes.ts:saveNoteTitle": "owner",
+  // The collaboration service projects a live note for its owner (feature 05); access was checked at connect.
+  "src/db/mutations/notes.ts:projectNoteFromLive": "owner",
   "src/db/mutations/notes.ts:updateNoteEmoji": "owner",
   "src/db/mutations/notes.ts:reorderNote": "owner",
   // src/db/mutations/projects.ts

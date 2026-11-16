@@ -23,7 +23,7 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm build && pnpm build:migrate && pnpm build:worker
+RUN pnpm build && pnpm build:migrate && pnpm build:worker && pnpm build:collab
 
 FROM node:${NODE_VERSION}-alpine AS runtime
 ARG APP_VERSION=dev
@@ -43,6 +43,8 @@ COPY --from=builder --chown=app:app /app/public ./public
 COPY --from=builder --chown=app:app /app/dist/migrate.mjs ./migrate.mjs
 # The background worker (V2 feature 08): the same image, run as `node worker.mjs` (see docker-compose.yml).
 COPY --from=builder --chown=app:app /app/dist/worker.mjs ./worker.mjs
+# The collaboration service (V3 feature 05): `node collab.mjs`, port 1234, health at /health.
+COPY --from=builder --chown=app:app /app/dist/collab.mjs ./collab.mjs
 COPY --from=builder --chown=app:app /app/drizzle/migrations ./drizzle/migrations
 
 USER app

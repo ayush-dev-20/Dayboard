@@ -58,6 +58,7 @@ const GAPS = new Set([
   "notes.ts:createNote",
   "notes.ts:saveNoteContent",
   "notes.ts:saveNoteTitle",
+  "notes.ts:projectNoteFromLive",
   "notes.ts:updateNoteEmoji",
   "notes.ts:linkTaskNote",
   "notes.ts:unlinkTaskNote",

@@ -1066,3 +1066,14 @@ export async function journalTemplateOf(userId: string) {
 export async function saveTemplateElsewhere(templateId: string, text: string) {
   await sql`update templates set version = version + 1, content_text = ${text} where id = ${templateId}`;
 }
+
+/** A grant on a project (V3 feature 04), made directly so a test need not go through the invitation flow. */
+export async function grantProject(
+  projectId: string,
+  ownerId: string,
+  granteeId: string,
+  role: "EDITOR" | "COMMENTER" | "VIEWER",
+) {
+  await sql`insert into resource_grants (id, resource_type, resource_id, owner_id, grantee_id, role)
+    values (gen_random_uuid(), 'PROJECT', ${projectId}, ${ownerId}, ${granteeId}, ${role})`;
+}

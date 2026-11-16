@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { pruneSnapshots } from "@/db/mutations/note-snapshots";
 import { pruneJobs, pruneSync } from "./maintenance";
 import { findHandler, registerHandler } from "./registry";
 import { ensureEmbeddingHandlers } from "@/lib/search/semantic/handlers";
@@ -57,6 +58,18 @@ export function ensureBuiltinHandlers(): void {
         const removed = await pruneSync();
         ctx.log("pruned sync log", removed);
         logger.info("sync log pruned", removed);
+      },
+    });
+  }
+  if (!findHandler("maintenance.prune_note_snapshots")) {
+    registerHandler({
+      type: "maintenance.prune_note_snapshots",
+      queue: "default",
+      schema: z.object({}).strict(),
+      run: async (ctx) => {
+        // Real-time collaboration (V3 feature 05): keep the newest snapshots of each note.
+        const removed = await pruneSnapshots();
+        ctx.log("pruned note snapshots", { removed });
       },
     });
   }

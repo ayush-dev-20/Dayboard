@@ -32,6 +32,8 @@ export type ExtensionOptions = {
   getContext?: () => EditorContextValue;
   /** Told when an edit is refused because it would break a limit. */
   onLimit?: LimitHandler;
+  /** Live editing (V3 feature 05): the shared document keeps the history, so the built-in undo is off. */
+  collab?: boolean;
 };
 
 /**
@@ -42,6 +44,7 @@ export function createExtensions(placeholder = "", options: ExtensionOptions = {
   const interactive = options.interactive ?? false;
   return [
     StarterKit.configure({
+      ...(options.collab ? { undoRedo: false as const } : {}),
       // Our own root node adds the structural blocks (callout, toggle, table, contents).
       document: false,
       heading: { levels: [1, 2, 3] },

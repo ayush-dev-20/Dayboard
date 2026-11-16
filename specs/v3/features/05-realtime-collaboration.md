@@ -2,6 +2,40 @@
 
 > **Build position: fifth V3 feature** (V3 plan phase 3). Depends on feature 04 (who may edit). Behaviour is in V3 product spec §8. Where this doc is more detailed, this doc wins for this feature.
 
+## 0. Reality check (2026-11-16)
+
+Checked against the code and `agent_docs/` (notes, editor blocks, nested notes, files, sync and offline, background worker, PWA, permissions and sharing) before building. Every "Action" is the builder's proposal and can be vetoed; rows marked **(decision)** want the owner's yes before slice A.
+
+| Spec says | What the project has | Action |
+|---|---|---|
+| "A separate collaboration service ... own container ... Caddy proxies `/collab` ... Compose service `collab`" | The deployed app is **Vercel + Neon** (no long-lived process). The repo has `Dockerfile` and a dev `docker-compose.yml` only: **no `docker-compose.prod.yml`, no Caddyfile** (the V1 production feature that adds them is not in the repo). Docker is not installed on the owner's Mac | **(decision)** Build the service as a second bundled entry of the same image (precedent: `build:migrate`, `build:worker`, `src/worker/index.ts`, ADR 0009), add a `collab` service to the dev and full-profile Compose, and run it in development with `pnpm collab`. **Live editing cannot work on the current Vercel + Neon deployment**; there `COLLAB_URL` stays unset and shared notes use the ordinary save-and-conflict flow (§2 fallback, already the spec's design). Picking a host that runs Node continuously is the owner's call and needs no code change |
+| "`useAutosave` is off in live mode" | Notes do **not** use `useAutosave`. They use `useNoteSync` (`src/components/notes/use-note-sync.ts`, 346 lines) with a version check, conflict outcome, device draft (`lib/notes/draft.ts`) and the `save-state.ts` state machine (agent_docs: notes-projects-tags_v1) | Live mode replaces `useNoteSync` for that note: a second hook `useLiveNote` with its own status ("Live", "Reconnecting…"). The ordinary path is untouched |
+| "History/undo extension off" | `createExtensions` uses `StarterKit.configure(...)` with undo/redo on (`src/components/editor/extensions.ts`) | `RichTextEditor` gets `collab`; with it, `StarterKit` `undoRedo: false` and the Collaboration extension's undo is used. The toolbar's Undo/Redo buttons must call the collaboration commands |
+| Packages "`@tiptap/extension-collaboration` ... align them before installing" | `@tiptap/*` is pinned at **3.31.4**; `@tiptap/extension-collaboration@3.31.4` and `-caret@3.31.4` exist (peer: `@tiptap/y-tiptap ^3.0.7`, `yjs ^13`). Latest Hocuspocus is **4.8.0** (spec says 4.7), `yjs` 13.6.33, `y-protocols` 1.0.7 | Install the 3.31.4 extensions, `@tiptap/y-tiptap` 3.x, `yjs`, `y-protocols`, `@hocuspocus/server` and `@hocuspocus/provider` 4.8.0, exact versions pinned. **ADR 0019 first** (the spec names it; the folder skips 0019 to 0025, so 0019 is free) |
+| "The service shares `src/db` and `src/modules/permissions`" | `src/modules/permissions/access.ts` starts with `import "server-only"`; the worker already bundles with `--conditions=react-server` so server-only modules load outside Next | Same esbuild flags for `build:collab`. `resolveAccess` is reused as is for the connect check and the 60-second re-check |
+| "Projector writes `content_json`, `content_text`, `version + 1`, `updated_by_user_id` in one statement" | Saving a note is `saveNoteContent` (`db/mutations/notes.ts`): it also runs `forNoteKind`, `projectDoc` (text **and** linked-note titles) and `syncNoteLinks` (derived `note_links`, rebuilt in the same transaction, agent_docs: nested notes) | The projector **calls the same pieces** (a new `projectNoteFromLive(ownerId, noteId, doc, updatedBy)` next to `saveNoteContent`, no version check), so links, "Linked from" and search stay correct. A one-statement update would silently break backlinks |
+| "In live mode `saveNoteTitle` and `updateNoteMeta` are refused for title and emoji" | Both actions exist (`actions/notes.ts`, `saveNoteContent` too) | Refuse **all three** while a `note_collab_docs` row exists (`CONFLICT` with a plain message; the editor reloads into live mode). Content must be refused too, or an old tab's ordinary save would overwrite the shared document at the next projection |
+| "A note is live only while it has at least one grantee who can edit it" | Feature 04 has `resolveAccess` (person → role) but no reverse question "who may edit this note" | Add `noteEditors(noteId)` in `src/modules/permissions`: grants of role EDITOR on the note, a note above it, or its project; excludes Trash and journal entries. Used by the note page (`collab: { enabled, url }`) and by the service for the "last editor removed" rule |
+| "Actions with side effects run only on the originating client" (`makeSubNote`, `fileDrop`) | `makeSubNote` (`blocks/note-create.ts`) calls `createSubNote` from the slash command and "New sub-note" only; the node view (`note-link-views.tsx`) has no create-on-mount effect. File upload placeholders are local node views (`file-views.tsx`, `file-insert.ts`) | Verified by reading; add a test (a remote update inserting a sub-note block creates no second note). Placeholders need a check that an unfinished upload node is never sent as a shared node |
+| "Custom nodes ... attributes are JSON-serialisable (callout, toggle, tableOfContents, noteLink, subNote, image, file, bookmark, tables)" | All of those exist; toggle open state is per device in `localStorage` (not in the document), list markers are display only (editor-blocks hand-off) | Unit test over every node type: Yjs round trip equals `sanitizeDoc` output. Nothing to change for toggles |
+| "Revoke calls the service's internal endpoint" | Feature 04's `removeShare`, `changeShareRole`, `revokeAllShares`, `leaveShare` and a note leaving a shared project (move) change access | Add one `dropCollabConnections(noteIds, userId?)` call (no-op when `COLLAB_URL` is unset) after each of those, plus the move path. The 60-second re-check is the backstop |
+| "Search, lists, exports, AI keep working" | `content_text` feeds keyword search; semantic search and the assistant use a scan (ADR 0011), the sync engine does not cover notes yet (V2 feature 04/05 slices for notes are not built) | Projection keeps `content_text` fresh within 2 to 10 s. No sync work: offline note editing does not exist yet, so there is nothing to reconcile with |
+| "Session with `requireUser()` on the token route" | Route handlers exist with `requireUser()`; `BETTER_AUTH_SECRET`-style secrets are in `env-schema.ts`; no rate limiting module for a new route | `POST /api/collab/token` with `requireAccess(..., "read")` (role edit only if `update` allowed); env `COLLAB_URL`, `COLLAB_TOKEN_SECRET`, `COLLAB_INTERNAL_SECRET`, `COLLAB_PORT` in `env-schema.ts` and `.env.example`; a production check that the secrets are set when `COLLAB_URL` is |
+| "Names and avatars, colour from user id" | `UserAvatar` (`components/ui/user-avatar.tsx`) exists; `user.name` and `image` are in the session | Reuse `UserAvatar` for the header row; the cursor colour is a small pure function (unit tested) |
+| "E2E: kill the service and bring it back" | Playwright has one `webServer` (`playwright.config.ts`) | Make it an array: the app and `pnpm collab` on a second port, with the app started with `COLLAB_URL`. A second app config without it covers the fallback test |
+| "Bundle" | `scripts/check-client-bundle.mjs` budgets client JS; Yjs and the provider add weight | Load the provider, Yjs and the Collaboration extensions with a dynamic import **only when `collab.enabled`**, so ordinary notes pay nothing; run `check:bundle` |
+| Snapshots, `note_snapshots`, a daily prune | The job system has `maintenance.*` handlers and a prune convention (background worker hand-off) | Add `maintenance.prune_note_snapshots` as a handler (it runs in tick mode too) |
+| "Journal entries and templates are private; canvases need their own decision" | Journal entries are `notes` rows with `journal_date`; feature 04's `resolveAccess` already makes them unreachable by any grant | A journal entry is never live (it has no editors). Test it |
+| Account deletion, scaling | Feature 12 and 13 are not built | `note_collab_docs` and `note_snapshots` cascade from `notes`, which cascade from the owner: deletion works. One instance only (as the spec says) |
+
+**What already exists that we reuse (do NOT rebuild):** `RichTextEditor` and `createExtensions` (`components/editor/`), `sanitizeDoc` (`lib/editor/schema.ts`), `projectDoc` and `syncNoteLinks` (`db/mutations/note-links.ts`), `saveNoteContent`/`forNoteKind` (`db/mutations/notes.ts`), `resolveAccess` / `requireAccess` / `ownerFor` (`modules/permissions`), the note DTO and page (`app/(app)/notes/[id]`, `NoteEditor`), `lib/notes/draft.ts`, `UserAvatar`, `audit_log` (feature 04 added `SHARING`), the job handlers for pruning, the `build:worker` bundling recipe, `createWorker`'s signal handling as the model for the service's shutdown. **Dormant seam:** `notes.updated_by_user_id` (feature 04) is written by nothing but note saves; the projector is its second writer. `NoteDTO.breadcrumb` and the sidebar tree must keep working while a note is live (they read `notes`, which the projector keeps current).
+
+**No existing collaboration code** (`grep -ri "yjs|hocuspocus|collab"` in `src`, `package.json`, `docs/decisions` finds nothing): everything here is new.
+
+**Order of work (proposed), unchanged from §1:** A (ADR 0019, packages, service skeleton, token route, seeding, projection, editor with the extension, no presence), B (presence, read-only connections, revoke, title and emoji in the document), C (snapshots, reconnect hardening, limits, fallback, deployment files). Each slice leaves the app runnable with `COLLAB_URL` unset.
+
+---
+
 ## 1. Scope
 
 - **Live co-editing of a note's body** by everyone who may edit it, with each person's cursor and selection shown by name, and a small presence indicator.
@@ -162,17 +196,17 @@ They live in the shared document (a `Y.Map("meta")`), so everyone sees a rename 
 
 ## 11. Definition of done
 
-- [ ] ADR 0019 written before building: Yjs with Tiptap, Hocuspocus as the service, seeding and projection, the fallback, the hosting limit
-- [ ] A shared note is edited by two or more people at once with names and cursors; a viewer sees it read-only
-- [ ] The note's ordinary columns stay correct: search, lists, exports, AI and non-live readers see the same content within a few seconds
-- [ ] Reconnect never duplicates or loses edits; a test proves idempotence
-- [ ] Revocation disconnects live sessions; tokens are short-lived and single-purpose
-- [ ] Snapshots exist and are pruned; a note returns cleanly to ordinary editing
-- [ ] Without the service, sharing still works through ordinary saves
-- [ ] No content in logs; correlation id on every collaboration session
-- [ ] Axe passes; announcements are polite and rare; reduced motion
-- [ ] `pnpm lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `build` pass; the Compose stack starts with the new service
-- [ ] `agent_docs/realtime-collaboration_v3.md` written and indexed; an "As built" section here lists every deviation
+- [x] ADR 0019 written before building: Yjs with Tiptap, Hocuspocus as the service, seeding and projection, the fallback, the hosting limit
+- [x] A shared note is edited by two or more people at once with names and cursors; a viewer sees it read-only
+- [x] The note's ordinary columns stay correct: search, lists, exports, AI and non-live readers see the same content within a few seconds
+- [x] Reconnect never duplicates or loses edits; a test proves idempotence
+- [x] Revocation disconnects live sessions; tokens are short-lived and single-purpose
+- [x] Snapshots exist and are pruned; a note returns cleanly to ordinary editing
+- [x] Without the service, sharing still works through ordinary saves
+- [x] No content in logs; correlation id on every collaboration session
+- [~] Announcements are polite and rare and reduced motion removes the tag fade; Axe on the presence row is not run
+- [~] `lint`, `typecheck`, `test`, `test:integration` and `build` pass and `e2e/collab.spec.ts` passes (the full `test:e2e` suite was not re-run); the Compose stack was not started (Docker is not installed), `pnpm collab` and the bundled `dist/collab.mjs` were
+- [x] `agent_docs/realtime-collaboration_v3.md` written and indexed; an "As built" section here lists every deviation
 
 ---
 
@@ -184,3 +218,17 @@ They live in the shared document (a `Y.Map("meta")`), so everyone sees a rename 
 - Voice, video or chat; follow-the-cursor; suggestion or review mode.
 - Collaboration on journal entries and templates (they are private); on canvases (needs its own decision).
 - Horizontal scaling of the service (feature 13).
+
+---
+
+## 13. As built (deviations from this document)
+
+- **Hosting:** the service is built and works, but live editing needs a host that runs Node continuously. The current Vercel and Neon deployment cannot, so `COLLAB_URL` stays unset there and shared notes use ordinary saves (§2 fallback). Choosing a host is open.
+- **`useNoteSync`, not `useAutosave`:** notes use `useNoteSync`; a live note swaps it for a live stand-in (`useLiveNote`), so every other part of the note page is unchanged.
+- **Projection** reuses `saveNoteContent`'s pieces through `projectNoteFromLive` (text, linked titles, `note_links`) instead of one raw statement.
+- **Ordinary saves are refused for content too** (not only title and emoji) while a live document exists and someone can edit; a stale row (nobody can edit, or the service is off) is deleted by the next ordinary save.
+- **Packages:** Hocuspocus 4.8.0 (the spec says 4.7), the Tiptap extensions 3.31.4 to match the editor, `@tiptap/core` 3.31.4 added as a direct dependency (the extensions need it).
+- **The service bundle** has no `react-server` condition (the editor schema needs real React); `server-only` and the browser's action stubs are replaced in `scripts/build-collab.mjs`.
+- **Token role:** `read` also for commenters (comments are feature 06).
+- **Fallback on first load:** if the service does not sync in 8 seconds the note falls back to ordinary saves.
+- **Not built:** the 100 KB offline buffer limit, "Recover unsent changes", "Last edited by", metrics, the Caddy route (no Caddyfile in the repo), a message for the 2 MB limit, and three of the six E2E cases (service restart, `COLLAB_URL` unset, Axe on presence). The Compose service was written but not started.

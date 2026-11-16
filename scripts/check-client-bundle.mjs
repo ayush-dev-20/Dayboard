@@ -16,6 +16,15 @@ const patterns = [
   },
   { name: "an sk- style API key", test: (text) => /\bsk-[A-Za-z0-9_-]{20,}/.test(text) },
   { name: "an Anthropic key", test: (text) => /\bsk-ant-[A-Za-z0-9_-]{10,}/.test(text) },
+  // Real-time collaboration (V3 feature 05): the signing and internal secrets stay on the server.
+  {
+    name: "the COLLAB_TOKEN_SECRET variable name",
+    test: (text) => text.includes("COLLAB_TOKEN_SECRET"),
+  },
+  {
+    name: "the COLLAB_INTERNAL_SECRET variable name",
+    test: (text) => text.includes("COLLAB_INTERNAL_SECRET"),
+  },
   // Files (feature 09): the bucket credentials never reach the browser, nor does the S3 client.
   {
     name: "the STORAGE_SECRET_ACCESS_KEY variable name",

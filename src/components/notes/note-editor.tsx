@@ -96,7 +96,9 @@ import { emitNoteEvent, onNoteEvent } from "./note-events";
 import { SubNotesSection } from "./sub-notes-section";
 import { clientNoteRefs } from "./note-refs";
 import { SummaryPanel } from "./note-ai";
-import { useNoteSync } from "./use-note-sync";
+import { LivePresence } from "./live-presence";
+import { useLiveNote } from "./use-live-note";
+import { useNoteSync, type NoteSync } from "./use-note-sync";
 
 type Props = {
   /** The saved note, or null for `/notes/new` (nothing exists until the first keystroke). */
@@ -113,6 +115,8 @@ type Props = {
   journal?: { date: string; done: DoneOnDay; timeZone: string; startDoc?: TiptapDoc | null };
   /** Present when sharing is on: the person's role on this note and who owns it (V3 feature 04). */
   access?: ShareAccess;
+  /** Live editing (V3 feature 05): the server says this note can be edited together, and who is looking. */
+  collab?: { enabled: boolean; user: { id: string; name: string } };
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -166,7 +170,7 @@ function saveStatus(state: NoteSaveState): SaveStatus {
  * The full-page note editor, for new and existing notes alike. A new note is created on the first
  * change, then the address bar is updated without remounting, so the cursor never moves.
  */
-export function NoteEditor({ note, start, backlinks = [], journal, access }: Props) {
+export function NoteEditor({ note, start, backlinks = [], journal, access, collab }: Props) {
   const isOwner = !access || access.role === "OWNER";
   // A viewer or commenter reads; an editor writes the text but does not run the note (move, tags, share).
   const readOnly = Boolean(access) && (access!.role === "VIEWER" || access!.role === "COMMENTER");
@@ -211,7 +215,7 @@ export function NoteEditor({ note, start, backlinks = [], journal, access }: Pro
   const [extractOpen, setExtractOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
 
-  const sync = useNoteSync({
+  const ordinary = useNoteSync({
     initial: note
       ? { id: note.id, version: note.version, title: note.title, doc: note.contentJson }
       : null,
@@ -252,8 +256,60 @@ export function NoteEditor({ note, start, backlinks = [], journal, access }: Pro
       });
     },
   });
+  // Live editing (V3 feature 05): while the note is live the shared document is the truth, title and emoji included,
+  // and the ordinary save path stays idle. `sync` is whichever applies; every caller below uses it unchanged.
+  const live = useLiveNote({
+    noteId: note?.id ?? null,
+    enabled: Boolean(collab?.enabled && note),
+    user: collab?.user ?? { id: "", name: "" },
+  });
+  const held = live.checking || live.phase !== "off";
+  const noEdit = readOnly || (held && (live.role === "read" || live.phase === "denied"));
+  const liveMeta = live.meta;
+  const liveSync = useMemo<NoteSync>(
+    () => ({
+      state: { phase: "idle" },
+      noteId: note?.id ?? null,
+      onDocChange: () => {},
+      onTitleChange: (next) => liveMeta?.set("title", next),
+      onEmojiChange: (next) => liveMeta?.set("emoji", next),
+      flush: async () => {},
+      loadLatest: async () => null,
+      keepMine: () => {},
+      ensureCreated: async () => note?.id ?? null,
+    }),
+    [liveMeta, note?.id],
+  );
+  const sync = held ? liveSync : ordinary;
   const noteId = sync.noteId;
   const ensureOwner = sync.ensureCreated;
+
+  // While the connection is down, edits wait in memory: closing the tab would lose them, so the browser asks first.
+  const unsent = live.phase === "reconnecting";
+  useEffect(() => {
+    if (!unsent) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsent]);
+
+  // A rename or a new emoji from another person arrives through the shared document.
+  useEffect(() => {
+    if (!liveMeta) return;
+    const apply = () => {
+      const t = liveMeta.get("title");
+      const e = liveMeta.get("emoji");
+      if (typeof t === "string") {
+        setTitle(t);
+        liveTitle.current = t;
+        if (note) emitNoteEvent({ type: "title", id: note.id, title: t });
+      }
+      setEmoji(typeof e === "string" ? e : null);
+      liveEmoji.current = typeof e === "string" ? e : null;
+    };
+    liveMeta.observe(apply);
+    return () => liveMeta.unobserve(apply);
+  }, [liveMeta, note]);
 
   // Sub-notes made, renamed, moved, archived or trashed (here or in another tab) keep the list at
   // the end of the note current.
@@ -434,7 +490,9 @@ export function NoteEditor({ note, start, backlinks = [], journal, access }: Pro
     setEmoji(next);
     liveEmoji.current = next;
     sync.onEmojiChange(next);
-    if (noteId) {
+    // Live: the emoji goes through the shared document (`onEmojiChange` above), not an ordinary save.
+    if (noteId && held) emitNoteEvent({ type: "emoji", id: noteId, emoji: next });
+    else if (noteId) {
       const result = await updateNoteMeta({ id: noteId, emoji: next });
       if (!result.ok) toast.error("Couldn't change the emoji. Try again.");
       else emitNoteEvent({ type: "emoji", id: noteId, emoji: next });
@@ -601,7 +659,7 @@ export function NoteEditor({ note, start, backlinks = [], journal, access }: Pro
         placeholder="Untitled"
         aria-label="Note title"
         maxLength={300}
-        readOnly={readOnly}
+        readOnly={noEdit}
         // A new note, or a note just made and still blank (a sub-note), opens ready for its title.
         autoFocus={
           (!note && !start?.ai) || (Boolean(note) && !note?.title && isEmptyDoc(note!.contentJson))
@@ -681,7 +739,7 @@ export function NoteEditor({ note, start, backlinks = [], journal, access }: Pro
         <span className="flex-1 md:hidden" />
         {dialog || journal ? null : <NotesTreeSheet />}
 
-        <SaveState status={saveStatus(sync.state)} />
+        {held ? <LivePresence live={live} /> : <SaveState status={saveStatus(sync.state)} />}
         <LinkedTasks noteId={noteId} tasks={tasks} onChange={setTasks} />
 
         {isOwner && access?.shareable && note ? (
@@ -937,50 +995,63 @@ export function NoteEditor({ note, start, backlinks = [], journal, access }: Pro
         </Banner>
       ) : null}
 
-      <RichTextEditor
-        key={seed.key}
-        initialContent={seed.doc}
-        variant="document"
-        writingHelp={aiEnabled}
-        surface="note"
-        subNotes={!journal}
-        ownerId={noteId}
-        ensureOwner={ensureOwner}
-        label="Note content"
-        readOnly={readOnly}
-        placeholder={
-          journal
-            ? "Write about your day. The entry is created when you type."
-            : "Start writing. The note is created when you type."
-        }
-        onChange={(doc) => {
-          liveDoc.current = doc;
-          setHasText(!isEmptyDoc(doc));
-          setPlacedKey(collectNoteRefs(doc).blocks.join(","));
-          sync.onDocChange(doc);
-        }}
-        onEditorReady={(editor) => {
-          editorRef.current = editor;
-        }}
-        onEditorDestroy={() => {
-          editorRef.current = null;
-        }}
-        onBlur={() => void sync.flush()}
-        beforeContent={
-          <>
-            {titleField}
-            {access && (access.role !== "OWNER" || access.sharedWithOthers) ? (
-              <SharedBadge access={access} className="-mt-2 mb-4" />
-            ) : null}
-            {journal && title.trim() !== journalTitle(journal.date) ? (
-              <p className="-mt-2 mb-4 type-body-md text-muted-foreground">
-                {journalTitle(journal.date)}
-              </p>
-            ) : null}
-            {noteId ? <BacklinksPanel noteId={noteId} initial={backlinks} /> : null}
-          </>
-        }
-      />
+      {live.checking || live.phase === "connecting" ? (
+        <div
+          role="status"
+          aria-busy="true"
+          aria-label="Opening the shared note"
+          className="animate-pulse"
+        >
+          <div className="mb-4 h-10 w-2/3 rounded-md bg-secondary" />
+          <div className="h-24 rounded-md bg-secondary" />
+        </div>
+      ) : (
+        <RichTextEditor
+          key={held ? "live" : seed.key}
+          initialContent={held ? null : seed.doc}
+          collab={held && live.extensions ? { extensions: live.extensions } : undefined}
+          variant="document"
+          writingHelp={aiEnabled}
+          surface="note"
+          subNotes={!journal}
+          ownerId={noteId}
+          ensureOwner={ensureOwner}
+          label="Note content"
+          readOnly={noEdit}
+          placeholder={
+            journal
+              ? "Write about your day. The entry is created when you type."
+              : "Start writing. The note is created when you type."
+          }
+          onChange={(doc) => {
+            liveDoc.current = doc;
+            setHasText(!isEmptyDoc(doc));
+            setPlacedKey(collectNoteRefs(doc).blocks.join(","));
+            sync.onDocChange(doc);
+          }}
+          onEditorReady={(editor) => {
+            editorRef.current = editor;
+          }}
+          onEditorDestroy={() => {
+            editorRef.current = null;
+          }}
+          onBlur={() => void sync.flush()}
+          beforeContent={
+            <>
+              {titleField}
+              {access && (access.role !== "OWNER" || access.sharedWithOthers) ? (
+                <SharedBadge access={access} className="-mt-2 mb-4" />
+              ) : null}
+              {journal && title.trim() !== journalTitle(journal.date) ? (
+                <p className="-mt-2 mb-4 type-body-md text-muted-foreground">
+                  {journalTitle(journal.date)}
+                </p>
+              ) : null}
+              {noteId ? <BacklinksPanel noteId={noteId} initial={backlinks} /> : null}
+            </>
+          }
+        />
+      )}
 
       {journal ? (
         <DoneOnThisDay done={journal.done} timeZone={journal.timeZone} onAdd={addDoneToEntry} />

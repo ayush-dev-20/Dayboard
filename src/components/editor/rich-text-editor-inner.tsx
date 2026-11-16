@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import type { AnyExtension } from "@tiptap/core";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { useWorkspace } from "@/components/workspace/workspace-context";
 import { AiEditPanel } from "./ai-edit-panel";
@@ -67,6 +68,11 @@ export type RichTextEditorProps = {
   template?: boolean;
   /** Shown but not editable (a viewer or commenter of a shared note, V3 feature 04): no toolbar, no menus. */
   readOnly?: boolean;
+  /**
+   * Live editing (V3 feature 05): the Collaboration extensions, already made for one shared document. The text then comes
+   * from the document, not from `initialContent`, and the built-in history is off.
+   */
+  collab?: { extensions: AnyExtension[] };
 };
 
 const subscribeOnline = (notify: () => void) => {
@@ -101,6 +107,7 @@ export default function RichTextEditor({
   subNotes = true,
   template = false,
   readOnly = false,
+  collab,
 }: RichTextEditorProps) {
   const offline = !useSyncExternalStore(
     subscribeOnline,
@@ -133,13 +140,17 @@ export default function RichTextEditor({
   const editor = useEditor({
     immediatelyRender: false,
     editable: !readOnly,
-    content: initialContent ?? undefined,
+    content: collab ? undefined : (initialContent ?? undefined),
     autofocus: autoFocus ? "end" : false,
-    extensions: createExtensions(placeholder, {
-      interactive: true,
-      getContext: holder.get,
-      onLimit: (message) => toast(message),
-    }),
+    extensions: [
+      ...createExtensions(placeholder, {
+        interactive: true,
+        collab: Boolean(collab),
+        getContext: holder.get,
+        onLimit: (message) => toast(message),
+      }),
+      ...(collab?.extensions ?? []),
+    ],
     editorProps: {
       // ⌘/Ctrl+Shift+J opens Writing help for the current selection.
       handleKeyDown: (_view, event) => {

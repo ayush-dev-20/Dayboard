@@ -19,6 +19,7 @@ import {
   normalizeInviteEmail,
 } from "@/lib/sharing/invitations";
 import { accessibleWhere } from "@/modules/permissions/access";
+import { recheckCollabAccess } from "@/lib/collab/notify";
 import { requireOwner } from "@/modules/permissions/acting";
 import type { GrantRole } from "@/modules/permissions/types";
 
@@ -282,6 +283,7 @@ export async function changeShareRole(
     [resourceRef(grant.resourceType, grant.resourceId), { type: "grant", id: grant.id }],
     `Changed 1 person's role to ${input.role.toLowerCase()}.`,
   );
+  await recheckCollabAccess();
 }
 
 export async function removeShare(actorId: string, grantId: string) {
@@ -294,6 +296,7 @@ export async function removeShare(actorId: string, grantId: string) {
     [resourceRef(grant.resourceType, grant.resourceId), { type: "grant", id: grant.id }],
     "Removed 1 person's access.",
   );
+  await recheckCollabAccess();
 }
 
 /** Stops sharing an item: removes every grant on it and withdraws every open invitation. Owner only. */
@@ -304,7 +307,7 @@ export async function revokeAllShares(
 ): Promise<{ removed: number; withdrawn: number }> {
   assertSharingOn();
   await requireOwner(actorId, input.type, input.id);
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const removed = await tx
       .delete(resourceGrants)
       .where(
@@ -338,6 +341,8 @@ export async function revokeAllShares(
     );
     return { removed: removed.length, withdrawn: withdrawn.length };
   });
+  await recheckCollabAccess();
+  return result;
 }
 
 export async function leaveShare(actorId: string, grantId: string) {
@@ -349,6 +354,7 @@ export async function leaveShare(actorId: string, grantId: string) {
   if (!grant) throw new AppError("NOT_FOUND");
   await db.delete(resourceGrants).where(eq(resourceGrants.id, grant.id));
   await audit(actorId, "share.leave", [{ type: "grant", id: grant.id }], "Left 1 shared item.");
+  await recheckCollabAccess();
 }
 
 export async function revokeInvitation(actorId: string, id: string, now = new Date()) {

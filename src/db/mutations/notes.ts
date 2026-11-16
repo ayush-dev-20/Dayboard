@@ -5,8 +5,10 @@ import { inTransaction, type Executor, type Tx } from "@/db/executor";
 import { assertOwnedNote, assertOwnedProject, assertOwnedTask } from "@/db/mutations/guards";
 import { projectDoc, syncNoteLinks } from "@/db/mutations/note-links";
 import { orderAtTopOf } from "@/db/mutations/note-tree";
-import { notes, taskNotes } from "@/db/schema";
+import { noteCollabDocs, notes, taskNotes } from "@/db/schema";
+import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors";
+import { noteEditorIds } from "@/modules/permissions/editors";
 import { orderBetween, renumber } from "@/lib/tasks/ordering";
 import { subNotesToLinks } from "@/lib/editor/clipboard/fit";
 import type { TiptapDoc } from "@/lib/editor/types";
@@ -26,6 +28,28 @@ export {
 
 // Every function takes the signed-in person's id first and puts it in every WHERE clause. Someone
 // else's note behaves exactly like one that doesn't exist.
+
+export const LIVE_NOTE_MESSAGE =
+  "This note is being edited together with other people. Reload the page to join.";
+
+/**
+ * While people are editing a note together (V3 feature 05, a `note_collab_docs` row exists), the shared document is the
+ * truth and the projector writes `notes`. An ordinary save from an old tab would be overwritten at the next projection,
+ * so it is refused and the editor reloads into live mode.
+ */
+async function assertNotLive(executor: Executor, noteId: string): Promise<void> {
+  const [row] = await executor
+    .select({ noteId: noteCollabDocs.noteId })
+    .from(noteCollabDocs)
+    .where(eq(noteCollabDocs.noteId, noteId))
+    .limit(1);
+  if (!row) return;
+  // A live document that nobody can edit any more (the last editor was removed) or that the service no longer runs
+  // for (`COLLAB_URL` cleared) is retired here: the service already projected it when the last person left.
+  if (env.collabEnabled && (await noteEditorIds(noteId, executor)).length > 0)
+    throw new AppError("CONFLICT", LIVE_NOTE_MESSAGE);
+  await executor.delete(noteCollabDocs).where(eq(noteCollabDocs.noteId, noteId));
+}
 
 const EMPTY_DOC: TiptapDoc = { type: "doc", content: [] };
 
@@ -101,6 +125,7 @@ export async function saveNoteContent(
   input: { id: string; contentJson: TiptapDoc; baseVersion: number; updatedBy?: string | null },
 ): Promise<SaveResult> {
   return db.transaction(async (tx) => {
+    await assertNotLive(tx, input.id);
     const doc = await forNoteKind(tx, userId, input.id, input.contentJson);
     const { text, titles } = await projectDoc(tx, userId, doc);
     const [row] = await tx
@@ -144,6 +169,7 @@ export async function saveNoteTitle(
   userId: string,
   input: { id: string; title: string; baseVersion: number; updatedBy?: string | null },
 ): Promise<SaveResult> {
+  await assertNotLive(db, input.id);
   const [row] = await db
     .update(notes)
     .set({
@@ -163,12 +189,49 @@ export async function updateNoteEmoji(
   id: string,
   emoji: string | null,
 ): Promise<void> {
+  await assertNotLive(db, id);
   const [row] = await db
     .update(notes)
     .set({ emoji })
     .where(owned(userId, id))
     .returning({ id: notes.id });
   if (!row) throw new AppError("NOT_FOUND");
+}
+
+/**
+ * The projector's write (V3 feature 05 §4): the shared document's text, title and emoji go into the note's ordinary columns
+ * through the same pieces an ordinary save uses (the text copy, the titles of linked notes, `note_links`), with no
+ * version check, because the live document is the truth while it exists. `owner` is the note's owner.
+ */
+export async function projectNoteFromLive(
+  owner: string,
+  input: {
+    id: string;
+    contentJson: TiptapDoc;
+    title: string;
+    emoji: string | null;
+    updatedBy: string | null;
+  },
+): Promise<{ version: number } | null> {
+  return db.transaction(async (tx) => {
+    const doc = await forNoteKind(tx, owner, input.id, input.contentJson);
+    const { text, titles } = await projectDoc(tx, owner, doc);
+    const [row] = await tx
+      .update(notes)
+      .set({
+        contentJson: doc,
+        contentText: text,
+        title: input.title,
+        emoji: input.emoji,
+        updatedByUserId: input.updatedBy,
+        version: sql`${notes.version} + 1`,
+      })
+      .where(owned(owner, input.id))
+      .returning({ version: notes.version });
+    if (!row) return null;
+    await syncNoteLinks(tx, owner, { type: "NOTE", id: input.id }, doc, titles);
+    return { version: row.version };
+  });
 }
 
 /** Both the task and the note must be the person's, or this is NOT_FOUND. Linking twice is a no-op. */

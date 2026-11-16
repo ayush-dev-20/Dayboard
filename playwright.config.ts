@@ -4,6 +4,9 @@ import { fakeMicrophoneFile } from "./e2e/voice-audio";
 
 // Locally, use the installed Google Chrome so no extra browser download is needed. CI installs
 // Playwright's own Chromium (`playwright install --with-deps chromium`).
+const COLLAB_PORT = 1235;
+const COLLAB_TOKEN_SECRET = "e2e-collab-token-secret-0123456789abcdef";
+const COLLAB_INTERNAL_SECRET = "e2e-collab-internal-secret-0123456789abc";
 const channel = process.env.CI ? undefined : "chrome";
 
 export default defineConfig({
@@ -55,48 +58,76 @@ export default defineConfig({
       use: { ...devices["Pixel 7"], channel },
     },
   ],
-  webServer: {
-    // Applies migrations to the test database, builds, and serves the production build.
-    command: `pnpm db:migrate && pnpm build && pnpm start -p ${PORT}`,
-    url: `${baseURL}/api/health`,
-    timeout: 300_000,
-    reuseExistingServer: !process.env.CI,
-    stdout: "pipe",
-    env: {
-      // Its own build folder, so a test run never disturbs a developer's running `next dev`.
-      NEXT_DIST_DIR: ".next-e2e",
-      E2E: "true",
-      // Tests never depend on a developer's own .env.local: sign-in providers stay off.
-      GOOGLE_CLIENT_ID: "",
-      GOOGLE_CLIENT_SECRET: "",
-      GITHUB_CLIENT_ID: "",
-      GITHUB_CLIENT_SECRET: "",
-      // CI and local runs never reach a real AI provider: always the mock, with no key at all.
-      AI_PROVIDER: "mock",
-      AI_API_KEY: "",
-      AI_MOCK_MODE: "",
-      AI_LIMIT_PER_MINUTE: "10",
-      AI_LIMIT_PER_DAY: "100",
-      // Tick mode (feature 08) is how a test runs the background jobs, such as the search index (feature 10).
-      JOBS_TICK_SECRET: "e2e-tick-secret-0123456789abcdefghijkl",
-      // Calendar (feature 12): the mock provider, never Google, and a fixed test key (32 bytes, base64).
-      CALENDAR_PROVIDER: "mock",
-      PUSH_PROVIDER: "mock",
-      VAPID_PUBLIC_KEY: "",
-      VAPID_PRIVATE_KEY: "",
-      VAPID_SUBJECT: "",
-      GOOGLE_CALENDAR_CLIENT_ID: "",
-      GOOGLE_CALENDAR_CLIENT_SECRET: "",
-      GOOGLE_CALENDAR_REDIRECT_URI: "",
-      TOKEN_ENCRYPTION_KEY: "dGVzdC1vbmx5LWtleS0zMi1ieXRlcy1sb25nLTEyMzQ=",
-      DATABASE_URL: E2E_DATABASE_URL,
-      BETTER_AUTH_SECRET: "e2e-only-secret-not-used-anywhere-else-0123456789",
-      BETTER_AUTH_URL: baseURL,
-      NEXT_PUBLIC_APP_URL: baseURL,
-      // A test seam (V3 feature 01): a canvas page exposes its drawing as `window.__canvasApi`, so a test can find a box.
-      NEXT_PUBLIC_E2E: "1",
-      // Sharing (V3 feature 04) is staged behind a flag; tests exercise it.
-      SHARING_ENABLED: "true",
+  webServer: [
+    {
+      // Applies migrations to the test database, builds, and serves the production build.
+      command: `pnpm db:migrate && pnpm build && pnpm start -p ${PORT}`,
+      url: `${baseURL}/api/health`,
+      timeout: 300_000,
+      reuseExistingServer: !process.env.CI,
+      stdout: "pipe",
+      env: {
+        // Its own build folder, so a test run never disturbs a developer's running `next dev`.
+        NEXT_DIST_DIR: ".next-e2e",
+        E2E: "true",
+        // Tests never depend on a developer's own .env.local: sign-in providers stay off.
+        GOOGLE_CLIENT_ID: "",
+        GOOGLE_CLIENT_SECRET: "",
+        GITHUB_CLIENT_ID: "",
+        GITHUB_CLIENT_SECRET: "",
+        // CI and local runs never reach a real AI provider: always the mock, with no key at all.
+        AI_PROVIDER: "mock",
+        AI_API_KEY: "",
+        AI_MOCK_MODE: "",
+        AI_LIMIT_PER_MINUTE: "10",
+        AI_LIMIT_PER_DAY: "100",
+        // Tick mode (feature 08) is how a test runs the background jobs, such as the search index (feature 10).
+        JOBS_TICK_SECRET: "e2e-tick-secret-0123456789abcdefghijkl",
+        // Calendar (feature 12): the mock provider, never Google, and a fixed test key (32 bytes, base64).
+        CALENDAR_PROVIDER: "mock",
+        PUSH_PROVIDER: "mock",
+        VAPID_PUBLIC_KEY: "",
+        VAPID_PRIVATE_KEY: "",
+        VAPID_SUBJECT: "",
+        GOOGLE_CALENDAR_CLIENT_ID: "",
+        GOOGLE_CALENDAR_CLIENT_SECRET: "",
+        GOOGLE_CALENDAR_REDIRECT_URI: "",
+        TOKEN_ENCRYPTION_KEY: "dGVzdC1vbmx5LWtleS0zMi1ieXRlcy1sb25nLTEyMzQ=",
+        DATABASE_URL: E2E_DATABASE_URL,
+        BETTER_AUTH_SECRET: "e2e-only-secret-not-used-anywhere-else-0123456789",
+        BETTER_AUTH_URL: baseURL,
+        NEXT_PUBLIC_APP_URL: baseURL,
+        // A test seam (V3 feature 01): a canvas page exposes its drawing as `window.__canvasApi`, so a test can find a box.
+        NEXT_PUBLIC_E2E: "1",
+        // Sharing (V3 feature 04) is staged behind a flag; tests exercise it.
+        SHARING_ENABLED: "true",
+        // Real-time collaboration (V3 feature 05): the service below, on its own port.
+        COLLAB_URL: `ws://localhost:${COLLAB_PORT}`,
+        COLLAB_TOKEN_SECRET: COLLAB_TOKEN_SECRET,
+        COLLAB_INTERNAL_SECRET: COLLAB_INTERNAL_SECRET,
+        COLLAB_INTERNAL_URL: `http://127.0.0.1:${COLLAB_PORT}`,
+        COLLAB_PORT: String(COLLAB_PORT),
+      },
     },
-  },
+    {
+      // The collaboration service (feature 05), built from the same sources, against the same test database.
+      command: "pnpm build:collab && node dist/collab.mjs",
+      url: `http://127.0.0.1:${COLLAB_PORT}/health`,
+      timeout: 120_000,
+      reuseExistingServer: !process.env.CI,
+      stdout: "pipe",
+      env: {
+        E2E: "true",
+        DATABASE_URL: E2E_DATABASE_URL,
+        BETTER_AUTH_SECRET: "e2e-only-secret-not-used-anywhere-else-0123456789",
+        BETTER_AUTH_URL: baseURL,
+        NEXT_PUBLIC_APP_URL: baseURL,
+        SHARING_ENABLED: "true",
+        COLLAB_URL: `ws://localhost:${COLLAB_PORT}`,
+        COLLAB_TOKEN_SECRET: COLLAB_TOKEN_SECRET,
+        COLLAB_INTERNAL_SECRET: COLLAB_INTERNAL_SECRET,
+        COLLAB_PORT: String(COLLAB_PORT),
+      },
+    },
+  ],
 });

@@ -913,3 +913,51 @@
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* Live editing (V3 feature 05 §6): another person's cursor, with their name in a small tag that fades after a few seconds.
+   The tag carries the person's name, so the colour is never the only signal. No motion for reduced-motion users. */
+.collaboration-carets__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 2px solid;
+  border-right: 0;
+  word-break: normal;
+  pointer-events: none;
+}
+.collaboration-carets__label {
+  position: absolute;
+  top: -1.45em;
+  left: -2px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .collaboration-carets__label {
+    animation: caret-label-fade 0.2s ease 3s forwards;
+  }
+  .collaboration-carets__caret:hover .collaboration-carets__label {
+    animation: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .collaboration-carets__label {
+    opacity: 0;
+  }
+  .collaboration-carets__caret:hover .collaboration-carets__label {
+    opacity: 1;
+  }
+}
+@keyframes caret-label-fade {
+  to {
+    opacity: 0;
+  }
+}
